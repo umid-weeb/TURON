@@ -1,59 +1,62 @@
 import React from 'react';
 import { MOCK_CATEGORIES, MOCK_PRODUCTS } from '../../data/mockData';
-import { CategoryCard, ProductCard } from '../../components/customer/CustomerComponents';
+import { CategoryCard, ProductCard, LoadingSkeleton } from '../../components/customer/CustomerComponents';
 import { useAuthStore } from '../../store/useAuthStore';
 
-export const HomePage: React.FC = () => {
+const HomePage: React.FC = () => {
   const { user } = useAuthStore();
-  const firstName = user?.fullName.split(' ')[0] || 'Mijoz';
+  const userName = user?.name || 'Mijoz';
+  const featuredProducts = MOCK_PRODUCTS.slice(0, 4);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Welcome Section */}
-      <section className="mt-2">
-        <h2 className="text-3xl font-black text-gray-900 leading-none mb-2">
-          Salom, <span className="text-amber-500">{firstName}!</span>
-        </h2>
-        <p className="text-sm font-medium text-gray-500 uppercase tracking-widest">Bugun nima yeymiz? 🥘</p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Welcome Block */}
+      <section className="bg-amber-500 rounded-[32px] p-6 text-white shadow-xl shadow-amber-100 flex items-center justify-between">
+        <div className="space-y-1">
+          <p className="opacity-80 font-bold text-xs uppercase tracking-widest leading-none">Xush kelibsiz!</p>
+          <h2 className="text-2xl font-black tracking-tight">{userName} 👋</h2>
+        </div>
+        <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-2xl">
+          😋
+        </div>
       </section>
 
-      {/* Categories Horizontal Scroll */}
+      {/* Categories */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900 tracking-tight">Bo’limlar</h3>
-          <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter cursor-pointer">Hammasi</span>
+          <h3 className="font-black text-[15px] uppercase tracking-wide text-gray-900">Kategoriyalar</h3>
+          <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg">Barchasi</span>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 no-scrollbar">
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1">
           {MOCK_CATEGORIES.map(category => (
             <CategoryCard key={category.id} category={category} />
           ))}
         </div>
       </section>
 
-      {/* Popular Products */}
+      {/* Popular Items */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900 tracking-tight">Ommabop Taomlar</h3>
-          <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter cursor-pointer">Siz uchun</span>
+          <h3 className="font-black text-[15px] uppercase tracking-wide text-gray-900">Ommabop taomlar</h3>
+          <span className="text-[11px] font-bold text-gray-400">Yangi</span>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          {MOCK_PRODUCTS.slice(0, 10).map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+          {featuredProducts.length > 0 ? (
+            featuredProducts.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))
+          ) : (
+            <LoadingSkeleton />
+          )}
         </div>
       </section>
       
-      {/* All Products */}
-       <section className="pb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900 tracking-tight">Barcha Taomlar</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {MOCK_PRODUCTS.slice(10).map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+      {/* Banner/Info */}
+      <section className="bg-gray-100 rounded-[28px] p-6 text-center border-dashed border-2 border-gray-200">
+        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Yetkazib berish xizmati qisqa fursatda ishga tushadi!</p>
       </section>
     </div>
   );
 };
+
+export default HomePage;

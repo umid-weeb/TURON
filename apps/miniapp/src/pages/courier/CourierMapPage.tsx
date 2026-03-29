@@ -1,101 +1,131 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CourierMapView } from '../../components/courier/CourierMapView';
-import { CourierOrderActionBar } from '../../components/courier/CourierOrderActionBar';
-import { RouteInfoCard, DeliveryStageCard } from '../../components/courier/DeliveryInfoCards';
-import { DeliveryStageEnum } from '@turon/shared';
-import axios from 'axios';
+import { 
+  ArrowLeft, 
+  MapPin, 
+  Phone, 
+  Navigation, 
+  CheckCircle2, 
+  Clock, 
+  Truck,
+  MessageCircle,
+  ArrowRight,
+  Info,
+  ChevronLeft
+} from 'lucide-react';
+import { useOrdersStore } from '../../store/useOrdersStore';
+import { DeliveryStage, Order } from '../../data/types';
+import { MockMapProvider } from '../../features/maps/providers/MockMapProvider';
+import { DeliveryBottomPanel, RouteInfoPanel } from '../../components/courier/CourierComponents';
 
-export const CourierMapPage: React.FC = () => {
+const CourierMapPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const { getOrderById, updateDeliveryStage, updateOrderStatus } = useOrdersStore();
   
-  // State for order details (Mocked for now, will connect to API)
-  const [order, setOrder] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [courierPos, setCourierPos] = useState({ lat: 41.311081, lng: 69.240562 }); // Default to restaurant
+  const [order, setOrder] = useState<Order | undefined>(orderId ? getOrderById(orderId) : undefined);
 
   useEffect(() => {
-    async function fetchOrderDetail() {
-      try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await axios.get(`${apiUrl}/courier/order/${orderId}`);
-        setOrder(response.data);
-      } catch (err: any) {
-        setError(err.response?.data?.error || 'Buyurtma ma’lumotlarini yuklab bo’lmadi.');
-      } finally {
-        setLoading(false);
-      }
+    if (!order && orderId) {
+      const found = getOrderById(orderId);
+      if (found) setOrder(found);
+    }
+  }, [orderId, getOrderById, order]);
+
+  if (!order) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <h3 className="text-xl font-black text-slate-900 mb-2 italic uppercase">Buyurtma topilmadi</h3>
+        <button onClick={() => navigate('/courier/orders')} className="text-indigo-600 font-bold uppercase tracking-widest text-[10px]">Ro'yxatga qaytish</button>
+      </div>
+    );
+  }
+
+  const handleStageAction = (nextStage: DeliveryStage) => {
+    updateDeliveryStage(order.id, nextStage);
+    
+    // Sync with general order status for Admin/Customer
+    if (nextStage === 'PICKED_UP') {
+      updateOrderStatus(order.id, 'PICKED_UP');
+    } else if (nextStage === 'ON_THE_WAY') {
+      updateOrderStatus(order.id, 'DELIVERING');
+    } else if (nextStage === 'DELIVERED') {
+      updateOrderStatus(order.id, 'DELIVERED');
+      // Redirect after a small delay to show success
+      setTimeout(() => navigate('/courier/orders'), 2000);
     }
 
-    fetchOrderDetail();
+    setOrder({ ...order, deliveryStage: nextStage });
 
-    // Track courier position
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setCourierPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      },
-      (err) => console.error('Geolocation error:', err),
-      { enableHighAccuracy: true }
-    );
-
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [orderId]);
-
-  const handleStageChange = async (nextStage: DeliveryStageEnum) => {
-    if (!order) return;
-    
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      await axios.patch(`${apiUrl}/courier/order/${orderId}/stage`, { stage: nextStage });
-      
-      // Update local state or re-fetch
-      setOrder({ ...order, deliveryStage: nextStage });
-      
-      if (nextStage === DeliveryStageEnum.DELIVERED) {
-        alert('Tashakkur! Buyurtma muvaffaqiyatli yetkazildi.');
-        navigate('/courier/orders');
-      }
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Xatolik yuz berdi. Qaytadan urinib ko’ring.');
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Yuklanmoqda...</div>;
-  if (error || !order) return <div className="p-8 text-center text-red-500">{error || 'Buyurtma topilmadi.'}</div>;
+  const handleCall = () => {
+    alert(`Qo'ng'iroq qilinmoqda: ${order.customerAddress?.label || 'Mijoz'}`);
+  };
+
+  // Map Data
+  const restaurantPos = { lat: 41.311081, lng: 69.240562 }; // Mock restaurant position
+  const customerPos = order.customerAddress ? { 
+    lat: order.customerAddress.latitude, 
+    lng: order.customerAddress.longitude 
+  } : restaurantPos;
+
+  const markers = [
+    { id: 'restaurant', position: restaurantPos, label: 'KAFE', type: 'PICKUP' as const },
+    { id: 'customer', position: customerPos, label: 'MIJOZ', type: 'DELIVERY' as const },
+    { id: 'courier', position: restaurantPos, label: 'Siz', type: 'COURIER' as const }
+  ];
+
+  const currentStage = order.deliveryStage || 'IDLE';
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      {/* Map Section */}
-      <div className="flex-1 relative">
-        <CourierMapView
-          pickup={{ lat: Number(order.pickupLat), lng: Number(order.pickupLng) }}
-          destination={{ lat: Number(order.destinationLat), lng: Number(order.destinationLng) }}
-          courierPos={courierPos}
-          apiKey={import.meta.env.VITE_YANDEX_MAPS_KEY}
+    <div className="h-screen w-full relative bg-slate-100 overflow-hidden font-sans">
+      {/* Map Background */}
+      <div className="absolute inset-0 z-0">
+        <MockMapProvider.Component 
+          initialCenter={restaurantPos}
+          markers={markers}
+          showRoute={currentStage !== 'IDLE' && currentStage !== 'DELIVERED'}
+          height="100%"
         />
-        
-        {/* Info Overlays */}
-        <div className="absolute top-4 left-4 right-4 z-10">
-          <RouteInfoCard 
-            distanceKm={order.distanceKm || 2.4} 
-            estimatedMinutes={order.estimatedMinutes || 12} 
-          />
-          <DeliveryStageCard stage={order.deliveryStage} />
+      </div>
+
+      {/* Floating Header Actions */}
+      <div className="absolute top-6 left-6 z-40 bg-white/80 backdrop-blur-xl p-2 rounded-2xl shadow-xl border border-white/50 flex items-center gap-4">
+        <button 
+          onClick={() => navigate(`/courier/order/${order.id}`)}
+          className="w-12 h-12 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-400 active:scale-90 transition-transform"
+        >
+          <ChevronLeft size={24} />
+        </button>
+        <div className="pr-4">
+           <h2 className="text-sm font-black text-slate-900 leading-none italic uppercase italic tracking-tighter italic">#{order.orderNumber}</h2>
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic italic">Yetkazish rejimi</p>
         </div>
       </div>
 
+      {/* Route Navigation Info (Shows when active) */}
+      {currentStage !== 'IDLE' && currentStage !== 'DELIVERED' && (
+        <div className="animate-in slide-in-from-top duration-700">
+           <RouteInfoPanel 
+              distance={currentStage === 'PICKED_UP' || currentStage === 'ON_THE_WAY' ? '1.2 km' : '350 m'} 
+              eta={currentStage === 'PICKED_UP' || currentStage === 'ON_THE_WAY' ? '8 daq' : '2 daq'} 
+           />
+        </div>
+      )}
+
       {/* Bottom Action Panel */}
-      <CourierOrderActionBar
-        stage={order.deliveryStage}
-        customerName={order.customerName}
-        phoneNumber={order.customerPhone}
-        address={order.destinationAddress}
-        orderTotal={Number(order.totalAmount)}
-        paymentMethod={order.paymentMethod}
-        onStageChange={handleStageChange}
+      <DeliveryBottomPanel 
+        order={order} 
+        currentStage={currentStage} 
+        onAction={handleStageAction}
+        onCall={handleCall}
       />
     </div>
   );
 };
+
+export default CourierMapPage;

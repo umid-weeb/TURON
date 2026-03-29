@@ -1,106 +1,87 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Map as MapIcon, ChevronRight, Clock } from 'lucide-react';
-import axios from 'axios';
-import { DeliveryStageEnum, OrderStatusEnum } from '@turon/shared';
+import { 
+  ShoppingBag, 
+  MapPin, 
+  Clock, 
+  ChevronRight,
+  Navigation
+} from 'lucide-react';
+import { useOrdersStore } from '../../store/useOrdersStore';
+import { CourierOrderCard } from '../../components/courier/CourierComponents';
 
-export const CourierOrdersPage: React.FC = () => {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const CourierOrdersPage: React.FC = () => {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    async function fetchOrders() {
-      try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await axios.get(`${apiUrl}/courier/orders`);
-        setOrders(response.data);
-      } catch (err: any) {
-        setError(err.response?.data?.error || 'Buyurtmalarni yuklab bo’lmadi.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchOrders();
-  }, []);
-
-  if (loading) return <div className="p-8 text-center text-gray-500">Buyurtmalar yuklanmoqda...</div>;
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+  const { orders } = useOrdersStore();
+  
+  // Mock courier ID for demonstration
+  const COURIER_ID = 'c1'; 
+  const courierOrders = orders.filter(o => o.courierId === COURIER_ID && o.orderStatus !== 'DELIVERED');
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 pb-20">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900">Mening Buyurtmalarim</h1>
-          <p className="text-xs text-gray-500 font-medium">Hozirgi va yangi buyurtmalar</p>
+    <div className="px-6 py-6 space-y-6 animate-in fade-in duration-500">
+      {/* Header Summary */}
+      <div className="bg-indigo-600 rounded-[32px] p-8 text-white shadow-2xl shadow-indigo-100 flex justify-between items-center relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-3xl font-black tracking-tighter italic uppercase leading-none">Vazifalar</h2>
+          <p className="text-[11px] font-black uppercase tracking-widest mt-2 text-indigo-200">
+            {courierOrders.length > 0 ? `${courierOrders.length} ta faol buyurtma` : 'Yangi buyurtmalar kutilmoqda'}
+          </p>
         </div>
-        <div className="bg-amber-100 text-amber-600 px-3 py-1 rounded-full text-xs font-bold">
-          {orders.length} ta faol
+        <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md relative z-10">
+           <Navigation size={32} />
         </div>
-      </header>
+        <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
+      </div>
 
+      {/* Task List */}
       <div className="space-y-4">
-        {orders.length === 0 ? (
-          <div className="bg-white p-12 rounded-3xl text-center border-2 border-dashed border-gray-100 flex flex-col items-center">
-            <Package size={48} className="text-gray-200 mb-4" />
-            <p className="text-gray-400 font-medium">Hozircha buyurtmalar yo’q</p>
-          </div>
-        ) : (
-          orders.map((order) => (
-            <div 
-              key={order.id}
-              onClick={() => navigate(`/courier/map/${order.id}`)}
-              className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 active:scale-98 transition-transform cursor-pointer"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
-                    <Package size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">#{order.orderNumber}</h3>
-                    <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                      <Clock size={10} />
-                      {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
-                  order.deliveryStage === DeliveryStageEnum.PICKED_UP ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
-                }`}>
-                  {order.deliveryStage}
-                </span>
-              </div>
+        <div className="flex justify-between items-center px-1">
+          <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-400">Yo'nalishlar</h3>
+          <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Hammasi</span>
+        </div>
 
-              <div className="space-y-2 mb-4">
-                <p className="text-xs text-gray-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-red-400" />
-                  Restoran: <span className="font-bold text-gray-700">Turon Kafesi</span>
-                </p>
-                <p className="text-xs text-gray-500 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-400" />
-                  Mijoz: <span className="font-bold text-gray-700">{order.customerName}</span>
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Manzil</p>
-                  <p className="text-xs font-bold text-gray-800 truncate max-w-[180px]">{order.destinationAddress}</p>
-                </div>
-                <button 
-                  className="bg-amber-500 text-white p-2 px-4 rounded-xl flex items-center gap-2 text-xs font-bold shadow-md shadow-amber-200"
-                >
-                  <MapIcon size={14} />
-                  Xaritani ochish
-                </button>
-              </div>
-            </div>
+        {courierOrders.length > 0 ? (
+          courierOrders.map(order => (
+            <CourierOrderCard 
+              key={order.id} 
+              order={order} 
+              onClick={() => navigate(`/courier/order/${order.id}`)} 
+            />
           ))
+        ) : (
+          <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
+             <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300">
+                <ShoppingBag size={40} />
+             </div>
+             <div>
+                <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic italic">Buyurtmalar yo'q</h4>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Yangi vazifalarni kuting</p>
+             </div>
+          </div>
         )}
       </div>
+
+      {/* Quick Access to Active Delivery (If any) */}
+      {courierOrders.some(o => o.deliveryStage && o.deliveryStage !== 'IDLE' && o.deliveryStage !== 'DELIVERED') && (
+        <div className="fixed bottom-28 left-6 right-6 z-40 animate-bounce">
+           <button 
+             onClick={() => {
+               const active = courierOrders.find(o => o.deliveryStage !== 'IDLE' && o.deliveryStage !== 'DELIVERED');
+               if (active) navigate(`/courier/map/${active.id}`);
+             }}
+             className="w-full bg-emerald-500 text-white p-5 rounded-[24px] flex items-center justify-between shadow-xl shadow-emerald-100"
+           >
+             <div className="flex items-center gap-3">
+                <Navigation size={24} />
+                <span className="font-black uppercase tracking-widest text-xs">Aktiv yetkazishga qaytish</span>
+             </div>
+             <ChevronRight size={20} />
+           </button>
+        </div>
+      )}
     </div>
   );
 };
+
+export default CourierOrdersPage;

@@ -6,6 +6,31 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { UserRoleEnum } from '@turon/shared';
 import axios from 'axios';
 
+// --- Layouts ---
+import AdminLayout from './components/layout/AdminLayout';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import AdminOrdersPage from './pages/admin/AdminOrdersPage';
+import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage';
+
+// --- Courier Pages ---
+import CourierLayout from './components/layout/CourierLayout';
+import CourierOrdersPage from './pages/courier/CourierOrdersPage';
+import CourierOrderDetailPage from './pages/courier/CourierOrderDetailPage';
+import CourierMapPage from './pages/courier/CourierMapPage';
+
+// --- Customer Pages ---
+import HomePage from './pages/customer/HomePage';
+import CategoryPage from './pages/customer/CategoryPage';
+import ProductPage from './pages/customer/ProductPage';
+import CartPage from './pages/customer/CartPage';
+import CheckoutPage from './pages/customer/CheckoutPage';
+import OrderSuccessPage from './pages/customer/OrderSuccessPage';
+import AddressListPage from './pages/customer/AddressListPage';
+import AddressFormPage from './pages/customer/AddressFormPage';
+import MapSelectionPage from './pages/customer/MapSelectionPage';
+import OrdersPage from './pages/customer/OrdersPage';
+import OrderDetailPage from './pages/customer/OrderDetailPage';
+
 // --- Placeholder Components ---
 const LoadingScreen = () => (
   <div className="h-screen flex flex-col items-center justify-center bg-amber-50">
@@ -29,12 +54,9 @@ const UnauthorizedScreen = () => (
   </div>
 );
 
-// --- Pages ---
-const CustomerHome = () => <div className="p-4"><h1>🛒 Mijoz Sahifasi</h1></div>;
-const AdminHome = () => <div className="p-4"><h1>🏢 Admin Paneli</h1></div>;
-const CourierHome = () => <div className="p-4"><h1>🚚 Kurer Sahifasi</h1></div>;
-const CourierOrders = () => <div className="p-4"><h1>📦 Kurer Buyurtmalari</h1></div>;
-const CourierMap = () => <div className="p-4"><h1>🗺️ Yetkazib berish xaritasi</h1></div>;
+// --- Admin/Courier Placeholders ---
+const AdminHome = () => <div className="p-4"><h1>🏢 Admin Paneli tez kunda...</h1></div>;
+const CourierHome = () => <div className="p-4"><h1>🚚 Kurer Sahifasi tez kunda...</h1></div>;
 
 // --- Main App Logic ---
 const AuthGateway: React.FC = () => {
@@ -47,6 +69,7 @@ const AuthGateway: React.FC = () => {
   useEffect(() => {
     async function bootstrap() {
       if (!initData) {
+        // For development outside Telegram, let's use a mock user if needed, or error
         setError('Telegram muhiti topilmadi. Iltimos, bot orqali kiring.');
         setLoading(false);
         return;
@@ -102,33 +125,46 @@ export default function App() {
         {/* Customer Routes */}
         <Route path="/customer" element={
           <ProtectedRoute allowedRoles={[UserRoleEnum.CUSTOMER, UserRoleEnum.ADMIN]}>
-            <CustomerHome />
+            <CustomerLayout />
           </ProtectedRoute>
-        } />
+        }>
+          <Route index element={<HomePage />} />
+          <Route path="category/:id" element={<CategoryPage />} />
+          <Route path="product/:id" element={<ProductPage />} />
+          <Route path="cart" element={<CartPage />} />
+          <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="address-success" element={<OrderSuccessPage />} /> {/* Reusing or separate? Using separate below */}
+          <Route path="order-success" element={<OrderSuccessPage />} />
+          <Route path="addresses" element={<AddressListPage />} />
+          <Route path="address/new" element={<AddressFormPage />} />
+          <Route path="address/map" element={<MapSelectionPage />} />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders/:orderId" element={<OrderDetailPage />} />
+        </Route>
 
         {/* Admin Routes */}
         <Route path="/admin" element={
           <ProtectedRoute allowedRoles={[UserRoleEnum.ADMIN]}>
-            <AdminHome />
+            <AdminLayout />
           </ProtectedRoute>
-        } />
+        }>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="orders" element={<AdminOrdersPage />} />
+          <Route path="orders/:orderId" element={<AdminOrderDetailPage />} />
+        </Route>
 
         {/* Courier Routes */}
         <Route path="/courier" element={
           <ProtectedRoute allowedRoles={[UserRoleEnum.COURIER, UserRoleEnum.ADMIN]}>
-            <CourierHome />
+            <CourierLayout />
           </ProtectedRoute>
-        } />
-        <Route path="/courier/orders" element={
-          <ProtectedRoute allowedRoles={[UserRoleEnum.COURIER, UserRoleEnum.ADMIN]}>
-            <CourierOrders />
-          </ProtectedRoute>
-        } />
-        <Route path="/courier/map/:orderId" element={
-          <ProtectedRoute allowedRoles={[UserRoleEnum.COURIER, UserRoleEnum.ADMIN]}>
-            <CourierMap />
-          </ProtectedRoute>
-        } />
+        }>
+          <Route index element={<Navigate to="orders" replace />} />
+          <Route path="orders" element={<CourierOrdersPage />} />
+          <Route path="order/:orderId" element={<CourierOrderDetailPage />} />
+          <Route path="map/:orderId" element={<CourierMapPage />} />
+        </Route>
 
         <Route path="/auth-error" element={<AuthErrorScreen message="Seans muddati tugagan yoki xato." />} />
         <Route path="/unauthorized" element={<UnauthorizedScreen />} />

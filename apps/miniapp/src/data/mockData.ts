@@ -36,6 +36,11 @@ export const MOCK_PRODUCTS: Product[] = [
     description: 'Yog’da qovurilgan, qarsildoq xamirli somsa.' 
   },
   { 
+    id: '103', categoryId: '1', name: 'Ko’k Somsa', 
+    price: 6000, image: 'https://img.freepik.com/free-photo/traditional-central-asian-puff-pastry-with-greens_140725-1034.jpg',
+    description: 'Bahoriy ko’k va o’tlar bilan tayyorlangan somsa.' 
+  },
+  { 
     id: '201', categoryId: '2', name: 'Lula Shashlik', 
     price: 22000, image: 'https://img.freepik.com/free-photo/lula-kebab-with-vegetables-plate_140725-555.jpg',
     description: 'Maydalangan go’shtdan tayyorlangan mazzali shashlik.' 
@@ -44,6 +49,11 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '202', categoryId: '2', name: 'Qo’y go’shtli Shashlik', 
     price: 25000, image: 'https://img.freepik.com/free-photo/delicious-grilled-meat-skewers-with-vegetables_23-2148184515.jpg',
     description: 'Eng sara qo’y go’shtidan tayyorlangan klassik shashlik.' 
+  },
+  { 
+    id: '203', categoryId: '2', name: 'Tovuq Shashlik', 
+    price: 18000, image: 'https://img.freepik.com/free-photo/chicken-kebab-with-spices-herbs_140725-557.jpg',
+    description: 'Yumshoq tovuq go’shtidan tayyorlangan parhezli shashlik.' 
   },
   { 
     id: '301', categoryId: '3', name: 'Toy Oshi', 
@@ -64,6 +74,11 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '402', categoryId: '4', name: 'Mastava', 
     price: 18000, image: 'https://img.freepik.com/free-photo/delicious-soup-with-vegetables-meat_23-2148419684.jpg',
     description: 'Guruchli va go’shtli an’anaviy mastava.' 
+  },
+  { 
+    id: '403', categoryId: '4', name: 'Lag’mon', 
+    price: 25000, image: 'https://img.freepik.com/free-photo/delicious-noodle-soup-with-meat-vegetables_23-2148419685.jpg',
+    description: 'Cho’zma xamirli mazzali lag’mon.' 
   },
   { 
     id: '501', categoryId: '5', name: 'Achchiq-chuchuk', 
