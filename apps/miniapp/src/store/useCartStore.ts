@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product } from '../data/mockData';
-import { AdminPromo } from '../features/promo/types';
+import type { Product } from '../data/mockData';
+import type { AdminPromo } from '../features/promo/types';
 import { validatePromo } from '../features/promo/discountEngine';
-import { CartItem } from '../data/types';
+import type { CartItem } from '../data/types';
 
 interface CartState {
   items: CartItem[];

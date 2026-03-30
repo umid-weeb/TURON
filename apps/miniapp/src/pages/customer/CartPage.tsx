@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../../store/useCartStore';
 import { useCheckoutStore } from '../../store/useCheckoutStore';
 import { CartItemCard } from '../../components/customer/CustomerComponents';
+import { AppButton, AppCard } from '../../components/ui/GlobalComponents';
 import { EmptyCartState } from '../../components/customer/CheckoutComponents';
 import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
 import { ArrowRight, Trash2, ShoppingBag } from 'lucide-react';
@@ -28,12 +29,14 @@ const CartPage: React.FC = () => {
           <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">Sizning Savatchangiz</h2>
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest leading-none italic">{items.length} xil taom tanlandi</p>
         </div>
-        <button 
+        <AppButton
           onClick={clearCart}
-          className="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center active:bg-red-100 active:scale-95 transition-all shadow-sm"
-        >
-          <Trash2 size={20} />
-        </button>
+          variant="danger"
+          size="sm"
+          className="w-10 h-10 p-0"
+          icon={<Trash2 size={20} />}
+          aria-label="Savatni tozalash"
+        />
       </div>
 
       {/* Cart Items List */}
@@ -52,7 +55,7 @@ const CartPage: React.FC = () => {
       <CustomerPromoInputCard subtotal={subtotal} />
 
       {/* Totals Summary */}
-      <section className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 space-y-4">
+      <AppCard className="rounded-[32px] p-6 shadow-sm border border-gray-100 space-y-4" border>
         <div className="space-y-3">
           <div className="flex justify-between items-center text-sm font-bold text-gray-500">
             <span>Buyurtma summasi</span>
@@ -76,17 +79,20 @@ const CartPage: React.FC = () => {
           <span className="text-gray-400 font-black uppercase tracking-widest text-[11px]">Umumiy:</span>
           <span className="text-2xl font-black text-gray-900 tracking-tight">{finalTotal.toLocaleString()} so'm</span>
         </div>
-      </section>
+      </AppCard>
 
       {/* Checkout Sticky Footer */}
       <div className="fixed bottom-24 left-0 right-0 px-6 z-40 bg-gradient-to-t from-gray-50 via-gray-50/90 to-transparent pt-10 pb-2">
-        <button 
+        <AppButton
           onClick={() => navigate('/customer/checkout')}
-          className="w-full h-16 bg-amber-500 text-white rounded-[28px] font-black text-lg shadow-2xl shadow-amber-200 active:bg-amber-600 active:scale-[0.98] flex items-center justify-center gap-3"
+          fullWidth
+          variant="primary"
+          size="lg"
+          icon={<ArrowRight size={24} />}
+          className="h-16 rounded-[28px]"
         >
-          <span>Buyurtma berish</span>
-          <ArrowRight size={24} />
-        </button>
+          Buyurtma berish
+        </AppButton>
       </div>
     </div>
   );

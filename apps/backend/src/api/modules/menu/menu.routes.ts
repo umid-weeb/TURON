@@ -5,12 +5,12 @@ import {
   getProductById, 
   handleCreateCategory, 
   handleCreateProduct 
-} from './menu.controller';
+} from './menu.controller.js';
 import { 
   IdParamSchema, 
   CategorySchema, 
   MenuItemSchema 
-} from '../../utils/schemas';
+} from '../../utils/schemas.js';
 import { UserRoleEnum } from '@turon/shared';
 
 export default async function menuRoutes(fastify: FastifyInstance) {

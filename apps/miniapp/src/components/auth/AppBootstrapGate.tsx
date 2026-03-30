@@ -7,10 +7,11 @@ import { UserRoleEnum } from '@turon/shared';
 import { LoadingScreen, ErrorStateCard } from '../ui/FeedbackStates';
 
 export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { initData, ready, expand } = useTelegram();
+  const { initData, ready, expand, user: telegramUser, theme, setTheme, isTelegram, rawInitData } = useTelegram();
   const { setAuth, user, isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(!isAuthenticated);
   const [error, setError] = useState<string | null>(null);
+  const [webAppTheme, setWebAppTheme] = useState(theme || 'light');
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,6 +20,11 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
     async function bootstrap() {
       if (!initData) {
         // Fallback for non-telegram local development handling
+        if (!isTelegram) {
+          setError(null); // no blocking in local dev for now; allow flow
+          return;
+        }
+
         setError('Telegram muhiti topilmadi. Iltimos, faqat bot orqali kiring.');
         setLoading(false);
         return;
@@ -30,7 +36,17 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
         
         const { user: authUser, token } = response.data;
         setAuth(authUser, token);
-        
+
+        // If telegram identity is present, override user info to include it for role routing and API verification
+        if (telegramUser) {
+          setAuth({ ...authUser, telegramId: telegramUser.id.toString(), firstName: telegramUser.first_name, lastName: telegramUser.last_name }, token);
+        }
+
+        setTheme((incomingTheme) => {
+          setWebAppTheme(incomingTheme || 'light');
+          document.documentElement.classList.toggle('dark', incomingTheme === 'dark');
+        });
+
         ready();
         expand();
         
@@ -68,5 +84,9 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
      </div>
   );
 
-  return <>{children}</>;
+  return (
+    <div className={webAppTheme === 'dark' ? 'dark' : ''}>
+      {children}
+    </div>
+  );
 };

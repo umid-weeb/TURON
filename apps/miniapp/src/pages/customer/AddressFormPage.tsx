@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, Map, Navigation, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Save, Map, Navigation, CheckCircle2 } from 'lucide-react';
 import { useAddressStore } from '../../store/useAddressStore';
 import { GeoLocationButton } from '../../components/customer/AddressComponents';
+import { AppButton, AppInput } from '../../components/ui/GlobalComponents';
 
 const AddressFormPage: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +24,17 @@ const AddressFormPage: React.FC = () => {
       setError('Iltimos, manzilni to\'liq kiriting');
       return;
     }
+
+    if (draftAddress.latitude && (draftAddress.latitude < -90 || draftAddress.latitude > 90)) {
+      setError('Latitude -90 dan 90 gacha bo\'lishi kerak');
+      return;
+    }
+
+    if (draftAddress.longitude && (draftAddress.longitude < -180 || draftAddress.longitude > 180)) {
+      setError('Longitude -180 dan 180 gacha bo\'lishi kerak');
+      return;
+    }
+
     saveAddress(draftAddress);
     clearDraft();
     navigate('/customer/addresses');
@@ -102,6 +114,26 @@ const AddressFormPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Manual Coordinates */}
+      <div className="grid grid-cols-2 gap-3">
+        <AppInput
+          label="Latitude"
+          type="number"
+          value={draftAddress.latitude || ''}
+          onChange={(e) => updateDraft({ latitude: Number(e.target.value) })}
+          placeholder="41.2995"
+          className="bg-white"
+        />
+        <AppInput
+          label="Longitude"
+          type="number"
+          value={draftAddress.longitude || ''}
+          onChange={(e) => updateDraft({ longitude: Number(e.target.value) })}
+          placeholder="69.2401"
+          className="bg-white"
+        />
+      </div>
+
       {/* Geolocation & Map actions */}
       <div className="grid grid-cols-1 gap-4">
         <GeoLocationButton 
@@ -121,25 +153,28 @@ const AddressFormPage: React.FC = () => {
 
       {/* Delivery Note */}
       <div className="space-y-3">
-        <label className="text-slate-400 text-[11px] font-black uppercase tracking-widest ml-1">Kuryer uchun eslatma (ixtiyoriy)</label>
-        <input
+        <AppInput
+          label="Kuryer uchun eslatma (ixtiyoriy)"
           type="text"
           value={draftAddress.note || ''}
           onChange={(e) => updateDraft({ note: e.target.value })}
           placeholder="Uy kodi, qavat, kirish yo'li..."
-          className="w-full h-14 bg-white border-2 border-slate-100 rounded-2xl px-5 text-slate-900 font-bold placeholder:text-slate-300 focus:border-amber-500 focus:outline-none shadow-sm"
+          className="bg-white font-bold placeholder:text-slate-300"
         />
       </div>
 
       {/* Save Button */}
       <div className="fixed bottom-24 left-0 right-0 px-6 z-40 bg-gradient-to-t from-gray-50 via-gray-50/90 to-transparent pt-10 pb-2">
-        <button 
+        <AppButton
           onClick={handleSave}
-          className="w-full h-16 bg-amber-500 text-white rounded-[24px] font-black text-lg shadow-2xl shadow-amber-200 active:bg-amber-600 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+          variant="primary"
+          size="lg"
+          fullWidth
+          icon={<Save size={24} />}
+          className="rounded-[24px]"
         >
-          <Save size={24} />
-          <span>Manzilni saqlash</span>
-        </button>
+          Manzilni saqlash
+        </AppButton>
       </div>
     </div>
   );

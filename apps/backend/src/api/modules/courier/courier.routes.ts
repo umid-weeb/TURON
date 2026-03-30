@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { getCourierOrders, getCourierOrderDetail, updateOrderStage } from './courier.controller';
-import { IdParamSchema, UpdateDeliveryStageSchema } from '../../utils/schemas';
+import { getCourierOrders, getCourierOrderDetail, updateOrderStage } from './courier.controller.js';
+import { IdParamSchema, UpdateDeliveryStageSchema } from '../../utils/schemas.js';
 import { UserRoleEnum } from '@turon/shared';
 
 export default async function courierRoutes(fastify: FastifyInstance) {

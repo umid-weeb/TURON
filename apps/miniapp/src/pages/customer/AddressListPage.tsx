@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, MapPin, ChevronLeft } from 'lucide-react';
 import { useAddressStore } from '../../store/useAddressStore';
 import { AddressCard, AddressEmptyState } from '../../components/customer/AddressComponents';
+import { AppButton } from '../../components/ui/GlobalComponents';
 
 const AddressListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -44,12 +45,14 @@ const AddressListPage: React.FC = () => {
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Manzillarim</h2>
           <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mt-1">Yetkazib berish joyini tanlang</p>
         </div>
-        <button 
+        <AppButton
           onClick={handleAddNew}
-          className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200 active:scale-90 transition-transform"
-        >
-          <Plus size={24} strokeWidth={3} />
-        </button>
+          variant="primary"
+          size="md"
+          className="w-12 h-12 p-0 rounded-2xl"
+          icon={<Plus size={24} strokeWidth={3} />}
+          aria-label="Yangi manzil qo'shish"
+        />
       </div>
 
       {savedAddresses.length > 0 ? (
@@ -65,13 +68,15 @@ const AddressListPage: React.FC = () => {
             />
           ))}
           
-          <button 
+          <AppButton
             onClick={handleAddNew}
-            className="w-full h-16 border-2 border-dashed border-slate-200 rounded-[28px] text-slate-400 font-bold flex items-center justify-center gap-3 active:bg-slate-50 transition-colors mt-6"
+            variant="ghost"
+            size="lg"
+            className="w-full h-16 border-2 border-dashed border-slate-200 text-slate-400 mt-6"
+            icon={<Plus size={20} />}
           >
-            <Plus size={20} />
-            <span>Yangi manzil qo'shish</span>
-          </button>
+            Yangi manzil qo'shish
+          </AppButton>
         </div>
       ) : (
         <AddressEmptyState onAdd={handleAddNew} />

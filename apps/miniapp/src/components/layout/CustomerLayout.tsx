@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingBag, ChevronRight } from 'lucide-react';
-import { HeaderBar, BottomNavbar } from '../customer/CustomerComponents';
+import { AppHeader, AppContainer, AppBottomNav } from './AppLayout';
 import { useCartStore } from '../../store/useCartStore';
 
 const CustomerLayout: React.FC = () => {
@@ -27,13 +27,20 @@ const CustomerLayout: React.FC = () => {
 
   const showBack = location.pathname !== '/customer';
 
+  const navItems = [
+    { label: 'Asosiy', icon: <ShoppingBag size={18} />, path: '/customer', isActive: location.pathname === '/customer' },
+    { label: 'Savat', icon: <ShoppingBag size={18} />, path: '/customer/cart', badge: items.length, isActive: location.pathname === '/customer/cart' },
+    { label: 'Buyurtmalar', icon: <ShoppingBag size={18} />, path: '/customer/orders', isActive: location.pathname === '/customer/orders' },
+    { label: 'Xabarlar', icon: <ShoppingBag size={18} />, path: '/customer/notifications', isActive: location.pathname === '/customer/notifications' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col pb-24">
-      <HeaderBar title={getPageTitle()} showBack={showBack} />
-      <main className="flex-1 px-5 pt-4 overflow-x-hidden relative">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <AppHeader title={getPageTitle()} showBack={showBack} />
+      <AppContainer>
         <Outlet />
-      </main>
-      
+      </AppContainer>
+
       {showResumeCart && (
         <div 
           onClick={() => navigate('/customer/cart')}
@@ -53,7 +60,7 @@ const CustomerLayout: React.FC = () => {
         </div>
       )}
 
-      <BottomNavbar />
+      <AppBottomNav items={navItems} />
     </div>
   );
 };

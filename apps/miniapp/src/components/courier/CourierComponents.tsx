@@ -12,7 +12,7 @@ import {
   ArrowRight,
   Info
 } from 'lucide-react';
-import { Order, DeliveryStage } from '../../data/types';
+import { Order, DeliveryStage, OrderStatus } from '../../data/types';
 
 // --- Order Card for List ---
 export const CourierOrderCard: React.FC<{ 
@@ -76,12 +76,20 @@ export const DeliveryBottomPanel: React.FC<{
   
   const getActionContent = () => {
     switch (currentStage) {
-      case 'IDLE': return { label: 'Qabul qilish', next: 'ACCEPTED', color: 'slate-900' };
-      case 'ACCEPTED': return { label: 'Restoranga yetib keldim', next: 'ARRIVED_AT_RESTAURANT', color: 'blue-600' };
-      case 'ARRIVED_AT_RESTAURANT': return { label: 'Buyurtmani oldim', next: 'PICKED_UP', color: 'amber-500' };
-      case 'PICKED_UP': return { label: 'Yetkazishni boshlash', next: 'ON_THE_WAY', color: 'indigo-600' };
-      case 'ON_THE_WAY': return { label: 'Yetkazib berildi', next: 'DELIVERED', color: 'emerald-600' };
-      default: return { label: 'Yopish', next: null, color: 'slate-400' };
+      case DeliveryStage.IDLE:
+        return { label: 'Yo‘lga chiqaman', next: DeliveryStage.GOING_TO_RESTAURANT, color: 'slate-900' };
+      case DeliveryStage.GOING_TO_RESTAURANT:
+        return { label: 'Restoranga yetib keldim', next: DeliveryStage.ARRIVED_AT_RESTAURANT, color: 'blue-600' };
+      case DeliveryStage.ARRIVED_AT_RESTAURANT:
+        return { label: 'Buyurtmani oldim', next: DeliveryStage.PICKED_UP, color: 'amber-500' };
+      case DeliveryStage.PICKED_UP:
+        return { label: 'Yetkazishni boshlayman', next: DeliveryStage.DELIVERING, color: 'indigo-600' };
+      case DeliveryStage.DELIVERING:
+        return { label: 'Manzilga yaqin', next: DeliveryStage.ARRIVED_AT_DESTINATION, color: 'emerald-600' };
+      case DeliveryStage.ARRIVED_AT_DESTINATION:
+        return { label: 'Yetkazib berdim', next: DeliveryStage.DELIVERED, color: 'emerald-600' };
+      default:
+        return { label: 'Yopish', next: null, color: 'slate-400' };
     }
   };
 
@@ -126,7 +134,7 @@ export const DeliveryBottomPanel: React.FC<{
 
       {action.next ? (
         <button 
-          onClick={() => onAction(action.next as DeliveryStage)}
+          onClick={() => onAction(action.next)}
           className={`w-full h-18 bg-${action.color} text-white rounded-[24px] font-black uppercase tracking-widest shadow-2xl shadow-slate-200 flex items-center justify-center gap-3 active:scale-95 transition-all text-sm`}
         >
           <span>{action.label}</span>

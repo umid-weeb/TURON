@@ -51,3 +51,17 @@ export const useCourierOrders = () => {
     queryFn: () => api.get('/courier/orders'),
   });
 };
+
+export const useUpdateDeliveryStage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, stage }: { id: string; stage: string }) =>
+      api.patch(`/courier/order/${id}/stage`, { stage }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+    }
+  });
+};

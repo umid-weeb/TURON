@@ -23,7 +23,7 @@ const CourierLayout: React.FC = () => {
   
   // Active delivery check
   const activeDelivery = orders.find(
-    o => o.courierId === user?.id && ['PICKED_UP', 'ON_THE_WAY'].includes(o.orderStatus)
+    o => o.courierId === user?.id && (o.orderStatus === 'PREPARING' || o.orderStatus === 'DELIVERING')
   );
 
   const NavItem: React.FC<{ 

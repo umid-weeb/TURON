@@ -5,12 +5,12 @@ import {
   getOrderDetail, 
   handleUpdateStatus, 
   handleAssignCourier 
-} from './orders.controller';
+} from './orders.controller.js';
 import { 
   CreateOrderSchema, 
   IdParamSchema, 
   UpdateOrderStatusSchema 
-} from '../../utils/schemas';
+} from '../../utils/schemas.js';
 import { UserRoleEnum } from '@turon/shared';
 
 export default async function orderRoutes(fastify: FastifyInstance) {

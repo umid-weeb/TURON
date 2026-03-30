@@ -10,7 +10,7 @@ import {
   RefreshCw,
   ShoppingBag
 } from 'lucide-react';
-import { Order, OrderStatus } from '../../data/types';
+import { Order, OrderStatus, PaymentMethod, PaymentStatus } from '../../data/types';
 import { getStatusLabel, getStatusColor, getStatusStep, ORDER_TRACKING_STEPS } from '../../lib/orderStatusUtils';
 
 export const OrderStatusBadge: React.FC<{ status: OrderStatus }> = ({ status }) => {
@@ -65,11 +65,11 @@ export const OrderCard: React.FC<{ order: Order; onClick: () => void }> = ({ ord
           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Jami summa</span>
           <div className="flex items-center gap-2">
             <span className="font-black text-slate-900">{order.total.toLocaleString()} so'm</span>
-            {order.paymentMethod === 'EXTERNAL' && (
+            {order.paymentMethod === PaymentMethod.EXTERNAL_PAYMENT && (
               <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                order.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                order.paymentStatus === PaymentStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
               }`}>
-                {order.paymentStatus === 'PAID' ? 'To\'langan' : 'Kutilmoqda'}
+                {order.paymentStatus === PaymentStatus.COMPLETED ? 'To\'langan' : 'Kutilmoqda'}
               </span>
             )}
           </div>

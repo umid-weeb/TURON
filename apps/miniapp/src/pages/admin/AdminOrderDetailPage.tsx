@@ -19,6 +19,7 @@ import {
   CourierAssignModal, 
   PaymentVerificationCard 
 } from '../../components/admin/AdminComponents';
+import { PaymentStatus } from '../../data/types';
 import { getStatusLabel, getStatusColor } from '../../lib/orderStatusUtils';
 
 const AdminOrderDetailPage: React.FC = () => {
@@ -55,7 +56,7 @@ const AdminOrderDetailPage: React.FC = () => {
 
   const handleApprovePayment = () => {
     verifyPayment(order.id, 'Admin'); // Mock admin name for now
-    setOrder({ ...order, paymentStatus: 'PAID', verificationStatus: true });
+    setOrder({ ...order, paymentStatus: PaymentStatus.COMPLETED, verificationStatus: true });
     if (window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
     }

@@ -6,6 +6,7 @@ import { UserRoleEnum } from '@turon/shared';
 // Guards & State Shells
 import { AppBootstrapGate } from './components/auth/AppBootstrapGate';
 import { RoleGuard } from './components/auth/RoleGuard';
+import { RoleRedirect } from './components/auth/RoleRedirect';
 import { NotFoundPage } from './components/ui/FeedbackStates';
 
 // --- Layouts ---
@@ -34,6 +35,7 @@ import CourierNotificationsPage from './pages/courier/CourierNotificationsPage';
 
 // --- Customer Pages ---
 import HomePage from './pages/customer/HomePage';
+import MenuPage from './pages/customer/MenuPage';
 import CategoryPage from './pages/customer/CategoryPage';
 import ProductPage from './pages/customer/ProductPage';
 import CartPage from './pages/customer/CartPage';
@@ -62,7 +64,7 @@ export default function App() {
       <AppBootstrapGate>
         <Routes>
           {/* Base Redirect is handled inside AppBootstrapGate */}
-          <Route path="/" element={<div />} />
+          <Route path="/" element={<RoleRedirect />} />
 
           {/* Customer Module */}
           <Route path="/customer" element={
@@ -71,6 +73,7 @@ export default function App() {
             </RoleGuard>
           }>
             <Route index element={<HomePage />} />
+            <Route path="menu" element={<MenuPage />} />
             <Route path="category/:id" element={<CategoryPage />} />
             <Route path="product/:id" element={<ProductPage />} />
             <Route path="cart" element={<CartPage />} />

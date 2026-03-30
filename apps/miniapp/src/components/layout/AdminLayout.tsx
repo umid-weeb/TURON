@@ -19,7 +19,7 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { orders } = useOrdersStore();
-  const newOrdersCount = orders.filter(o => o.orderStatus === 'NEW').length;
+  const newOrdersCount = orders.filter(o => o.orderStatus === 'PENDING').length;
 
   const NavItem: React.FC<{ 
     path: string; 

@@ -26,7 +26,12 @@ export const CategoryCard: React.FC<{ category: MenuCategory }> = ({ category })
   </NavLink>
 );
 
-export const ProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
+export interface ProductCardProps {
+  product: MenuProduct;
+  onPreview?: (product: MenuProduct) => void;
+}
+
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onPreview }) => {
   const { addToCart, items } = useCartStore();
   const quantityInCart = items.find(item => item.id === product.id)?.quantity || 0;
   const isAvailable = product.isActive && product.availability === ProductAvailabilityEnum.AVAILABLE;
@@ -35,29 +40,43 @@ export const ProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => 
     e.preventDefault();
     e.stopPropagation();
     if (!isAvailable) return;
-    // Snapshot product data into cart
     addToCart({ id: product.id, categoryId: product.categoryId, name: product.name, description: product.description, price: product.price, image: product.imageUrl });
   };
 
+  const handlePreview = (e: React.MouseEvent) => {
+    if (!onPreview) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onPreview(product);
+  };
+
+  const imageBlock = (
+    <div className="relative h-44 overflow-hidden">
+      {product.imageUrl ? (
+        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+      ) : (
+        <div className="w-full h-full bg-amber-50 flex items-center justify-center text-3xl">🍽️</div>
+      )}
+      <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-sm border border-white/20">
+        <span className="text-[13px] font-black text-amber-600 tracking-tight">{product.price.toLocaleString()} so'm</span>
+      </div>
+      {!isAvailable && (
+        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+          <span className="bg-red-500/90 text-white text-[10px] font-bold uppercase px-2 py-1 rounded-lg">
+            {product.availability === ProductAvailabilityEnum.TEMPORARILY_UNAVAILABLE ? 'Vaqtincha yo\'q' : 'Tugagan'}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={`bg-white rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col h-full active:scale-98 transition-transform ${!isAvailable ? 'opacity-60' : ''}`}>
-      <NavLink to={`/customer/product/${product.id}`} className="relative h-44 overflow-hidden">
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        ) : (
-          <div className="w-full h-full bg-amber-50 flex items-center justify-center text-3xl">🍽️</div>
-        )}
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-sm border border-white/20">
-          <span className="text-[13px] font-black text-amber-600 tracking-tight">{product.price.toLocaleString()} so'm</span>
-        </div>
-        {!isAvailable && (
-          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-            <span className="bg-red-500/90 text-white text-[10px] font-bold uppercase px-2 py-1 rounded-lg">
-              {product.availability === ProductAvailabilityEnum.TEMPORARILY_UNAVAILABLE ? 'Vaqtincha yo\'q' : 'Tugagan'}
-            </span>
-          </div>
-        )}
-      </NavLink>
+      {onPreview ? (
+        <button onClick={handlePreview} className="p-0 m-0 text-left">{imageBlock}</button>
+      ) : (
+        <NavLink to={`/customer/product/${product.id}`} className="block text-inherit">{imageBlock}</NavLink>
+      )}
       
       <div className="p-4 flex flex-col flex-1">
         <h3 className="text-[15px] font-bold text-gray-900 mb-1 line-clamp-1">{product.name}</h3>
@@ -89,6 +108,68 @@ export const ProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => 
             </>
           )}
         </button>
+      </div>
+    </div>
+  );
+};
+
+export const ProductDetailModal: React.FC<{ 
+  open: boolean;
+  product: MenuProduct | null;
+  onClose: () => void;
+  onAddToCart: (product: MenuProduct, quantity: number) => void;
+}> = ({ open, product, onClose, onAddToCart }) => {
+  const [quantity, setQuantity] = React.useState(1);
+
+  React.useEffect(() => {
+    if (open) setQuantity(1);
+  }, [open, product]);
+
+  if (!open || !product) return null;
+
+  const isAvailable = product.isActive && product.availability === ProductAvailabilityEnum.AVAILABLE;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center bg-slate-900/60 backdrop-blur-sm p-3">
+      <div className="absolute inset-0" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+        <button onClick={onClose} className="absolute right-4 top-4 text-gray-500 hover:text-gray-900">
+          <X size={22} />
+        </button>
+
+        <div className="relative h-56 bg-gray-100 overflow-hidden">
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-5xl bg-amber-50">🍽️</div>
+          )}
+          {!isAvailable && (
+            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+              <span className="bg-red-500/90 text-white text-xs font-bold uppercase px-3 py-1 rounded-lg">{product.availability === ProductAvailabilityEnum.TEMPORARILY_UNAVAILABLE ? 'Vaqtincha yo‘q' : 'Tugagan'}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="p-5 space-y-4">
+          <h3 className="text-xl font-black text-gray-900">{product.name}</h3>
+          <p className="text-sm text-gray-500">{product.description}</p>
+          <div className="flex justify-between items-center">
+            <span className="text-lg font-black text-amber-600">{product.price.toLocaleString()} so'm</span>
+            <QuantitySelector
+              quantity={quantity}
+              onIncrease={() => setQuantity(q => q + 1)}
+              onDecrease={() => setQuantity(q => Math.max(1, q - 1))}
+            />
+          </div>
+
+          <button
+            onClick={() => onAddToCart(product, quantity)}
+            disabled={!isAvailable}
+            className={`w-full h-14 rounded-xl font-black transition ${isAvailable ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+          >
+            {isAvailable ? 'Savatga qo‘shish' : 'Mavjud emas'}
+          </button>
+        </div>
       </div>
     </div>
   );

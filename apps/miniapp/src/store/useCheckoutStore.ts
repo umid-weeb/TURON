@@ -15,14 +15,14 @@ interface CheckoutState {
 export const useCheckoutStore = create<CheckoutState>()(
   persist(
     (set) => ({
-      paymentMethod: 'CASH',
+      paymentMethod: PaymentMethod.CASH,
       note: '',
       deliveryFee: 5000, // Mock fixed delivery fee
 
       setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
       setNote: (note) => set({ note }),
       setDeliveryFee: (deliveryFee) => set({ deliveryFee }),
-      resetCheckout: () => set({ paymentMethod: 'CASH', note: '' }),
+      resetCheckout: () => set({ paymentMethod: PaymentMethod.CASH, note: '' }),
     }),
     {
       name: 'turon-checkout-storage',

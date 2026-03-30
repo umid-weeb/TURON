@@ -58,11 +58,9 @@ export function calculateKPIMetrics(orders: Order[]): KPIMetrics {
 }
 
 const statusConfig: Record<OrderStatus, { label: string; color: string }> = {
-  NEW: { label: 'Yangi', color: 'bg-blue-500' },
-  ACCEPTED: { label: 'Qabul qilingan', color: 'bg-sky-500' },
+  PENDING: { label: 'Yangi', color: 'bg-blue-500' },
   PREPARING: { label: 'Tayyorlanmoqda', color: 'bg-amber-500' },
-  READY: { label: 'Tayyor', color: 'bg-orange-500' },
-  PICKED_UP: { label: 'Olib ketilgan', color: 'bg-indigo-500' },
+  READY_FOR_PICKUP: { label: 'Olib ketish uchun tayyor', color: 'bg-orange-500' },
   DELIVERING: { label: 'Yetkazilmoqda', color: 'bg-purple-500' },
   DELIVERED: { label: 'Yetkazib berildi', color: 'bg-emerald-500' },
   CANCELLED: { label: 'Bekor qilingan', color: 'bg-red-500' },
@@ -176,7 +174,7 @@ export function getRecentActivity(orders: Order[]): RecentActivityEvent[] {
         type = 'PROMO_USED';
         title = 'Promokod ishlatildi';
         description += ` (${order.promoCode})`;
-      } else if (order.paymentStatus === 'PAID') {
+      } else if (order.paymentStatus === 'COMPLETED') {
         type = 'PAYMENT_VERIFIED';
         title = 'To\'lov qabul qilindi';
       }

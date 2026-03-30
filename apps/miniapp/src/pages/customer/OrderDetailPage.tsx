@@ -14,15 +14,20 @@ import {
 import { useOrdersStore } from '../../store/useOrdersStore';
 import { useCartStore } from '../../store/useCartStore';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '../../data/types';
-import { OrderTimeline, TrackingMapPlaceholder, OrderStatusBadge } from '../../components/customer/OrderHistoryComponents';
+import { OrderTimeline, OrderStatusBadge } from '../../components/customer/OrderHistoryComponents';
 import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
 import { getStatusLabel } from '../../lib/orderStatusUtils';
+import { CourierMapView } from '../../components/courier/CourierMapView';
+import { MockMapProvider } from '../../features/maps/providers/MockMapProvider';
+import { useCourierLocationStore } from '../../store/useCourierLocationStore';
+
 
 const OrderDetailPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { getOrderById } = useOrdersStore();
   const { setItems } = useCartStore();
+  const courierLocation = useCourierLocationStore((state) => state.currentLocation);
   
   const [order, setOrder] = useState(orderId ? getOrderById(orderId) : undefined);
 
@@ -77,9 +82,32 @@ const OrderDetailPage: React.FC = () => {
       {/* Status Timeline */}
       <OrderTimeline status={order.orderStatus} />
 
-      {/* Map Placeholder */}
-      {(order.orderStatus === OrderStatus.DELIVERING || order.orderStatus === OrderStatus.PREPARING) && (
-        <TrackingMapPlaceholder />
+      {/* Live tracking map */}
+      {(order.orderStatus === OrderStatus.DELIVERING || order.orderStatus === OrderStatus.PREPARING || order.orderStatus === OrderStatus.READY_FOR_PICKUP) && (
+        <div className="mb-6 rounded-[32px] overflow-hidden border border-slate-100 shadow-sm">
+          {((import.meta.env.VITE_MAPS_PROVIDER || 'mock').toLowerCase() === 'yandex' && (import.meta.env.VITE_MAP_API_KEY || '').length > 0) ? (
+            <CourierMapView
+              pickup={{ lat: 41.311081, lng: 69.240562 }}
+              destination={{
+                lat: order.customerAddress?.latitude ?? 41.311081,
+                lng: order.customerAddress?.longitude ?? 69.240562,
+              }}
+              courierPos={courierLocation ?? { lat: 41.311081, lng: 69.240562 }}
+              apiKey={import.meta.env.VITE_MAP_API_KEY || ''}
+            />
+          ) : (
+            <MockMapProvider.Component
+              initialCenter={{ lat: 41.311081, lng: 69.240562 }}
+              markers={[
+                { id: 'restaurant', position: { lat: 41.311081, lng: 69.240562 }, label: 'Restoran', type: 'PICKUP' as const },
+                { id: 'customer', position: { lat: order.customerAddress?.latitude ?? 41.311081, lng: order.customerAddress?.longitude ?? 69.240562 }, label: 'Mijoz', type: 'DELIVERY' as const },
+                { id: 'courier', position: courierLocation ?? { lat: 41.311081, lng: 69.240562 }, label: 'Siz', type: 'COURIER' as const },
+              ]}
+              showRoute={true}
+              height="285px"
+            />
+          )}
+        </div>
       )}
 
       {/* Delivery Details */}

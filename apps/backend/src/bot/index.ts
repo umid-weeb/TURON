@@ -1,5 +1,4 @@
 import { Telegraf, Markup } from 'telegraf';
-import { PrismaClient } from '@prisma/client';
 import { UserRoleEnum } from '@turon/shared';
 import { env } from '../config.js';
 

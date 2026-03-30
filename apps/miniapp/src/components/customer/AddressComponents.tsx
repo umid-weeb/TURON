@@ -1,6 +1,7 @@
 import React from 'react';
 import { Home, Briefcase, MapPin, Check, ChevronRight, Edit2, Trash2, Navigation, MessageCircle } from 'lucide-react';
 import { Address } from '../../data/types';
+import { AppButton, AppCard } from '../ui/GlobalComponents';
 
 export const AddressCard: React.FC<{ 
   address: Address; 
@@ -12,14 +13,11 @@ export const AddressCard: React.FC<{
   const Icon = address.label === 'Uy' ? Home : address.label === 'Ish' ? Briefcase : MapPin;
 
   return (
-    <div 
-      className={`
-        p-4 rounded-[28px] border-2 transition-all active:scale-[0.98] 
-        ${isSelected 
-          ? 'bg-amber-50 border-amber-500 shadow-lg shadow-amber-100' 
-          : 'bg-white border-slate-100 shadow-sm'}
-      `}
+    <AppCard
       onClick={() => onSelect(address.id)}
+      className={
+        `p-4 rounded-[28px] transition-all active:scale-[0.98] cursor-pointer ${isSelected ? 'bg-amber-50 border-amber-500 shadow-lg shadow-amber-100' : 'bg-white border-slate-100 shadow-sm'}`
+      }
     >
       <div className="flex items-start gap-4">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-400'}`}>
@@ -40,24 +38,28 @@ export const AddressCard: React.FC<{
           </p>
           
           <div className="flex items-center gap-3">
-            <button 
-              onClick={(e) => { e.stopPropagation(); onEdit(address.id); }}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5"
-            >
-              <Edit2 size={12} />
-              O'zgartirish
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); onDelete(address.id); }}
-              className="px-3 py-1.5 rounded-xl bg-red-50 text-red-500 text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5"
-            >
-              <Trash2 size={12} />
-              O'chirish
-            </button>
+            <AppButton
+            onClick={(e) => { e.stopPropagation(); onEdit(address.id); }}
+            variant="secondary"
+            size="sm"
+            icon={<Edit2 size={12} />}
+            className="uppercase tracking-wider"
+          >
+            O'zgartirish
+          </AppButton>
+          <AppButton
+            onClick={(e) => { e.stopPropagation(); onDelete(address.id); }}
+            variant="danger"
+            size="sm"
+            icon={<Trash2 size={12} />}
+            className="uppercase tracking-wider"
+          >
+            O'chirish
+          </AppButton>
           </div>
         </div>
       </div>
-    </div>
+    </AppCard>
   );
 };
 
@@ -81,12 +83,14 @@ export const SelectedAddressCard: React.FC<{
         </div>
       )}
     </div>
-    <button 
+    <AppButton
       onClick={onAction}
-      className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-amber-200 active:scale-90 transition-transform"
-    >
-      <Edit2 size={20} />
-    </button>
+      variant="primary"
+      size="sm"
+      className="w-10 h-10 p-0 rounded-xl"
+      icon={<Edit2 size={20} />}
+      aria-label="Adresni tahrirlash"
+    />
   </div>
 );
 
@@ -99,13 +103,16 @@ export const AddressEmptyState: React.FC<{ onAdd: () => void }> = ({ onAdd }) =>
     <p className="text-slate-400 text-[13px] max-w-[200px] mb-8 leading-relaxed">
       Sizda saqlangan manzillar mavjud emas. Buyurtma berish uchun manzil kiriting.
     </p>
-    <button 
+    <AppButton
       onClick={onAdd}
-      className="h-14 bg-amber-500 text-white px-8 rounded-2xl font-black shadow-xl shadow-amber-100 flex items-center gap-3 active:scale-95 transition-transform"
+      variant="primary"
+      size="lg"
+      fullWidth
+      icon={<MapPin size={20} />}
+      className="mt-2"
     >
-      <MapPin size={20} />
-      <span>Manzil qo'shish</span>
-    </button>
+      Manzil qo'shish
+    </AppButton>
   </div>
 );
 
