@@ -8,7 +8,7 @@
     "dev": "concurrently \"npm:dev:api\" \"npm:dev:bot\"",
     "dev:api": "tsx watch src/api/index.ts",
     "dev:bot": "tsx watch src/bot/index.ts",
-    "build": "tsc",
+    "build": "tsup",
     "start": "concurrently \"npm:start:api\" \"npm:start:bot\"",
     "start:api": "node dist/api/index.js",
     "start:bot": "node dist/bot/index.js",
@@ -38,6 +38,7 @@
     "concurrently": "^8.2.2",
     "dotenv-cli": "^11.0.0",
     "prisma": "^6.0.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }

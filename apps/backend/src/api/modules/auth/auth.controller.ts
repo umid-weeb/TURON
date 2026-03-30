@@ -63,6 +63,8 @@ export async function telegramAuthHandler(
     newValue: { role: primaryRole, timestamp: new Date() }
   });
 
+  const token = await reply.jwtSign({ id: user.id, role: primaryRole });
+
   return reply.send({
     user: {
       id: user.id,
