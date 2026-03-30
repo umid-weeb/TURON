@@ -8,7 +8,7 @@ const PaymentMethodSelector: React.FC = () => {
 
   const methods = [
     { 
-      id: 'CASH', 
+      id: PaymentMethod.CASH, 
       label: 'Naqd pul', 
       description: 'Taom yetkazilganda to\'lash', 
       icon: Banknote, 
@@ -16,7 +16,7 @@ const PaymentMethodSelector: React.FC = () => {
       disabled: false 
     },
     { 
-      id: 'ONLINE', 
+      id: PaymentMethod.EXTERNAL_PAYMENT, 
       label: 'Click / Payme / Uzum', 
       description: 'Online to\'lov orqali', 
       icon: Smartphone, 
@@ -24,7 +24,7 @@ const PaymentMethodSelector: React.FC = () => {
       disabled: false 
     },
     { 
-      id: 'CARD_ON_DELIVERY', 
+      id: PaymentMethod.MANUAL_TRANSFER, 
       label: 'Karta orqali', 
       description: 'Tez kunda kutilmoqda...', 
       icon: CreditCard, 

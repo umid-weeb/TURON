@@ -1,21 +1,12 @@
 import fastify from 'fastify';
-import dotenv from 'dotenv';
+import { env } from '../config.js';
 import app from './app.js';
-
-dotenv.config({ path: '../../../.env' });
 
 const server = fastify({
   logger: true
 });
 
-// Environment Validation
-const requiredEnv = ['DATABASE_URL', 'BOT_TOKEN', 'JWT_SECRET'];
-requiredEnv.forEach(env => {
-  if (!process.env[env]) {
-    console.error(`❌ Missing required environment variable: ${env}`);
-    process.exit(1);
-  }
-});
+// Environment Validation is now handled in config.ts
 
 async function main() {
   try {

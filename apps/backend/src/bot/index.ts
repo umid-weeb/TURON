@@ -1,11 +1,10 @@
 import { Telegraf, Markup } from 'telegraf';
 import { PrismaClient } from '@prisma/client';
 import { UserRoleEnum } from '@turon/shared';
-import dotenv from 'dotenv';
+import { env } from '../config.js';
 
-dotenv.config({ path: '../../../.env' });
-const botToken = process.env.BOT_TOKEN;
-const webAppUrl = process.env.WEB_APP_URL || 'https://your-ngrok-url.ngrok-free.dev';
+const botToken = env.BOT_TOKEN;
+const webAppUrl = env.WEB_APP_URL || 'https://your-ngrok-url.ngrok-free.dev';
 
 if (!botToken) {
   console.error('❌ BOT_TOKEN is missing in .env');

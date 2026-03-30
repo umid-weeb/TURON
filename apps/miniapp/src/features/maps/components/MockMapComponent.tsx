@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, MapProviderProps } from '../MapProvider';
-import { MapPin as PinIcon, Navigation, Target } from 'lucide-react';
+import { MapPin as PinIcon, Navigation, Target, Store, Home, User } from 'lucide-react';
 
 /**
  * MockMapComponent: A visual placeholder that simulates a map.
@@ -175,7 +175,5 @@ const MockMapComponent: React.FC<MapProviderProps> = ({
     </div>
   );
 };
-
-export default MockMapComponent;
 
 export default MockMapComponent;

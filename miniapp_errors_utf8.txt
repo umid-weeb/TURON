@@ -1,0 +1,14 @@
+﻿src/components/customer/OrderSummaryCard.tsx(58,71): error TS2367: This comparison appears to be unintentional because the types '"EXTERNAL" | "CARD_ON_DELIVERY"' and '"ONLINE"' have no overlap.
+src/features/maps/components/MockMapComponent.tsx(96,43): error TS2552: Cannot find name 'Store'. Did you mean 'Storage'?
+src/features/maps/components/MockMapComponent.tsx(97,45): error TS2304: Cannot find name 'Home'.
+src/features/maps/components/MockMapComponent.tsx(98,16): error TS2304: Cannot find name 'User'.
+src/features/maps/components/MockMapComponent.tsx(179,16): error TS2528: A module cannot have multiple default exports.
+src/features/maps/components/MockMapComponent.tsx(181,16): error TS2528: A module cannot have multiple default exports.
+src/features/notifications/components/NotificationList.tsx(5,37): error TS2307: Cannot find module 'date-fns' or its corresponding type declarations.
+src/features/notifications/components/NotificationList.tsx(6,20): error TS2307: Cannot find module 'date-fns/locale' or its corresponding type declarations.
+src/lib/orderStatusUtils.ts(57,36): error TS2304: Cannot find name 'StatusStep'.
+src/pages/admin/AdminOrdersPage.tsx(11,10): error TS2305: Module '"../../components/admin/AdminComponents"' has no exported member 'AdminOrderCard'.
+src/pages/courier/CourierMapPage.tsx(19,33): error TS2307: Cannot find module '../../features/maps/providers/MockMapProvider' or its corresponding type declarations.
+src/pages/customer/OrderDetailPage.tsx(80,9): error TS2367: This comparison appears to be unintentional because the types 'OrderStatus' and '"ON_WAY"' have no overlap.
+src/pages/customer/OrderSuccessPage.tsx(50,93): error TS2367: This comparison appears to be unintentional because the types '"EXTERNAL" | "CARD_ON_DELIVERY"' and '"ONLINE"' have no overlap.
+src/store/useOrdersStore.ts(31,15): error TS2367: This comparison appears to be unintentional because the types 'OrderStatus' and '"CONFIRMED"' have no overlap.

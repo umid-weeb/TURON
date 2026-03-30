@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2, ShoppingBag, Home, ChevronRight } from 'lucide-react';
-import { Order } from '../../data/types';
+import { Order, PaymentMethod } from '../../data/types';
 
 const OrderSuccessPage: React.FC = () => {
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ const OrderSuccessPage: React.FC = () => {
       <div className="w-full bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 space-y-4 mb-10">
          <div className="flex justify-between items-center text-sm font-bold text-gray-500">
             <span>To'lov turi</span>
-            <span className="text-gray-900">{order.paymentMethod === 'CASH' ? 'Naqd pul' : (order.paymentMethod === 'ONLINE' ? 'Online' : 'Karta')}</span>
+            <span className="text-gray-900">{order.paymentMethod === PaymentMethod.CASH ? 'Naqd pul' : (order.paymentMethod === PaymentMethod.EXTERNAL_PAYMENT ? 'Online' : 'Karta')}</span>
          </div>
          <div className="flex justify-between items-center text-sm font-bold text-gray-500">
             <span>Umumiy miqdor</span>

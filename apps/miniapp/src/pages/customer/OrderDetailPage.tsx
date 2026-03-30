@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useOrdersStore } from '../../store/useOrdersStore';
 import { useCartStore } from '../../store/useCartStore';
+import { OrderStatus, PaymentMethod, PaymentStatus } from '../../data/types';
 import { OrderTimeline, TrackingMapPlaceholder, OrderStatusBadge } from '../../components/customer/OrderHistoryComponents';
 import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
 import { getStatusLabel } from '../../lib/orderStatusUtils';
@@ -77,7 +78,7 @@ const OrderDetailPage: React.FC = () => {
       <OrderTimeline status={order.orderStatus} />
 
       {/* Map Placeholder */}
-      {(order.orderStatus === 'ON_WAY' || order.orderStatus === 'ACCEPTED' || order.orderStatus === 'PREPARING') && (
+      {(order.orderStatus === OrderStatus.DELIVERING || order.orderStatus === OrderStatus.PREPARING) && (
         <TrackingMapPlaceholder />
       )}
 
@@ -110,19 +111,17 @@ const OrderDetailPage: React.FC = () => {
               </div>
               <div>
                 <p className="font-bold text-slate-900 text-sm">
-                  {order.paymentMethod === 'CASH' ? 'Naqd pul' : 
-                   order.paymentMethod === 'EXTERNAL' ? 'Click / Payme' : 'Karta'}
+                  {order.paymentMethod === PaymentMethod.CASH ? 'Naqd pul' : 
+                   order.paymentMethod === PaymentMethod.EXTERNAL_PAYMENT ? 'Click / Payme' : 'Karta'}
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${
-                    order.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-600' :
-                    order.paymentStatus === 'FAILED' ? 'bg-red-50 text-red-600' :
-                    order.paymentStatus === 'CASH_ON_DELIVERY' ? 'bg-indigo-50 text-indigo-600' :
+                    order.paymentStatus === PaymentStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600' :
+                    order.paymentStatus === PaymentStatus.FAILED ? 'bg-red-50 text-red-600' :
                     'bg-amber-50 text-amber-600'
                   }`}>
-                    {order.paymentStatus === 'PAID' ? 'To\'langan' : 
-                     order.paymentStatus === 'FAILED' ? 'Xatolik' :
-                     order.paymentStatus === 'CASH_ON_DELIVERY' ? 'Qabulda to\'lov' :
+                    {order.paymentStatus === PaymentStatus.COMPLETED ? 'To\'langan' : 
+                     order.paymentStatus === PaymentStatus.FAILED ? 'Xatolik' :
                      'Verifikatsiya kutilmoqda'}
                   </span>
                   {order.verificationStatus && (
@@ -137,7 +136,7 @@ const OrderDetailPage: React.FC = () => {
           </div>
 
           {/* Payment Instructions for External */}
-          {order.paymentMethod === 'EXTERNAL' && order.paymentStatus === 'PENDING_VERIFICATION' && (
+          {order.paymentMethod === PaymentMethod.EXTERNAL_PAYMENT && order.paymentStatus === PaymentStatus.PENDING && (
             <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50">
                <p className="text-[11px] font-bold text-amber-800 leading-relaxed">
                  To'lovdan keyin admin tranzaksiyani tasdiqlaydi. Buyurtma shundan so'ng tayyorlanadi.

@@ -1,64 +1,61 @@
 import { OrderStatus } from '../data/types';
 
+export interface StatusStep {
+  id: OrderStatus;
+  label: string;
+  description: string;
+}
+
 export const getStatusLabel = (status: OrderStatus): string => {
   switch (status) {
-    case 'NEW': return 'Yangi';
-    case 'ACCEPTED': return 'Tasdiqlandi';
-    case 'PREPARING': return 'Tayyorlanmoqda';
-    case 'READY': return 'Tayyor';
-    case 'PICKED_UP': return 'Kuryer oldi';
-    case 'DELIVERING': return 'Yo‘lda';
-    case 'DELIVERED': return 'Yetkazildi';
-    case 'CANCELLED': return 'Bekor qilindi';
+    case OrderStatus.PENDING: return 'Yangi';
+    case OrderStatus.PREPARING: return 'Tayyorlanmoqda';
+    case OrderStatus.READY_FOR_PICKUP: return 'Tayyor';
+    case OrderStatus.DELIVERING: return 'Yo‘lda';
+    case OrderStatus.DELIVERED: return 'Yetkazildi';
+    case OrderStatus.CANCELLED: return 'Bekor qilindi';
     default: return 'Noma\'lum';
   }
 };
 
 export const getStatusColor = (status: OrderStatus): string => {
   switch (status) {
-    case 'NEW': return 'slate';
-    case 'ACCEPTED': return 'blue';
-    case 'PREPARING': return 'amber';
-    case 'READY': return 'orange';
-    case 'PICKED_UP': return 'indigo';
-    case 'DELIVERING': return 'purple';
-    case 'DELIVERED': return 'emerald';
-    case 'CANCELLED': return 'red';
+    case OrderStatus.PENDING: return 'slate';
+    case OrderStatus.PREPARING: return 'amber';
+    case OrderStatus.READY_FOR_PICKUP: return 'orange';
+    case OrderStatus.DELIVERING: return 'purple';
+    case OrderStatus.DELIVERED: return 'emerald';
+    case OrderStatus.CANCELLED: return 'red';
     default: return 'slate';
   }
 };
 
 export const getStatusStep = (status: OrderStatus): number => {
   switch (status) {
-    case 'NEW': return 0;
-    case 'ACCEPTED': return 1;
-    case 'PREPARING': return 2;
-    case 'READY': return 3;
-    case 'PICKED_UP': return 4;
-    case 'DELIVERING': return 5;
-    case 'DELIVERED': return 6;
-    case 'CANCELLED': return -1;
+    case OrderStatus.PENDING: return 0;
+    case OrderStatus.PREPARING: return 1;
+    case OrderStatus.READY_FOR_PICKUP: return 2;
+    case OrderStatus.DELIVERING: return 3;
+    case OrderStatus.DELIVERED: return 4;
+    case OrderStatus.CANCELLED: return -1;
     default: return 0;
   }
 };
 
 export const getNextStatus = (current: OrderStatus): OrderStatus | null => {
   switch (current) {
-    case 'NEW': return 'ACCEPTED';
-    case 'ACCEPTED': return 'PREPARING';
-    case 'PREPARING': return 'READY';
-    case 'READY': return 'PICKED_UP';
-    case 'PICKED_UP': return 'DELIVERING';
-    case 'DELIVERING': return 'DELIVERED';
+    case OrderStatus.PENDING: return OrderStatus.PREPARING;
+    case OrderStatus.PREPARING: return OrderStatus.READY_FOR_PICKUP;
+    case OrderStatus.READY_FOR_PICKUP: return OrderStatus.DELIVERING;
+    case OrderStatus.DELIVERING: return OrderStatus.DELIVERED;
     default: return null;
   }
 };
 
 export const ORDER_TRACKING_STEPS: StatusStep[] = [
-  { id: 'NEW', label: 'Yaratildi', description: 'Buyurtmangiz qabul qilindi' },
-  { id: 'ACCEPTED', label: 'Tasdiqlandi', description: 'Restoran buyurtmani tasdiqladi' },
-  { id: 'PREPARING', label: 'Tayyorlanmoqda', description: 'Oshpazlarimiz taomni tayyorlashmoqda' },
-  { id: 'READY', label: 'Tayyor', description: 'Taom tayyor, kuryerga topshirilmoqda' },
-  { id: 'DELIVERING', label: 'Yetkazilmoqda', description: 'Buyurtmangiz manzilga qarab yo\'lga chiqdi' },
-  { id: 'DELIVERED', label: 'Yetkazildi', description: 'Yoqimli ishtaha!' },
+  { id: OrderStatus.PENDING, label: 'Yaratildi', description: 'Buyurtmangiz qabul qilindi' },
+  { id: OrderStatus.PREPARING, label: 'Tasdiqlandi', description: 'Restoran buyurtmani tasdiqladi va tayyorlashni boshladi' },
+  { id: OrderStatus.READY_FOR_PICKUP, label: 'Tayyor', description: 'Taom tayyor, kuryerga topshirilmoqda' },
+  { id: OrderStatus.DELIVERING, label: 'Yetkazilmoqda', description: 'Buyurtmangiz manzilga qarab yo\'lga chiqdi' },
+  { id: OrderStatus.DELIVERED, label: 'Yetkazildi', description: 'Yoqimli ishtaha!' },
 ];
