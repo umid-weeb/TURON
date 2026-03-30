@@ -1,14 +1,12 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../lib/prisma.js';
 import { 
   DeliveryStageEnum, 
   CourierAssignmentStatusEnum, 
   OrderStatusEnum 
 } from '@turon/shared';
-import { StatusService } from '../../../services/status.service';
-import { AuditService } from '../../../services/audit.service';
-
-const prisma = new PrismaClient();
+import { StatusService } from '../../../services/status.service.js';
+import { AuditService } from '../../../services/audit.service.js';
 
 export async function getCourierOrders(
   request: FastifyRequest,
@@ -33,7 +31,7 @@ export async function getCourierOrders(
     orderBy: { assignedAt: 'desc' }
   });
 
-  const formattedOrders = assignments.map(a => ({
+  const formattedOrders = assignments.map((a: any) => ({
     id: a.order.id,
     orderNumber: a.order.orderNumber,
     status: a.order.status,

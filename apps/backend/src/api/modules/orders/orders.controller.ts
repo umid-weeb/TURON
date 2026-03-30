@@ -1,22 +1,20 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../lib/prisma.js';
 import { 
   OrderStatusEnum, 
   PaymentStatusEnum, 
   DeliveryStageEnum, 
   CourierAssignmentStatusEnum 
 } from '@turon/shared';
-import { StatusService } from '../../../services/status.service';
-import { AuditService } from '../../../services/audit.service';
-
-const prisma = new PrismaClient();
+import { StatusService } from '../../../services/status.service.js';
+import { AuditService } from '../../../services/audit.service.js';
 
 export async function handleCreateOrder(
   request: FastifyRequest<{ Body: any }>,
   reply: FastifyReply
 ) {
   const user = request.user as any;
-  const { items, deliveryAddressId, paymentMethod, promoCode } = request.body;
+  const { items, deliveryAddressId, paymentMethod, promoCode } = request.body as any;
 
   // 1. Validate items and availability
   const dbItems = await prisma.menuItem.findMany({
@@ -30,7 +28,7 @@ export async function handleCreateOrder(
   // 2. Calculate totals on backend
   let subtotal = 0;
   const orderItemsData = items.map((i: any) => {
-    const dbItem = dbItems.find(d => d.id === i.menuItemId)!;
+    const dbItem = dbItems.find((d: any) => d.id === i.menuItemId)!;
     const price = Number(dbItem.price);
     subtotal += price * i.quantity;
     return {
@@ -62,7 +60,7 @@ export async function handleCreateOrder(
   const totalAmount = subtotal - discountAmount + deliveryFee;
 
   // 4. Create Order + OrderItems (Transaction)
-  const order = await prisma.$transaction(async (tx) => {
+  const order = await prisma.$transaction(async (tx: any) => {
     const newOrder = await tx.order.create({
       data: {
         userId: user.id,
@@ -132,7 +130,7 @@ export async function handleUpdateStatus(
   reply: FastifyReply
 ) {
   const admin = request.user as any;
-  const { status } = request.body;
+  const { status } = request.body as any;
 
   const order = await prisma.order.findUnique({ where: { id: request.params.id } });
   if (!order) return reply.status(404).send({ error: 'Buyurtma topilmadi' });

@@ -1,8 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { PrismaClient } from '@prisma/client';
-import { AuditService } from '../../../services/audit.service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../../lib/prisma.js';
+import { AuditService } from '../../../services/audit.service.js';
 
 export async function getCategories(request: FastifyRequest, reply: FastifyReply) {
   const categories = await prisma.menuCategory.findMany({
@@ -38,8 +36,7 @@ export async function handleCreateCategory(
   reply: FastifyReply
 ) {
   const user = request.user as any;
-  const data = request.body;
-
+  const data = request.body as any;
   const category = await prisma.menuCategory.create({
     data: {
       nameUz: data.nameUz,
@@ -65,8 +62,7 @@ export async function handleCreateProduct(
   reply: FastifyReply
 ) {
   const user = request.user as any;
-  const data = request.body;
-
+  const data = request.body as any;
   const product = await prisma.menuItem.create({
     data: {
       categoryId: data.categoryId,

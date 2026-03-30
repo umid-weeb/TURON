@@ -1,8 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { PrismaClient } from '@prisma/client';
-import { AuditService } from '../../../services/audit.service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../../lib/prisma.js';
+import { AuditService } from '../../../services/audit.service.js';
 
 export async function getAddresses(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as any;
@@ -18,8 +16,7 @@ export async function handleCreateAddress(
   reply: FastifyReply
 ) {
   const user = request.user as any;
-  const data = request.body;
-
+  const data = request.body as any;
   const address = await prisma.deliveryAddress.create({
     data: {
       userId: user.id,

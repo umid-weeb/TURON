@@ -1,9 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../lib/prisma.js';
 import { PromoDiscountTypeEnum } from '@turon/shared';
-import { AuditService } from '../../../services/audit.service';
-
-const prisma = new PrismaClient();
+import { AuditService } from '../../../services/audit.service.js';
 
 export async function validatePromoCode(
   request: FastifyRequest<{ Body: { code: string } }>,
@@ -51,7 +49,7 @@ export async function handleCreatePromo(
   reply: FastifyReply
 ) {
   const admin = request.user as any;
-  const data = request.body;
+  const data = request.body as any;
 
   const promo = await prisma.promoCode.create({
     data: {

@@ -1,11 +1,9 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { PrismaClient } from '@prisma/client';
-import { verifyTelegramWebAppData, parseTelegramInitData } from '../../utils/telegram';
+import { prisma } from '../../../lib/prisma.js';
+import { verifyTelegramWebAppData, parseTelegramInitData } from '../../utils/telegram.js';
 import { UserRoleEnum } from '@turon/shared';
-import { env } from '../../../config';
-import { AuditService } from '../../../services/audit.service';
-
-const prisma = new PrismaClient();
+import { env } from '../../../config.js';
+import { AuditService } from '../../../services/audit.service.js';
 
 export async function telegramAuthHandler(
   request: FastifyRequest<{ Body: { initData: string } }>,
@@ -48,7 +46,7 @@ export async function telegramAuthHandler(
   }
 
   // 4. Determine Primary Role (Admin > Courier > Customer)
-  const roleNames = user.roles.map(r => r.role);
+  const roleNames = user.roles.map((r: any) => r.role);
   let primaryRole: UserRoleEnum = UserRoleEnum.CUSTOMER;
   
   if (roleNames.includes(UserRoleEnum.ADMIN)) primaryRole = UserRoleEnum.ADMIN;

@@ -9,13 +9,14 @@
     "dev:api": "tsx watch src/api/index.ts",
     "dev:bot": "tsx watch src/bot/index.ts",
     "build": "tsup",
-    "start": "pnpm prisma:generate && node -e \"import('./dist/api/index.js'); import('./dist/bot/index.js');\"",    "start:api": "node dist/api/index.js",
+    "start": "pnpm prisma:generate && node -e \"import('./dist/api/index.js'); import('./dist/bot/index.js');\"",
+    "start:api": "node dist/api/index.js",
     "start:bot": "node dist/bot/index.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "dotenv -e ../../.env -- prisma migrate dev",
-    "prisma:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
-    "prisma:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
-    "prisma:studio": "dotenv -e ../../.env -- prisma studio"
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
     "@fastify/autoload": "^6.0.0",

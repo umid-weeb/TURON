@@ -12,7 +12,7 @@ if (!botToken) {
 }
 
 const bot = new Telegraf(botToken);
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.js';
 
 // --- Auth Utilities ---
 async function getUserRole(telegramId: string): Promise<UserRoleEnum> {

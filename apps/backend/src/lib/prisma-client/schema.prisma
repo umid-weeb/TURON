@@ -1,0 +1,358 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/lib/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums (Mapped to database types)
+enum UserRoleEnum {
+  CUSTOMER
+  ADMIN
+  COURIER
+}
+
+enum LanguageEnum {
+  UZ
+  RU
+  EN
+}
+
+enum OrderStatusEnum {
+  PENDING
+  PREPARING
+  READY_FOR_PICKUP
+  DELIVERING
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethodEnum {
+  CASH
+  MANUAL_TRANSFER
+  EXTERNAL_PAYMENT
+}
+
+enum PaymentStatusEnum {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PromoDiscountTypeEnum {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum NotificationTypeEnum {
+  ORDER_STATUS_UPDATE
+  PROMO_CAMPAIGN
+  ADMIN_NOTICE
+}
+
+enum CourierAssignmentStatusEnum {
+  ASSIGNED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryStageEnum {
+  IDLE
+  GOING_TO_RESTAURANT
+  ARRIVED_AT_RESTAURANT
+  PICKED_UP
+  DELIVERING
+  ARRIVED_AT_DESTINATION
+  DELIVERED
+}
+
+// Models
+model User {
+  id          String       @id @default(uuid())
+  telegramId  String       @unique
+  phoneNumber String?
+  firstName   String
+  lastName    String?
+  username    String?
+  language    LanguageEnum @default(UZ)
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime? // Soft delete
+
+  roles              UserRole[]
+  addresses          DeliveryAddress[]
+  orders             Order[]
+  cart               Cart?
+  promoUsages        PromoCodeUsage[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  courierAssignments CourierAssignment[]
+
+  @@index([telegramId])
+}
+
+model UserRole {
+  id        String       @id @default(uuid())
+  userId    String
+  role      UserRoleEnum
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, role])
+}
+
+model MenuCategory {
+  id        String    @id @default(uuid())
+  nameUz    String
+  nameRu    String
+  nameEn    String
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  items MenuItem[]
+
+  @@index([sortOrder])
+}
+
+model MenuItem {
+  id            String    @id @default(uuid())
+  categoryId    String
+  nameUz        String
+  nameRu        String
+  nameEn        String
+  descriptionUz String?
+  descriptionRu String?
+  descriptionEn String?
+  price         Decimal   @db.Decimal(12, 2)
+  stockQuantity Int       @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // Soft delete
+
+  category   MenuCategory    @relation(fields: [categoryId], references: [id])
+  images     MenuItemImage[]
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  @@index([categoryId])
+}
+
+model MenuItemImage {
+  id         String   @id @default(uuid())
+  menuItemId String
+  url        String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id])
+  items CartItem[]
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  cartId     String
+  menuItemId String
+  quantity   Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cart     Cart     @relation(fields: [cartId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@unique([cartId, menuItemId])
+}
+
+model Order {
+  id            String            @id @default(uuid())
+  orderNumber   Int               @unique @default(autoincrement())
+  userId        String
+  status        OrderStatusEnum   @default(PENDING)
+  deliveryStage DeliveryStageEnum @default(IDLE)
+
+  // Totals
+  subtotal    Decimal @db.Decimal(12, 2)
+  deliveryFee Decimal @default(0) @db.Decimal(12, 2)
+  totalAmount Decimal @db.Decimal(12, 2)
+
+  // Promo
+  promoCodeId    String?
+  discountAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  // Payment
+  paymentMethod PaymentMethodEnum
+  paymentStatus PaymentStatusEnum @default(PENDING)
+
+  // Logistics
+  deliveryAddressId String
+  pickupLat         Decimal? @db.Decimal(10, 7)
+  pickupLng         Decimal? @db.Decimal(10, 7)
+  destinationLat    Decimal? @db.Decimal(10, 7)
+  destinationLng    Decimal? @db.Decimal(10, 7)
+  distanceKm        Decimal? @db.Decimal(10, 2)
+  estimatedMinutes  Int?
+
+  // Time Stamps
+  confirmedAt DateTime?
+  preparingAt DateTime?
+  readyAt     DateTime?
+  pickupAt    DateTime?
+  deliveredAt DateTime?
+  cancelledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id])
+  promoCode          PromoCode?          @relation(fields: [promoCodeId], references: [id])
+  deliveryAddress    DeliveryAddress     @relation(fields: [deliveryAddressId], references: [id])
+  items              OrderItem[]
+  payments           Payment[]
+  courierAssignments CourierAssignment[]
+
+  @@index([userId, status])
+  @@index([orderNumber])
+}
+
+model OrderItem {
+  id           String  @id @default(uuid())
+  orderId      String
+  menuItemId   String
+  quantity     Int
+  priceAtOrder Decimal @db.Decimal(12, 2) // Preserves historical price
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+}
+
+model DeliveryAddress {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String? // e.g. "Home", "Work"
+  address   String
+  latitude  Decimal  @db.Decimal(10, 7)
+  longitude Decimal  @db.Decimal(10, 7)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id])
+  orders Order[]
+
+  @@index([userId])
+}
+
+model PromoCode {
+  id            String                @id @default(uuid())
+  code          String                @unique
+  discountType  PromoDiscountTypeEnum
+  discountValue Decimal               @db.Decimal(12, 2)
+  minOrderValue Decimal               @default(0) @db.Decimal(12, 2)
+  maxDiscount   Decimal?              @db.Decimal(12, 2)
+  startDate     DateTime
+  endDate       DateTime
+  usageLimit    Int?
+  timesUsed     Int                   @default(0)
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+
+  usages PromoCodeUsage[]
+  orders Order[]
+
+  @@index([code])
+}
+
+model PromoCodeUsage {
+  id          String   @id @default(uuid())
+  promoCodeId String
+  userId      String
+  orderId     String
+  usedAt      DateTime @default(now())
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, orderId])
+}
+
+model Payment {
+  id                String            @id @default(uuid())
+  orderId           String
+  method            PaymentMethodEnum
+  status            PaymentStatusEnum @default(PENDING)
+  amount            Decimal           @db.Decimal(12, 2)
+  transactionRef    String?           @unique // External provider ref
+  metadata          Json? // Provider-specific raw data
+  verifiedByAdminId String?
+  paymentAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+model CourierAssignment {
+  id          String                      @id @default(uuid())
+  orderId     String
+  courierId   String
+  status      CourierAssignmentStatusEnum @default(ASSIGNED)
+  assignedAt  DateTime                    @default(now())
+  respondedAt DateTime?
+  completedAt DateTime?
+
+  order   Order @relation(fields: [orderId], references: [id])
+  courier User  @relation(fields: [courierId], references: [id])
+
+  @@index([orderId, courierId])
+}
+
+model Notification {
+  id        String               @id @default(uuid())
+  userId    String
+  type      NotificationTypeEnum
+  title     String
+  message   String
+  isRead    Boolean              @default(false)
+  createdAt DateTime             @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String // e.g. "UPDATE_ORDER", "DELETE_MENU_ITEM"
+  entity    String // e.g. "Order", "MenuItem"
+  entityId  String
+  oldValue  Json?
+  newValue  Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+}
