@@ -9,7 +9,7 @@
     "dev:api": "tsx watch src/api/index.ts",
     "dev:bot": "tsx watch src/bot/index.ts",
     "build": "tsup",
-    "start": "pnpm prisma:deploy && node -e \"import('./dist/api/index.js'); import('./dist/bot/index.js');\"",
+    "start": "node -e \"import('./dist/api/index.js'); import('./dist/bot/index.js');\"",
     "start:api": "node dist/api/index.js",
     "start:bot": "node dist/bot/index.js",
     "prisma:generate": "dotenv -e ../../.env -- prisma generate",
