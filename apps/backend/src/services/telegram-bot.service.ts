@@ -7,6 +7,7 @@ import { SupportService } from './support.service.js';
 
 const botToken = env.BOT_TOKEN;
 const webAppUrl = env.WEB_APP_URL;
+const canonicalWebAppUrl = 'https://turon-miniapp.vercel.app/';
 
 type BotLaunchContext = 'api' | 'bot';
 
@@ -59,11 +60,7 @@ async function getUserRole(telegramId: string): Promise<UserRoleEnum> {
 }
 
 function resolveRoleLaunchUrl(role: UserRoleEnum) {
-  if (!webAppUrl) {
-    return null;
-  }
-
-  const normalizedBaseUrl = webAppUrl.endsWith('/') ? webAppUrl : `${webAppUrl}/`;
+  const normalizedBaseUrl = resolveStableWebAppBaseUrl();
   const launchPath =
     role === UserRoleEnum.ADMIN
       ? 'admin/dashboard'
@@ -72,6 +69,25 @@ function resolveRoleLaunchUrl(role: UserRoleEnum) {
         : 'customer';
 
   return new URL(launchPath, normalizedBaseUrl).toString();
+}
+
+function resolveStableWebAppBaseUrl() {
+  if (!webAppUrl) {
+    return canonicalWebAppUrl;
+  }
+
+  try {
+    const parsedUrl = new URL(webAppUrl);
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    if (hostname.endsWith('.vercel.app') && hostname !== 'turon-miniapp.vercel.app') {
+      return canonicalWebAppUrl;
+    }
+
+    return webAppUrl.endsWith('/') ? webAppUrl : `${webAppUrl}/`;
+  } catch {
+    return canonicalWebAppUrl;
+  }
 }
 
 function getAdminSenderLabel(message: Message.CommonMessage) {
