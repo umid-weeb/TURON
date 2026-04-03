@@ -4,11 +4,11 @@ import {
   handleCreateAddress, 
   handleUpdateAddress,
   handleDeleteAddress 
-} from './addresses.controller';
-import { 
+} from './addresses.controller.js';
+import {
   AddressSchema, 
   IdParamSchema 
-} from '../../utils/schemas';
+} from '../../utils/schemas.js';
 
 export default async function addressRoutes(fastify: FastifyInstance) {
   // All address routes require authentication (added in app.ts registration)

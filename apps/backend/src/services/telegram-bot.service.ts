@@ -192,7 +192,7 @@ function bindHandlers(bot: Telegraf) {
   });
 }
 
-export async function launchTelegramBot(context: BotLaunchContext) {
+export async function launchTelegramBot(context: BotLaunchContext): Promise<Telegraf> {
   const state = getBotState();
 
   if (!state.handlersBound) {

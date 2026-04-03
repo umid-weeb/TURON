@@ -4,12 +4,12 @@ import {
   handleCreatePromo, 
   getAllPromos,
   handleUpdatePromo,
-} from './promos.controller';
+} from './promos.controller.js';
 import { 
   IdParamSchema,
   PromoCodeSchema, 
   ValidatePromoSchema 
-} from '../../utils/schemas';
+} from '../../utils/schemas.js';
 import { UserRoleEnum } from '@turon/shared';
 
 export default async function promoRoutes(fastify: FastifyInstance) {

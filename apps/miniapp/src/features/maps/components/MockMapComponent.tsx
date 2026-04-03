@@ -11,6 +11,8 @@ const MockMapComponent: React.FC<MapProviderProps> = ({
   initialCenter,
   onLocationSelect,
   onRouteInfoChange,
+  onInteractionStart,
+  onInteractionEnd,
   userLocationPin,
   restaurantLocationPin,
   markers = [],
@@ -250,6 +252,7 @@ const MockMapComponent: React.FC<MapProviderProps> = ({
         <div
           className="absolute inset-0 cursor-crosshair transition-colors active:bg-slate-200/20"
           onClick={(event) => {
+            onInteractionStart?.();
             const rect = event.currentTarget.getBoundingClientRect();
             const x = (event.clientX - rect.left) / rect.width;
             const y = (event.clientY - rect.top) / rect.height;
@@ -258,6 +261,9 @@ const MockMapComponent: React.FC<MapProviderProps> = ({
               lat: 41.31 + (0.5 - y) * 0.1,
               lng: 69.24 + (x - 0.5) * 0.1,
             });
+            window.setTimeout(() => {
+              onInteractionEnd?.();
+            }, 120);
           }}
         />
       )}

@@ -1,12 +1,12 @@
-import React, { useEffect } from 'react';
-import { ArrowLeft, CheckCircle2, Loader2, MapPin } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, CheckCircle2, Loader2, LocateFixed, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SelectedAddressCard } from '../../components/customer/AddressComponents';
 import PaymentMethodSelector from '../../components/customer/PaymentMethodSelector';
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
 import { CheckoutSectionCard, EmptyCartState } from '../../components/customer/CheckoutComponents';
 import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
-import { useAddresses } from '../../hooks/queries/useAddresses';
+import { useAddresses, useAutoDetectAndSaveAddress } from '../../hooks/queries/useAddresses';
 import { useProducts } from '../../hooks/queries/useMenu';
 import { useCreateOrder, useOrderQuote } from '../../hooks/queries/useOrders';
 import { useAddressStore } from '../../store/useAddressStore';
@@ -20,8 +20,11 @@ const CheckoutPage: React.FC = () => {
   const { paymentMethod, note, resetCheckout } = useCheckoutStore();
   const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
   const createOrderMutation = useCreateOrder();
+  const autoDetectAddressMutation = useAutoDetectAndSaveAddress();
   const { data: addresses = [], isLoading: isAddressesLoading } = useAddresses();
   const { data: products = [], isLoading: isProductsLoading, isError: isProductsError } = useProducts();
+  const [addressHint, setAddressHint] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
 
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
   const subtotal = getSubtotal();
@@ -127,8 +130,32 @@ const CheckoutPage: React.FC = () => {
   };
 
   const handleSelectAddress = () => {
+    navigate('/customer/addresses', { state: { returnTo: '/customer/checkout' } });
+  };
+
+  const handleMapSelection = () => {
     setInitialDraft(selectedAddress ?? undefined);
-    navigate('/customer/address/map');
+    navigate('/customer/address/map', { state: { returnTo: '/customer/checkout' } });
+  };
+
+  const handleAutoDetectAddress = () => {
+    setAddressHint(null);
+    setAddressError(null);
+
+    autoDetectAddressMutation.mutate(
+      {
+        currentAddresses: addresses,
+        preferredLabel: selectedAddress?.label || (addresses.length === 0 ? 'Uy' : 'Boshqa'),
+      },
+      {
+        onSuccess: (result) => {
+          setAddressHint(result.hint);
+        },
+        onError: (error) => {
+          setAddressError(error.message);
+        },
+      },
+    );
   };
 
   return (
@@ -156,6 +183,70 @@ const CheckoutPage: React.FC = () => {
       </section>
 
       <section className="space-y-4 px-4">
+        <CheckoutSectionCard title="Yetkazish manzili">
+          {selectedAddress ? (
+            <SelectedAddressCard
+              address={selectedAddress}
+              actionLabel="Saqlangan manzillar"
+              onAction={handleSelectAddress}
+              routeInfo={routeInfo}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={handleSelectAddress}
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-sm font-bold text-white"
+            >
+              <MapPin size={18} />
+              <span>Manzil tanlash</span>
+            </button>
+          )}
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleAutoDetectAddress}
+              disabled={autoDetectAddressMutation.isPending}
+              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[12px] font-black text-white transition-transform active:scale-[0.985] disabled:opacity-60"
+            >
+              {autoDetectAddressMutation.isPending ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <LocateFixed size={16} />
+              )}
+              <span>Avtomatik aniqlash</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleMapSelection}
+              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[12px] font-black text-white transition-transform active:scale-[0.985]"
+            >
+              <MapPin size={16} />
+              <span>Xaritadan tanlash</span>
+            </button>
+          </div>
+
+          {isAddressesLoading ? (
+            <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+              <Loader2 size={14} className="animate-spin" />
+              <span>Manzillar yuklanmoqda</span>
+            </div>
+          ) : null}
+
+          {addressHint && !addressError ? (
+            <p className="mt-3 text-[11px] font-semibold text-emerald-300">{addressHint}</p>
+          ) : null}
+
+          {addressError ? (
+            <p className="mt-3 text-[11px] font-semibold text-rose-300">{addressError}</p>
+          ) : null}
+
+          {orderQuoteQuery.isError ? (
+            <p className="mt-3 text-[11px] font-semibold text-rose-300">{orderQuoteQuery.error.message}</p>
+          ) : null}
+        </CheckoutSectionCard>
+
         <CheckoutSectionCard title="Chegirma kodi">
           <CustomerPromoInputCard subtotal={subtotal} compact />
         </CheckoutSectionCard>
@@ -171,37 +262,6 @@ const CheckoutPage: React.FC = () => {
 
         <CheckoutSectionCard title="To'lov usuli">
           <PaymentMethodSelector />
-        </CheckoutSectionCard>
-
-        <CheckoutSectionCard title="Yetkazish manzili">
-          {selectedAddress ? (
-            <SelectedAddressCard
-              address={selectedAddress}
-              actionLabel="O'zgartirish"
-              onAction={handleSelectAddress}
-              routeInfo={routeInfo}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={handleSelectAddress}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-sm font-bold text-white"
-            >
-              <MapPin size={18} />
-              <span>Manzil tanlash</span>
-            </button>
-          )}
-
-          {isAddressesLoading ? (
-            <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
-              <Loader2 size={14} className="animate-spin" />
-              <span>Manzillar yuklanmoqda</span>
-            </div>
-          ) : null}
-
-          {orderQuoteQuery.isError ? (
-            <p className="mt-3 text-[11px] font-semibold text-rose-300">{orderQuoteQuery.error.message}</p>
-          ) : null}
         </CheckoutSectionCard>
       </section>
 

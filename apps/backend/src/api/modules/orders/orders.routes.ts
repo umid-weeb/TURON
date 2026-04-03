@@ -12,7 +12,7 @@ import {
   handleAssignCourier,
   handleApprovePayment,
   handleRejectPayment,
-} from './orders.controller';
+} from './orders.controller.js';
 import { 
   AssignCourierSchema,
   CreateOrderSchema, 
@@ -20,7 +20,7 @@ import {
   QuoteOrderSchema,
   RejectPaymentSchema,
   UpdateOrderStatusSchema 
-} from '../../utils/schemas';
+} from '../../utils/schemas.js';
 import { UserRoleEnum } from '@turon/shared';
 
 export default async function orderRoutes(fastify: FastifyInstance) {

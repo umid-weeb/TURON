@@ -1,49 +1,75 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { MapPin, Plus } from 'lucide-react';
 import { useAddressStore } from '../../store/useAddressStore';
-import { AddressCard, AddressEmptyState } from '../../components/customer/AddressComponents';
+import { AddressCard, AddressEmptyState, GeoLocationButton } from '../../components/customer/AddressComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
-import { useAddresses, useDeleteAddress } from '../../hooks/queries/useAddresses';
+import { useAddresses, useAutoDetectAndSaveAddress, useDeleteAddress } from '../../hooks/queries/useAddresses';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 
 const AddressListPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = useCustomerLanguage();
   const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
   const { data: addresses = [], isLoading, isError, error, refetch } = useAddresses();
   const deleteAddressMutation = useDeleteAddress();
+  const autoDetectAddressMutation = useAutoDetectAndSaveAddress();
+  const [autoDetectHint, setAutoDetectHint] = useState<string | null>(null);
+  const [autoDetectError, setAutoDetectError] = useState<string | null>(null);
+  const returnTo = typeof location.state?.returnTo === 'string' ? location.state.returnTo : null;
 
-  const copy =
-    language === 'ru'
-      ? {
-          badge: 'Адреса',
-          title: 'Точки доставки',
-          subtitle: 'Выберите удобный адрес или добавьте новый.',
-          add: 'Добавить новый адрес',
-          confirmDelete: 'Удалить этот адрес?',
-          loading: 'Адреса загружаются',
-          errorTitle: 'Не удалось загрузить адреса',
-        }
-      : language === 'uz-cyrl'
-        ? {
-            badge: 'Манзиллар',
-            title: 'Етказиш нуқталари',
-            subtitle: 'Ўзингизга қулай манзилни танланг ёки янгисини қўшинг.',
-            add: 'Янги манзил қўшиш',
-            confirmDelete: 'Ушбу манзилни ўчириб ташламоқчимисиз?',
-            loading: 'Манзиллар юкланмоқда',
-            errorTitle: 'Манзиллар юкланмади',
-          }
-        : {
-            badge: 'Manzillar',
-            title: 'Yetkazish nuqtalari',
-            subtitle: "O'zingizga qulay bo'lgan manzilni tanlang yoki yangisini qo'shing.",
-            add: "Yangi manzil qo'shish",
-            confirmDelete: "Ushbu manzilni o'chirib tashlamoqchimisiz?",
-            loading: 'Manzillar yuklanmoqda',
-            errorTitle: 'Manzillar yuklanmadi',
-          };
+  const copy = {
+    badge: language === 'ru' ? 'Адреса' : language === 'uz-cyrl' ? 'Манзиллар' : 'Manzillar',
+    title:
+      language === 'ru'
+        ? 'Точки доставки'
+        : language === 'uz-cyrl'
+          ? 'Етказиш нуқталари'
+          : 'Yetkazish nuqtalari',
+    subtitle:
+      language === 'ru'
+        ? 'Выберите удобный адрес или добавьте новый.'
+        : language === 'uz-cyrl'
+          ? 'Ўзингизга қулай манзилни танланг ёки янгисини қўшинг.'
+          : "O'zingizga qulay bo'lgan manzilni tanlang yoki yangisini qo'shing.",
+    add:
+      language === 'ru'
+        ? 'Добавить новый адрес'
+        : language === 'uz-cyrl'
+          ? 'Янги манзил қўшиш'
+          : "Yangi manzil qo'shish",
+    confirmDelete:
+      language === 'ru'
+        ? 'Удалить этот адрес?'
+        : language === 'uz-cyrl'
+          ? 'Ушбу манзилни ўчириб ташламоқчимисиз?'
+          : "Ushbu manzilni o'chirib tashlamoqchimisiz?",
+    loading:
+      language === 'ru'
+        ? 'Адреса загружаются'
+        : language === 'uz-cyrl'
+          ? 'Манзиллар юкланмоқда'
+          : 'Manzillar yuklanmoqda',
+    errorTitle:
+      language === 'ru'
+        ? 'Не удалось загрузить адреса'
+        : language === 'uz-cyrl'
+          ? 'Манзиллар юкланмади'
+          : 'Manzillar yuklanmadi',
+    autoDetect:
+      language === 'ru'
+        ? 'Автоопределение'
+        : language === 'uz-cyrl'
+          ? 'Автоматик аниқлаш'
+          : 'Avtomatik aniqlash',
+    mapPick:
+      language === 'ru'
+        ? 'Выбрать на карте'
+        : language === 'uz-cyrl'
+          ? 'Харитадан танлаш'
+          : 'Xaritadan tanlash',
+  };
 
   useEffect(() => {
     if (addresses.length === 0) {
@@ -59,39 +85,72 @@ const AddressListPage: React.FC = () => {
     }
   }, [addresses, selectedAddressId, selectAddress]);
 
-  const handleAddNew = () => {
+  const handleOpenMap = () => {
     setInitialDraft();
-    navigate('/customer/address/new');
+    navigate('/customer/address/map', { state: { returnTo } });
   };
 
   const handleEdit = (id: string) => {
     const address = addresses.find((item) => item.id === id);
-    if (address) {
-      setInitialDraft(address);
-      navigate('/customer/address/new');
+    if (!address) {
+      return;
     }
+
+    setInitialDraft(address);
+    navigate('/customer/address/new', { state: { returnTo } });
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm(copy.confirmDelete)) {
-      deleteAddressMutation.mutate(id, {
-        onSuccess: () => {
-          if (selectedAddressId === id) {
-            selectAddress(null);
-          }
-        },
-        onError: (mutationError: Error) => {
-          window.alert(mutationError.message);
-        },
-      });
+    if (!window.confirm(copy.confirmDelete)) {
+      return;
     }
+
+    deleteAddressMutation.mutate(id, {
+      onSuccess: () => {
+        if (selectedAddressId === id) {
+          selectAddress(null);
+        }
+      },
+      onError: (mutationError: Error) => {
+        window.alert(mutationError.message);
+      },
+    });
   };
 
   const handleSelect = (id: string) => {
     selectAddress(id);
+
+    if (returnTo) {
+      navigate(returnTo, { replace: true });
+      return;
+    }
+
     if (window.history.length > 1) {
       navigate(-1);
     }
+  };
+
+  const handleAutoDetect = () => {
+    setAutoDetectHint(null);
+    setAutoDetectError(null);
+
+    autoDetectAddressMutation.mutate(
+      {
+        currentAddresses: addresses,
+        preferredLabel: addresses.length === 0 ? 'Uy' : 'Boshqa',
+      },
+      {
+        onSuccess: (result) => {
+          setAutoDetectHint(result.hint);
+          if (returnTo) {
+            navigate(returnTo, { replace: true });
+          }
+        },
+        onError: (mutationError) => {
+          setAutoDetectError(mutationError.message);
+        },
+      },
+    );
   };
 
   if (isLoading) {
@@ -123,11 +182,31 @@ const AddressListPage: React.FC = () => {
             <h2 className="mt-2 text-[2rem] font-black leading-none tracking-tight text-slate-900">{copy.title}</h2>
             <p className="mt-3 max-w-[270px] text-sm leading-6 text-slate-500">{copy.subtitle}</p>
           </div>
+
           <button
-            onClick={handleAddNew}
+            type="button"
+            onClick={handleOpenMap}
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#f59e0b_0%,#f97316_100%)] text-white shadow-[0_18px_30px_rgba(249,115,22,0.22)] transition-transform active:scale-95"
           >
             <Plus size={24} strokeWidth={3} />
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3">
+          <GeoLocationButton
+            loading={autoDetectAddressMutation.isPending}
+            onClick={handleAutoDetect}
+            error={autoDetectError}
+            hint={autoDetectHint}
+          />
+
+          <button
+            type="button"
+            onClick={handleOpenMap}
+            className="flex h-12 w-full items-center justify-center gap-3 rounded-[12px] border border-slate-200 bg-white text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(15,23,42,0.08)] transition-transform active:scale-[0.985]"
+          >
+            <MapPin size={18} />
+            <span>{copy.mapPick}</span>
           </button>
         </div>
       </section>
@@ -146,7 +225,8 @@ const AddressListPage: React.FC = () => {
           ))}
 
           <button
-            onClick={handleAddNew}
+            type="button"
+            onClick={handleOpenMap}
             className="glass-panel mt-2 flex h-16 w-full items-center justify-center gap-3 rounded-[28px] font-black text-slate-600 shadow-[0_18px_42px_rgba(148,101,60,0.12)] transition-transform active:scale-[0.985]"
           >
             <Plus size={20} />
@@ -154,7 +234,7 @@ const AddressListPage: React.FC = () => {
           </button>
         </div>
       ) : (
-        <AddressEmptyState onAdd={handleAddNew} />
+        <AddressEmptyState onAdd={handleOpenMap} />
       )}
 
       {isLoading ? (

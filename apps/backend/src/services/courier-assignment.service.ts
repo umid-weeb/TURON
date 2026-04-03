@@ -157,7 +157,7 @@ function compareRankedCouriers(
 async function resolveLiveLocationMetrics(
   locations: Array<CoordinatePoint | null>,
 ): Promise<Array<{ distanceMeters: number | null; etaMinutes: number | null }>> {
-  const results = locations.map(() => ({
+  const results: Array<{ distanceMeters: number | null; etaMinutes: number | null }> = locations.map(() => ({
     distanceMeters: null,
     etaMinutes: null,
   }));
@@ -273,13 +273,20 @@ export class CourierAssignmentService {
       ),
     );
 
-    const candidates = couriers.map((courier, index) => {
+    const candidates: RankedCourierCandidateInternal[] = couriers.map((courier, index) => {
       const activeAssignments = (courier.courierAssignments || []).filter((assignment: any) =>
         StatusService.isActiveAssignmentStatus(assignment.status),
       );
       const lastAssignedAt = courier.courierAssignments?.[0]?.assignedAt?.toISOString?.() ?? null;
       const liveLocation = liveLocations[index];
       const locationMetrics = liveLocationMetrics[index];
+      const metrics: RankedCourierMetrics = {
+        distanceMeters: locationMetrics.distanceMeters,
+        etaMinutes: locationMetrics.etaMinutes,
+        source: liveLocation ? 'live-location' : 'workload',
+        hasLiveLocation: Boolean(liveLocation),
+        liveLocationUpdatedAt: liveLocation?.updatedAt ?? null,
+      };
 
       return {
         id: courier.id,
@@ -289,13 +296,7 @@ export class CourierAssignmentService {
         lastAssignedAt,
         isOnline: courier.courierOperationalStatus?.isOnline ?? false,
         isAcceptingOrders: courier.courierOperationalStatus?.isAcceptingOrders ?? false,
-        metrics: {
-          distanceMeters: locationMetrics.distanceMeters,
-          etaMinutes: locationMetrics.etaMinutes,
-          source: liveLocation ? 'live-location' : 'workload',
-          hasLiveLocation: Boolean(liveLocation),
-          liveLocationUpdatedAt: liveLocation?.updatedAt ?? null,
-        },
+        metrics,
       };
     });
 

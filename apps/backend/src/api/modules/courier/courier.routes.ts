@@ -13,14 +13,14 @@ import {
   updateCourierLocation,
   updateCourierStatus,
   updateOrderStage,
-} from './courier.controller';
+} from './courier.controller.js';
 import {
   CourierProblemSchema,
   IdParamSchema,
   TrackingLocationSchema,
   UpdateCourierOperationalStatusSchema,
   UpdateDeliveryStageSchema,
-} from '../../utils/schemas';
+} from '../../utils/schemas.js';
 import { UserRoleEnum } from '@turon/shared';
 
 export default async function courierRoutes(fastify: FastifyInstance) {

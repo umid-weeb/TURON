@@ -1,15 +1,16 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   Check,
   ChevronLeft,
+  ChevronUp,
   Loader2,
   LocateFixed,
   MapPin,
   Search,
-  Store,
   Target,
+  X,
 } from 'lucide-react';
 import type { AddressCandidate, RouteInfo } from '../../features/maps/MapProvider';
 import { formatGeolocationAccuracy, getUserGeolocationErrorMessage } from '../../features/maps/geolocation';
@@ -22,13 +23,17 @@ const TASHKENT_CENTER = { lat: 41.2995, lng: 69.2401 };
 
 const MapSelectionPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { draftAddress, updateDraft } = useAddressStore();
   const { language } = useCustomerLanguage();
+  const returnTo = typeof location.state?.returnTo === 'string' ? location.state.returnTo : null;
   const mapProvider = getMapProvider();
   const LocationPicker = mapProvider.LocationPicker;
   const skipNextSearchRef = React.useRef(false);
+  const interactionEndTimeoutRef = React.useRef<number | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [searchResults, setSearchResults] = React.useState<AddressCandidate[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [isSearching, setIsSearching] = React.useState(false);
   const [resolvingSuggestionId, setResolvingSuggestionId] = React.useState<string | null>(null);
   const [searchFeedback, setSearchFeedback] = React.useState<string | null>(null);
@@ -42,39 +47,43 @@ const MapSelectionPage: React.FC = () => {
   const [locationHint, setLocationHint] = React.useState<string | null>(null);
   const [userLocationPin, setUserLocationPin] = React.useState<{ lat: number; lng: number } | null>(null);
   const [routeInfo, setRouteInfo] = React.useState<RouteInfo | null>(null);
+  const [isSheetExpanded, setIsSheetExpanded] = React.useState(false);
+  const [showCompactInfo, setShowCompactInfo] = React.useState(true);
 
   const copy =
     language === 'ru'
       ? {
           title: 'Tochka dostavki',
-          subtitle: 'Pin zafiksirovan. Dvigayte kartu pod marker.',
+          subtitle: 'Pin v centre. Dvigayte kartu pod nim.',
           searchPlaceholder: mapProvider.supportsAddressSearch
             ? 'Ulitsa, dom, orientir...'
-            : 'Dlya poiska nuzhen Yandex API key',
-          searching: 'Ishchem adres...',
-          noResults: 'Podhodyashchiy adres ne naiden.',
-          searchError: 'Ne udalos nayti adres.',
-          geolocationUnsupported: 'Geolokatsiya ne podderzhivaetsya.',
-          resolving: 'Utochnyaem adres...',
-          selected: 'Vybrannyy adres',
-          confirmBadge: 'Podtverzhdenie',
+            : 'Qidiruv hozircha mavjud emas',
+          searching: 'Manzil qidirilmoqda...',
+          noResults: 'Mos manzil topilmadi.',
+          searchError: 'Manzil qidirishda xatolik yuz berdi.',
+          geolocationUnsupported: 'Geolokatsiya qo‘llab-quvvatlanmaydi.',
+          resolving: 'Manzil aniqlanmoqda...',
+          selected: 'Tanlangan manzil',
+          confirmBadge: 'Tasdiq',
           radius: 'Radius',
-          distance: 'Rasstoyanie',
+          distance: 'Masofa',
           eta: 'ETA',
-          precision: 'Tochnost',
-          basedOnCurrent: 'Karta centrirovana po tekushchey lokacii',
-          confirm: 'Dostavlyat syuda',
-          calculating: 'Schitaetsya',
+          precision: 'Aniqlik',
+          basedOnCurrent: 'Joriy joylashuv bo‘yicha markazlandi',
+          confirm: 'Shu yerga yetkazilsin',
+          calculating: 'Hisoblanmoqda',
+          currentLocation: 'Joylashuvim',
+          expand: 'Batafsil ko‘rish',
         }
       : {
           title: 'Yetkazish nuqtasi',
-          subtitle: 'Pin markazda turadi. Xarita ostidan suriladi.',
+          subtitle: 'Pin markazda. Xarita ostidan suriladi.',
           searchPlaceholder: mapProvider.supportsAddressSearch
             ? "Ko'cha, uy, mo'ljal..."
-            : 'Qidiruv uchun Yandex API key kerak',
+            : "Qidiruv hozircha mavjud emas",
           searching: 'Manzil qidirilmoqda...',
-          noResults: "Mos manzil topilmadi. So'rovni aniqlashtiring.",
-          searchError: 'Manzilni qidirishda xatolik yuz berdi.',
+          noResults: "Mos manzil topilmadi.",
+          searchError: 'Manzil qidirishda xatolik yuz berdi.',
           geolocationUnsupported: "Geolokatsiya qo'llab-quvvatlanmaydi.",
           resolving: 'Manzil aniqlanmoqda...',
           selected: 'Tanlangan manzil',
@@ -83,16 +92,18 @@ const MapSelectionPage: React.FC = () => {
           distance: 'Masofa',
           eta: 'ETA',
           precision: 'Aniqlik',
-          basedOnCurrent: 'Joriy joylashuv bo`yicha markazlandi',
+          basedOnCurrent: 'Joriy joylashuv bo‘yicha markazlandi',
           confirm: 'Shu yerga yetkazilsin',
           calculating: 'Hisoblanmoqda',
+          currentLocation: 'Joylashuvim',
+          expand: 'Batafsil ko‘rish',
         };
 
   React.useEffect(() => {
     if (!draftAddress) {
-      navigate('/customer/addresses', { replace: true });
+      navigate('/customer/addresses', { replace: true, state: { returnTo } });
     }
-  }, [draftAddress, navigate]);
+  }, [draftAddress, navigate, returnTo]);
 
   React.useEffect(() => {
     let isCancelled = false;
@@ -104,8 +115,9 @@ const MapSelectionPage: React.FC = () => {
       if (!isCancelled) {
         setResolvedAddress(geocodedAddress || mapProvider.formatCoordinateAddress(selectedPin));
         setIsResolvingAddress(false);
+        setShowCompactInfo(true);
       }
-    }, 350);
+    }, 260);
 
     return () => {
       isCancelled = true;
@@ -114,7 +126,7 @@ const MapSelectionPage: React.FC = () => {
   }, [mapProvider, selectedPin]);
 
   React.useEffect(() => {
-    if (!mapProvider.supportsAddressSearch) {
+    if (!mapProvider.supportsAddressSearch || !isSearchOpen) {
       setSearchResults([]);
       setSearchFeedback(null);
       setIsSearching(false);
@@ -160,17 +172,22 @@ const MapSelectionPage: React.FC = () => {
           setIsSearching(false);
         }
       }
-    }, 280);
+    }, 240);
 
     return () => {
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [copy.noResults, copy.searchError, mapProvider, searchQuery, selectedPin, userLocationPin]);
+  }, [copy.noResults, copy.searchError, isSearchOpen, mapProvider, searchQuery, selectedPin, userLocationPin]);
 
   if (!draftAddress) {
     return null;
   }
+
+  const displayAddress = resolvedAddress || mapProvider.formatCoordinateAddress(selectedPin);
+  const compactAddress = displayAddress.split(',').slice(0, 2).join(', ').trim() || displayAddress;
+  const compactDistance = routeInfo?.distance || copy.calculating;
+  const compactEta = routeInfo?.eta || copy.calculating;
 
   const handleSearchPick = async (candidate: AddressCandidate) => {
     try {
@@ -187,6 +204,9 @@ const MapSelectionPage: React.FC = () => {
       setSearchFeedback(null);
       setResolvedAddress(resolvedCandidate.address);
       setSelectedPin(resolvedCandidate.pin);
+      setIsSearchOpen(false);
+      setShowCompactInfo(true);
+      setIsSheetExpanded(false);
     } catch (error) {
       setSearchFeedback((error as Error).message);
     } finally {
@@ -206,12 +226,15 @@ const MapSelectionPage: React.FC = () => {
 
     void mapProvider
       .detectUserLocation()
-      .then((location) => {
-        setUserLocationPin(location.pin);
-        setSelectedPin(location.pin);
+      .then((locationResult) => {
+        setUserLocationPin(locationResult.pin);
+        setSelectedPin(locationResult.pin);
         setSearchResults([]);
+        setIsSearchOpen(false);
+        setShowCompactInfo(true);
+        setIsSheetExpanded(false);
 
-        const accuracy = formatGeolocationAccuracy(location.accuracy);
+        const accuracy = formatGeolocationAccuracy(locationResult.accuracy);
         setLocationHint(accuracy ? `${copy.precision}: ${accuracy}` : copy.basedOnCurrent);
       })
       .catch((locationError) => {
@@ -226,10 +249,38 @@ const MapSelectionPage: React.FC = () => {
     updateDraft({
       latitude: selectedPin.lat,
       longitude: selectedPin.lng,
-      addressText: resolvedAddress || mapProvider.formatCoordinateAddress(selectedPin),
+      addressText: displayAddress,
     });
-    navigate(-1);
+    navigate('/customer/address/new', { state: { returnTo } });
   };
+
+  const handleMapInteractionStart = () => {
+    if (interactionEndTimeoutRef.current) {
+      window.clearTimeout(interactionEndTimeoutRef.current);
+      interactionEndTimeoutRef.current = null;
+    }
+
+    setIsSearchOpen(false);
+    setIsSheetExpanded(false);
+    setShowCompactInfo(false);
+    setSearchResults([]);
+  };
+
+  const handleMapInteractionEnd = () => {
+    interactionEndTimeoutRef.current = window.setTimeout(() => {
+      setShowCompactInfo(true);
+      interactionEndTimeoutRef.current = null;
+    }, 120);
+  };
+
+  React.useEffect(
+    () => () => {
+      if (interactionEndTimeoutRef.current) {
+        window.clearTimeout(interactionEndTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-slate-950 text-white animate-in fade-in duration-500">
@@ -238,188 +289,243 @@ const MapSelectionPage: React.FC = () => {
           initialCenter={selectedPin}
           onLocationSelect={setSelectedPin}
           onRouteInfoChange={setRouteInfo}
+          onInteractionStart={handleMapInteractionStart}
+          onInteractionEnd={handleMapInteractionEnd}
           userLocationPin={userLocationPin}
           restaurantLocationPin={DEFAULT_RESTAURANT_LOCATION.pin}
           height="100%"
           className="rounded-none border-0"
         />
 
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.66)_0%,rgba(2,6,23,0.08)_20%,rgba(2,6,23,0)_45%,rgba(2,6,23,0.72)_100%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.4)_0%,rgba(2,6,23,0.04)_22%,rgba(2,6,23,0)_50%,rgba(2,6,23,0.48)_100%)]" />
 
-        <div className="absolute left-4 right-4 top-4 z-20 space-y-3">
-          <div className="flex items-center gap-3">
+        <div className="absolute left-4 right-4 top-4 z-30">
+          <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900/72 text-white backdrop-blur-md transition-transform active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/78 text-white shadow-lg backdrop-blur-md transition-transform active:scale-95"
             >
-              <ChevronLeft size={22} />
+              <ChevronLeft size={20} />
             </button>
 
-            <div className="rounded-[12px] bg-slate-900/72 px-4 py-3 backdrop-blur-md">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/48">{copy.title}</p>
-              <p className="mt-1 text-sm font-black text-white">{copy.subtitle}</p>
+            <div className="rounded-full bg-slate-950/72 px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.18em] text-white/78 backdrop-blur-md">
+              {copy.title}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleUseCurrentLocation}
+                disabled={isLocatingMe}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/78 text-white shadow-lg backdrop-blur-md transition-transform active:scale-95 disabled:opacity-60"
+                aria-label={copy.currentLocation}
+              >
+                {isLocatingMe ? <Loader2 size={18} className="animate-spin" /> : <LocateFixed size={18} />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSearchOpen((current) => !current);
+                  setSearchFeedback(null);
+                }}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/78 text-white shadow-lg backdrop-blur-md transition-transform active:scale-95"
+                aria-label="Manzil qidirish"
+              >
+                {isSearchOpen ? <X size={18} /> : <Search size={18} />}
+              </button>
             </div>
           </div>
 
-          <div className="rounded-[12px] bg-slate-900/74 p-3 backdrop-blur-md">
-            <div className="relative">
-              <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/35" />
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                disabled={!mapProvider.supportsAddressSearch}
-                placeholder={copy.searchPlaceholder}
-                className="h-12 w-full rounded-[12px] border border-white/8 bg-white/8 pl-12 pr-4 text-sm font-bold text-white placeholder:text-white/35 outline-none"
-              />
-            </div>
-
-            {isSearching ? (
-              <div className="mt-3 flex items-center gap-2 rounded-[12px] bg-white/8 px-4 py-3 text-sm font-bold text-white/72">
-                <Loader2 size={16} className="animate-spin" />
-                <span>{copy.searching}</span>
+          {isSearchOpen ? (
+            <div className="mt-3 rounded-[18px] bg-slate-950/88 p-3 shadow-2xl backdrop-blur-xl">
+              <div className="relative">
+                <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/38" />
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  disabled={!mapProvider.supportsAddressSearch}
+                  placeholder={copy.searchPlaceholder}
+                  className="h-11 w-full rounded-[14px] border border-white/8 bg-white/8 pl-11 pr-4 text-sm font-bold text-white placeholder:text-white/34 outline-none"
+                />
               </div>
-            ) : null}
 
-            {!isSearching && searchResults.length > 0 ? (
-              <div className="mt-3 space-y-2">
-                {searchResults.map((candidate) => (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    onClick={() => {
-                      void handleSearchPick(candidate);
-                    }}
-                    disabled={Boolean(resolvingSuggestionId)}
-                    className="flex w-full items-start gap-3 rounded-[12px] bg-white/8 px-4 py-3 text-left transition-colors active:bg-white/12 disabled:opacity-60"
-                  >
-                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#ffd600] text-slate-950">
-                      {resolvingSuggestionId === candidate.id ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <MapPin size={16} />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-black text-white">{candidate.title}</p>
-                        {candidate.distanceText ? (
-                          <span className="shrink-0 rounded-full border border-white/8 bg-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/58">
-                            {candidate.distanceText}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/62">
-                        {candidate.subtitle ? `${candidate.subtitle}, ${candidate.address}` : candidate.address}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {!isSearching && searchFeedback ? (
-              <div className="mt-3 flex items-start gap-2 rounded-[12px] bg-amber-400/12 px-4 py-3 text-sm font-bold text-amber-200">
-                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                <span>{searchFeedback}</span>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="absolute bottom-[254px] right-4 z-20">
-          <button
-            type="button"
-            onClick={handleUseCurrentLocation}
-            disabled={isLocatingMe}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/74 text-white shadow-lg backdrop-blur-md transition-transform active:scale-95 disabled:opacity-60"
-          >
-            {isLocatingMe ? <Loader2 size={18} className="animate-spin" /> : <LocateFixed size={18} />}
-          </button>
-        </div>
-
-        <div className="absolute inset-x-0 bottom-0 z-20 rounded-t-[24px] bg-[#161616]/94 px-4 pb-4 pt-3 shadow-[0_-24px_52px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <div className="mx-auto h-1.5 w-14 rounded-full bg-white/18" />
-
-          <div className="mt-3 flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/42">{copy.selected}</p>
-              {isResolvingAddress ? (
-                <div className="mt-2 flex items-center gap-2 text-sm font-bold text-white/70">
-                  <Loader2 size={14} className="animate-spin" />
-                  <span>{copy.resolving}</span>
+              {isSearching ? (
+                <div className="mt-3 flex items-center gap-2 rounded-[14px] bg-white/8 px-4 py-3 text-sm font-bold text-white/72">
+                  <Loader2 size={15} className="animate-spin" />
+                  <span>{copy.searching}</span>
                 </div>
-              ) : (
-                <p className="mt-2 max-w-[250px] text-[15px] font-black leading-6 text-white">
-                  {resolvedAddress || mapProvider.formatCoordinateAddress(selectedPin)}
-                </p>
-              )}
-            </div>
+              ) : null}
 
-            <div className="rounded-full bg-[#ffd600] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-950">
-              {copy.confirmBadge}
-            </div>
-          </div>
+              {!isSearching && searchResults.length > 0 ? (
+                <div className="mt-3 max-h-[200px] space-y-2 overflow-y-auto pr-1">
+                  {searchResults.map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      onClick={() => {
+                        void handleSearchPick(candidate);
+                      }}
+                      disabled={Boolean(resolvingSuggestionId)}
+                      className="flex w-full items-start gap-3 rounded-[14px] bg-white/8 px-3 py-3 text-left transition-colors active:bg-white/12 disabled:opacity-60"
+                    >
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#ffd600] text-slate-950">
+                        {resolvingSuggestionId === candidate.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <MapPin size={14} />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-white">{candidate.title}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/62">
+                          {candidate.subtitle ? `${candidate.subtitle}, ${candidate.address}` : candidate.address}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="rounded-[12px] bg-white/6 px-3 py-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#ffd600] text-slate-950">
-                <Target size={16} />
+              {!isSearching && searchFeedback ? (
+                <div className="mt-3 flex items-start gap-2 rounded-[14px] bg-amber-400/12 px-4 py-3 text-sm font-bold text-amber-200">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <span>{searchFeedback}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)]">
+          <div className="mx-auto max-w-[430px]">
+            <button
+              type="button"
+              onClick={() => setIsSheetExpanded((current) => !current)}
+              className="mx-auto mb-1.5 flex h-5 w-14 items-center justify-center rounded-full bg-slate-950/52 text-white/60 backdrop-blur-md"
+              aria-label={copy.expand}
+            >
+              <ChevronUp
+                size={16}
+                className={`transition-transform ${isSheetExpanded ? '' : 'rotate-180'}`}
+              />
+            </button>
+
+            {showCompactInfo ? (
+              <div
+                className={`overflow-hidden rounded-[22px] border border-white/8 bg-[#171717]/94 shadow-[0_-20px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl transition-all ${
+                  isSheetExpanded ? 'px-4 pb-3.5 pt-3.5' : 'px-3 py-2.5'
+                }`}
+              >
+                {isSheetExpanded ? (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
+                          {copy.selected}
+                        </p>
+                        {isResolvingAddress ? (
+                          <div className="mt-2 flex items-center gap-2 text-sm font-bold text-white/70">
+                            <Loader2 size={14} className="animate-spin" />
+                            <span>{copy.resolving}</span>
+                          </div>
+                        ) : (
+                          <p className="mt-1.5 text-[14px] font-black leading-5 text-white">{displayAddress}</p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleConfirm}
+                        disabled={isResolvingAddress || isLocatingMe}
+                        className="shrink-0 rounded-full bg-[#ffd600] px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 disabled:opacity-60"
+                      >
+                        {copy.confirmBadge}
+                      </button>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-1.5">
+                      <InfoTile label={copy.radius} value="50m" tone="amber" icon={<Target size={14} />} />
+                      <InfoTile label={copy.distance} value={compactDistance} tone="slate" icon={<Target size={14} />} />
+                      <InfoTile label={copy.eta} value={compactEta} tone="emerald" icon={<MapPin size={14} />} />
+                    </div>
+
+                    <div className="mt-2.5 rounded-[14px] bg-white/6 px-3 py-2.5 text-[13px] leading-5 text-white/68">
+                      Nuqta taxminan 50 metr aniqlik bilan saqlanadi.
+                      {locationHint ? <span className="mt-1 block text-[11px] font-bold text-emerald-300">{locationHint}</span> : null}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleConfirm}
+                      disabled={isResolvingAddress || isLocatingMe}
+                      className="mt-2.5 flex h-11 w-full items-center justify-center gap-3 rounded-[14px] bg-[#ffd600] text-[15px] font-black text-slate-950 transition-transform active:scale-[0.985] disabled:opacity-60"
+                    >
+                      <Check size={18} />
+                      <span>{copy.confirm}</span>
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-black text-white">
+                        {isResolvingAddress ? copy.resolving : compactAddress}
+                      </p>
+                      <div className="mt-0.5 flex items-center gap-2.5 text-[10px] font-bold text-white/58">
+                        <span>{compactDistance}</span>
+                        <span>{compactEta}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsSheetExpanded(true)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-white"
+                      aria-label={copy.expand}
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleConfirm}
+                      disabled={isResolvingAddress || isLocatingMe}
+                      className="flex h-9 items-center justify-center rounded-full bg-[#ffd600] px-3.5 text-[11px] font-black uppercase tracking-[0.14em] text-slate-950 disabled:opacity-60"
+                    >
+                      {copy.confirmBadge}
+                    </button>
+                  </div>
+                )}
               </div>
-              <p className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-white/42">{copy.radius}</p>
-              <p className="mt-1 text-sm font-black text-white">50m</p>
-            </div>
-
-            <div className="rounded-[12px] bg-white/6 px-3 py-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white/10 text-white">
-                <RoutePinIcon />
-              </div>
-              <p className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-white/42">{copy.distance}</p>
-              <p className="mt-1 text-sm font-black text-white">{routeInfo?.distance || copy.calculating}</p>
-            </div>
-
-            <div className="rounded-[12px] bg-white/6 px-3 py-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-emerald-400/18 text-emerald-300">
-                <Store size={16} />
-              </div>
-              <p className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-white/42">{copy.eta}</p>
-              <p className="mt-1 text-sm font-black text-white">{routeInfo?.eta || copy.calculating}</p>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-[12px] bg-white/6 px-4 py-3.5">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">{copy.precision}</p>
-            <p className="mt-2 text-sm leading-6 text-white/68">
-              Nuqta taxminan 50 metr aniqlik bilan saqlanadi. Qavat, eshik kodi va qo'shimcha izoh keyingi bosqichda kiritiladi.
-            </p>
-            {locationHint ? <p className="mt-2 text-[11px] font-bold text-emerald-300">{locationHint}</p> : null}
-            {!locationHint && userLocationPin ? (
-              <p className="mt-2 text-[11px] font-bold text-white/56">{copy.basedOnCurrent}</p>
             ) : null}
           </div>
-
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={isResolvingAddress || isLocatingMe}
-            className="mt-4 flex h-[54px] w-full items-center justify-center gap-3 rounded-[12px] bg-[#ffd600] text-base font-black text-slate-950 transition-transform active:scale-[0.985] disabled:opacity-60"
-          >
-            <Check size={20} />
-            <span>{copy.confirm}</span>
-          </button>
         </div>
       </div>
     </div>
   );
 };
 
-function RoutePinIcon() {
+const InfoTile: React.FC<{
+  label: string;
+  value: string;
+  tone: 'amber' | 'emerald' | 'slate';
+  icon: React.ReactNode;
+}> = ({ label, value, tone, icon }) => {
+  const toneClass =
+    tone === 'amber'
+      ? 'bg-[#ffd600] text-slate-950'
+      : tone === 'emerald'
+        ? 'bg-emerald-400/18 text-emerald-300'
+        : 'bg-white/10 text-white';
+
   return (
-    <span className="relative block h-4 w-4">
-      <span className="absolute inset-0 rounded-full border-2 border-current" />
-      <span className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current" />
-    </span>
+    <div className="rounded-[14px] bg-white/6 px-3 py-2.5">
+      <div className={`flex h-7 w-7 items-center justify-center rounded-[10px] ${toneClass}`}>{icon}</div>
+      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/42">{label}</p>
+      <p className="mt-1 text-[13px] font-black text-white">{value}</p>
+    </div>
   );
-}
+};
 
 export default MapSelectionPage;

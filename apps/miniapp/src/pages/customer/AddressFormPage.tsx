@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAddressStore } from '../../store/useAddressStore';
 import { useCreateAddress, useUpdateAddress } from '../../hooks/queries/useAddresses';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 
 const AddressFormPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = useCustomerLanguage();
   const { draftAddress, updateDraft, clearDraft, selectAddress } = useAddressStore();
   const createAddressMutation = useCreateAddress();
   const updateAddressMutation = useUpdateAddress();
   const [error, setError] = useState<string | null>(null);
+  const returnTo = typeof location.state?.returnTo === 'string' ? location.state.returnTo : null;
   const [entrance, setEntrance] = useState('');
   const [floor, setFloor] = useState('');
   const [apartment, setApartment] = useState('');
@@ -87,9 +89,9 @@ const AddressFormPage: React.FC = () => {
 
   useEffect(() => {
     if (!draftAddress) {
-      navigate('/customer/addresses', { replace: true });
+      navigate('/customer/addresses', { replace: true, state: { returnTo } });
     }
-  }, [draftAddress, navigate]);
+  }, [draftAddress, navigate, returnTo]);
 
   useEffect(() => {
     if (!draftAddress?.note) {
@@ -143,6 +145,10 @@ const AddressFormPage: React.FC = () => {
     const onSuccess = (savedAddress: { id: string }) => {
       selectAddress(savedAddress.id);
       clearDraft();
+      if (returnTo) {
+        navigate(returnTo, { replace: true });
+        return;
+      }
       navigate('/customer/addresses');
     };
 

@@ -17,6 +17,8 @@ export interface MapProviderProps {
   initialZoom?: number;
   onLocationSelect?: (pin: MapPin) => void;
   onRouteInfoChange?: (info: RouteInfo) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
   userLocationPin?: MapPin | null;
   restaurantLocationPin?: MapPin | null;
   markers?: Marker[];
@@ -40,6 +42,8 @@ export interface LocationPickerProps {
   initialCenter: MapPin;
   onLocationSelect?: (pin: MapPin) => void;
   onRouteInfoChange?: (info: RouteInfo) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
   userLocationPin?: MapPin | null;
   restaurantLocationPin?: MapPin | null;
   height?: string;

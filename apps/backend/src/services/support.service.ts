@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import { UserRoleEnum } from '@turon/shared';
 import { prisma } from '../lib/prisma.js';
 
+type DbClient = Prisma.TransactionClient | typeof prisma;
+
 export interface SupportMessageDto {
   id: string;
   senderRole: UserRoleEnum;
@@ -62,7 +64,7 @@ function mapMessageRow(row: SupportMessageRow): SupportMessageDto {
   };
 }
 
-async function findLatestThread(userId: string, orderId?: string | null, tx: typeof prisma = prisma) {
+async function findLatestThread(userId: string, orderId?: string | null, tx: DbClient = prisma) {
   if (orderId) {
     const rows = await tx.$queryRaw<SupportThreadRow[]>(Prisma.sql`
       select id, order_id, status, created_at, updated_at, last_message_at
@@ -86,7 +88,7 @@ async function findLatestThread(userId: string, orderId?: string | null, tx: typ
   return rows[0] || null;
 }
 
-async function insertThread(userId: string, orderId?: string | null, tx: typeof prisma = prisma) {
+async function insertThread(userId: string, orderId?: string | null, tx: DbClient = prisma) {
   const rows = await tx.$queryRaw<SupportThreadRow[]>(Prisma.sql`
     insert into public.support_threads (user_id, order_id)
     values (${userId}::uuid, ${orderId ? Prisma.sql`${orderId}::uuid` : Prisma.sql`null`})
@@ -96,7 +98,7 @@ async function insertThread(userId: string, orderId?: string | null, tx: typeof 
   return rows[0];
 }
 
-async function getThreadMessages(threadId: string, tx: typeof prisma = prisma) {
+async function getThreadMessages(threadId: string, tx: DbClient = prisma) {
   const rows = await tx.$queryRaw<SupportMessageRow[]>(Prisma.sql`
     select id, sender_role, sender_label, message_text, channel, created_at
     from public.support_messages

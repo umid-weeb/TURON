@@ -9,6 +9,8 @@ function MockLocationPicker({
   initialCenter,
   onLocationSelect,
   onRouteInfoChange,
+  onInteractionStart,
+  onInteractionEnd,
   userLocationPin,
   restaurantLocationPin,
   height,
@@ -20,6 +22,8 @@ function MockLocationPicker({
         initialCenter={initialCenter}
         onLocationSelect={onLocationSelect}
         onRouteInfoChange={onRouteInfoChange}
+        onInteractionStart={onInteractionStart}
+        onInteractionEnd={onInteractionEnd}
         userLocationPin={userLocationPin}
         restaurantLocationPin={restaurantLocationPin}
         height={height}

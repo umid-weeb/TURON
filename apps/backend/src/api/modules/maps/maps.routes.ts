@@ -5,14 +5,14 @@ import {
   handleResolveSuggestion,
   handleReverseGeocode,
   handleSuggestAddresses,
-} from './maps.controller';
+} from './maps.controller.js';
 import {
   MapDistanceMatrixSchema,
   MapResolveSuggestionSchema,
   MapReverseGeocodeSchema,
   MapRouteSchema,
   MapSuggestQuerySchema,
-} from '../../utils/schemas';
+} from '../../utils/schemas.js';
 
 export default async function mapRoutes(fastify: FastifyInstance) {
   fastify.get('/suggest', {

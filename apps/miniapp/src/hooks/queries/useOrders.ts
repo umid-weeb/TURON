@@ -352,7 +352,10 @@ export const useCreateOrder = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => (await api.post('/orders', data)) as Order,
+    mutationFn: async (data: any) =>
+      (await api.post('/orders', data, {
+        timeout: 35000,
+      })) as Order,
     onSuccess: (createdOrder: Order) => {
       queryClient.setQueryData<Order[]>(['my-orders'], (current = []) => [
         createdOrder,

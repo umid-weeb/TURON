@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import {
   RESTAURANT_COORDINATES,
   DeliveryStageEnum,
@@ -40,7 +41,11 @@ export const ORDER_INCLUDE = {
     },
     orderBy: { assignedAt: 'desc' },
   },
-} as const;
+} satisfies Prisma.OrderInclude;
+
+export type OrderWithRelations = Prisma.OrderGetPayload<{
+  include: typeof ORDER_INCLUDE;
+}>;
 
 export function getActiveCourierAssignment(order: any) {
   return (

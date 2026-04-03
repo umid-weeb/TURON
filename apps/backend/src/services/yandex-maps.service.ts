@@ -28,6 +28,7 @@ interface YandexMatrixCell {
 }
 
 type YandexTrafficMode = 'enabled' | 'disabled' | 'forecast' | 'realtime';
+const YANDEX_REQUEST_TIMEOUT_MS = 5000;
 
 function readFirstEnv(...keys: string[]) {
   for (const key of keys) {
@@ -82,11 +83,27 @@ function normalizeTrafficQueryValue(traffic?: YandexTrafficMode) {
 }
 
 async function fetchYandexJson<T>(url: URL) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), YANDEX_REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if ((error as Error)?.name === 'AbortError') {
+      throw new Error('Yandex servisi javobi juda sekin bo‘ldi');
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const payload = await response.text();
   let data: T | { errors?: string[]; message?: string };

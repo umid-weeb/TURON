@@ -10,6 +10,8 @@ export default function YandexLocationPicker({
   initialCenter,
   onLocationSelect,
   onRouteInfoChange,
+  onInteractionStart,
+  onInteractionEnd,
   userLocationPin,
   restaurantLocationPin,
   height = '400px',
@@ -216,6 +218,11 @@ export default function YandexLocationPicker({
             skipNextViewportSyncRef.current = true;
             emitLocation(coords);
           }
+          onInteractionEnd?.();
+        });
+
+        map.events.add('actionbegin', () => {
+          onInteractionStart?.();
         });
 
         userPlacemarkRef.current = userPlacemark;
@@ -250,7 +257,7 @@ export default function YandexLocationPicker({
       userPlacemarkRef.current = null;
       restaurantPlacemarkRef.current = null;
     };
-  }, [onLocationSelect, onRouteInfoChange]);
+  }, [onInteractionEnd, onInteractionStart, onLocationSelect, onRouteInfoChange]);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -344,6 +351,8 @@ export default function YandexLocationPicker({
           initialCenter={initialCenter}
           onLocationSelect={onLocationSelect}
           onRouteInfoChange={onRouteInfoChange}
+          onInteractionStart={onInteractionStart}
+          onInteractionEnd={onInteractionEnd}
           userLocationPin={userLocationPin}
           restaurantLocationPin={restaurantLocationPin}
           height={height}
@@ -362,10 +371,15 @@ export default function YandexLocationPicker({
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <div className="relative">
-          <div className="absolute -top-11 left-1/2 flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-[18px] bg-[#ffd600] text-slate-950 shadow-[0_18px_32px_rgba(255,214,0,0.35)]">
-            <div className="h-4 w-4 rounded-full border-[3px] border-slate-950" />
+          <div className="absolute -top-14 left-1/2 flex -translate-x-1/2 flex-col items-center">
+            <div className="rounded-full bg-[#ffd600] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-950 shadow-[0_16px_28px_rgba(255,214,0,0.32)]">
+              Pin
+            </div>
+            <div className="h-3 w-[2px] bg-[#ffd600]" />
           </div>
-          <div className="h-4 w-4 rounded-full border-[3px] border-white bg-red-500 shadow-lg" />
+          <div className="flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-white bg-red-500 shadow-lg">
+            <div className="h-1.5 w-1.5 rounded-full bg-white" />
+          </div>
         </div>
       </div>
 

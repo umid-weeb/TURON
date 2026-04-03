@@ -13,6 +13,7 @@ import { StatusService } from '../../../services/status.service.js';
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ORDER_INCLUDE,
+  type OrderWithRelations,
   RESTAURANT_COORDS,
   hasOrderAccess,
   isOrderVisibleToRequester,
@@ -30,7 +31,7 @@ async function addTracking(order: any) {
 async function getTrackableOrder(orderId: string) {
   return prisma.order.findUnique({
     where: { id: orderId },
-    include: ORDER_INCLUDE as any,
+    include: ORDER_INCLUDE,
   });
 }
 
@@ -49,10 +50,55 @@ async function publishOrderSnapshot(orderId: string) {
   return serializedOrder;
 }
 
+function recordOrderCreatedAudit(params: {
+  userId: string;
+  actorRole: string;
+  orderId: string;
+  serializedOrder: Awaited<ReturnType<typeof getSerializedOrder>>;
+}) {
+  void AuditService.record({
+    userId: params.userId,
+    actorRole: params.actorRole,
+    action: 'CREATE_ORDER',
+    entity: 'Order',
+    entityId: params.orderId,
+    newValue: params.serializedOrder,
+  });
+}
+
+async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
+  try {
+    const autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(orderId);
+
+    if (autoAssignmentResult?.assignment) {
+      await AuditService.record({
+        action: 'AUTO_ASSIGN_COURIER',
+        entity: 'Order',
+        entityId: orderId,
+        newValue: {
+          assignmentId: autoAssignmentResult.assignment.assignmentId,
+          courierId: autoAssignmentResult.assignment.courierId,
+          courierName: autoAssignmentResult.assignment.courierName,
+          etaMinutes: autoAssignmentResult.assignment.etaMinutes,
+          distanceMeters: autoAssignmentResult.assignment.distanceMeters,
+          rankingCandidate: autoAssignmentResult.selectedCandidate,
+        },
+        metadata: {
+          mode: 'AUTO',
+        },
+      });
+
+      await publishOrderSnapshot(orderId);
+    }
+  } catch (error) {
+    console.error(`Auto courier assignment failed for order ${orderId}:`, error);
+  }
+}
+
 async function listAccessibleOrders(requester: any) {
   if (requester.role === UserRoleEnum.ADMIN) {
     return prisma.order.findMany({
-      include: ORDER_INCLUDE as any,
+      include: ORDER_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -69,14 +115,14 @@ async function listAccessibleOrders(requester: any) {
           },
         },
       },
-      include: ORDER_INCLUDE as any,
+      include: ORDER_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
 
   return prisma.order.findMany({
     where: { userId: requester.id },
-    include: ORDER_INCLUDE as any,
+    include: ORDER_INCLUDE,
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -311,47 +357,19 @@ export async function handleCreateOrder(
     });
   });
 
-  let autoAssignmentResult: Awaited<ReturnType<typeof CourierAssignmentService.autoAssignOrder>> | null = null;
-  try {
-    autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(createdOrder.id);
-  } catch (error) {
-    console.error(`Auto courier assignment failed for order ${createdOrder.id}:`, error);
-  }
-
   const serializedOrder = await getSerializedOrder(createdOrder.id);
-
-  await AuditService.record({
-    userId: user.id,
-    actorRole: user.role,
-    action: 'CREATE_ORDER',
-    entity: 'Order',
-    entityId: createdOrder.id,
-    newValue: serializedOrder,
-  });
-
-  if (autoAssignmentResult?.assignment) {
-    await AuditService.record({
-      action: 'AUTO_ASSIGN_COURIER',
-      entity: 'Order',
-      entityId: createdOrder.id,
-      newValue: {
-        assignmentId: autoAssignmentResult.assignment.assignmentId,
-        courierId: autoAssignmentResult.assignment.courierId,
-        courierName: autoAssignmentResult.assignment.courierName,
-        etaMinutes: autoAssignmentResult.assignment.etaMinutes,
-        distanceMeters: autoAssignmentResult.assignment.distanceMeters,
-        rankingCandidate: autoAssignmentResult.selectedCandidate,
-      },
-      metadata: {
-        mode: 'AUTO',
-      },
-    });
-  }
 
   if (serializedOrder) {
     orderTrackingService.publishOrderUpdate(createdOrder.id, serializedOrder);
   }
 
+  recordOrderCreatedAudit({
+    userId: user.id,
+    actorRole: user.role,
+    orderId: createdOrder.id,
+    serializedOrder,
+  });
+  void continueAutoAssignmentAfterOrderCreation(createdOrder.id);
   return reply.status(201).send(serializedOrder);
 }
 
@@ -363,7 +381,7 @@ export async function getMyOrders(request: FastifyRequest, reply: FastifyReply) 
 
 export async function getAllOrders(request: FastifyRequest, reply: FastifyReply) {
   const orders = await prisma.order.findMany({
-    include: ORDER_INCLUDE as any,
+    include: ORDER_INCLUDE,
     orderBy: { createdAt: 'desc' },
   });
 
@@ -776,9 +794,9 @@ export async function handleApprovePayment(
   reply: FastifyReply,
 ) {
   const admin = request.user as any;
-  const order = await prisma.order.findUnique({
+  const order: OrderWithRelations | null = await prisma.order.findUnique({
     where: { id: request.params.id },
-    include: ORDER_INCLUDE as any,
+    include: ORDER_INCLUDE,
   });
 
   if (!order) {
@@ -788,6 +806,8 @@ export async function handleApprovePayment(
   if (!order.payment) {
     return reply.status(400).send({ error: "Buyurtmaga tegishli to'lov topilmadi" });
   }
+
+  const payment = order.payment;
 
   if (order.paymentStatus === PaymentStatusEnum.COMPLETED) {
     return reply.send(await addTracking(order));
@@ -829,10 +849,10 @@ export async function handleApprovePayment(
     actorRole: admin.role,
     action: 'VERIFY_PAYMENT',
     entity: 'Payment',
-    entityId: order.payment.id,
+    entityId: payment.id,
     oldValue: {
       paymentStatus: order.paymentStatus,
-      verifiedAt: order.payment.verifiedAt?.toISOString(),
+      verifiedAt: payment.verifiedAt?.toISOString(),
     },
     newValue: {
       paymentStatus: PaymentStatusEnum.COMPLETED,
@@ -855,9 +875,9 @@ export async function handleRejectPayment(
   const { reason } = request.body ?? {};
   const rejectionReason = reason?.trim() || 'Admin tomonidan to\'lov rad etildi';
 
-  const order = await prisma.order.findUnique({
+  const order: OrderWithRelations | null = await prisma.order.findUnique({
     where: { id: request.params.id },
-    include: ORDER_INCLUDE as any,
+    include: ORDER_INCLUDE,
   });
 
   if (!order) {
@@ -867,6 +887,8 @@ export async function handleRejectPayment(
   if (!order.payment) {
     return reply.status(400).send({ error: "Buyurtmaga tegishli to'lov topilmadi" });
   }
+
+  const payment = order.payment;
 
   if (order.paymentStatus !== PaymentStatusEnum.PENDING) {
     return reply.status(400).send({ error: "Faqat kutilayotgan to'lov rad etiladi" });
@@ -939,11 +961,11 @@ export async function handleRejectPayment(
     actorRole: admin.role,
     action: 'REJECT_PAYMENT',
     entity: 'Payment',
-    entityId: order.payment.id,
+    entityId: payment.id,
     oldValue: {
       paymentStatus: order.paymentStatus,
       orderStatus: order.status,
-      rejectionReason: order.payment.rejectionReason,
+      rejectionReason: payment.rejectionReason,
     },
     newValue: {
       paymentStatus: PaymentStatusEnum.FAILED,
