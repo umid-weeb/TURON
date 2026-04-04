@@ -115,9 +115,12 @@ const MapSelectionPage: React.FC = () => {
       if (!isCancelled) {
         setResolvedAddress(geocodedAddress || mapProvider.formatCoordinateAddress(selectedPin));
         setIsResolvingAddress(false);
-        setShowCompactInfo(true);
+        // Do not force show info here if user is still interacting
+        if (!interactionEndTimeoutRef.current) {
+          setShowCompactInfo(true);
+        }
       }
-    }, 260);
+    }, 800); // Increased from 260ms to 800ms for better performance
 
     return () => {
       isCancelled = true;
@@ -204,9 +207,11 @@ const MapSelectionPage: React.FC = () => {
       setSearchFeedback(null);
       setResolvedAddress(resolvedCandidate.address);
       setSelectedPin(resolvedCandidate.pin);
+      
+      // Per user request: close search window after picking
       setIsSearchOpen(false);
-      setShowCompactInfo(true);
       setIsSheetExpanded(false);
+      setShowCompactInfo(true);
     } catch (error) {
       setSearchFeedback((error as Error).message);
     } finally {
@@ -214,7 +219,7 @@ const MapSelectionPage: React.FC = () => {
     }
   };
 
-  const handleUseCurrentLocation = () => {
+  const handleUseCurrentLocation = React.useCallback(() => {
     if (!mapProvider.supportsGeolocation) {
       setSearchFeedback(copy.geolocationUnsupported);
       return;
@@ -243,35 +248,36 @@ const MapSelectionPage: React.FC = () => {
       .finally(() => {
         setIsLocatingMe(false);
       });
-  };
+  }, [copy, mapProvider]);
 
-  const handleConfirm = () => {
+  const handleConfirm = React.useCallback(() => {
     updateDraft({
       latitude: selectedPin.lat,
       longitude: selectedPin.lng,
       addressText: displayAddress,
     });
     navigate('/customer/address/new', { state: { returnTo } });
-  };
+  }, [displayAddress, navigate, returnTo, selectedPin, updateDraft]);
 
-  const handleMapInteractionStart = () => {
+  const handleMapInteractionStart = React.useCallback(() => {
     if (interactionEndTimeoutRef.current) {
       window.clearTimeout(interactionEndTimeoutRef.current);
       interactionEndTimeoutRef.current = null;
     }
 
+    // Per user request: hide search and bottom info when map moves
     setIsSearchOpen(false);
     setIsSheetExpanded(false);
     setShowCompactInfo(false);
     setSearchResults([]);
-  };
+  }, []);
 
-  const handleMapInteractionEnd = () => {
+  const handleMapInteractionEnd = React.useCallback(() => {
     interactionEndTimeoutRef.current = window.setTimeout(() => {
       setShowCompactInfo(true);
       interactionEndTimeoutRef.current = null;
-    }, 120);
-  };
+    }, 200); // Increased slightly for stability
+  }, []);
 
   React.useEffect(
     () => () => {
@@ -329,6 +335,10 @@ const MapSelectionPage: React.FC = () => {
                 onClick={() => {
                   setIsSearchOpen((current) => !current);
                   setSearchFeedback(null);
+                  if (!isSearchOpen) {
+                    setIsSheetExpanded(false); // Hide bottom sheet when search opens
+                    setShowCompactInfo(false);
+                  }
                 }}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/78 text-white shadow-lg backdrop-blur-md transition-transform active:scale-95"
                 aria-label="Manzil qidirish"

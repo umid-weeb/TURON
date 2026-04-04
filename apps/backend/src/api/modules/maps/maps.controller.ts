@@ -19,27 +19,32 @@ export async function handleSuggestAddresses(
   }>,
   reply: FastifyReply,
 ) {
-  const { text, results, latitude, longitude } = request.query;
+  try {
+    const { text, results, latitude, longitude } = request.query;
 
-  const suggestions = await YandexMapsService.suggestAddresses(text, {
-    results,
-    biasPoint:
-      typeof latitude === 'number' && typeof longitude === 'number'
-        ? { latitude, longitude }
-        : undefined,
-  });
+    const suggestions = await YandexMapsService.suggestAddresses(text, {
+      results,
+      biasPoint:
+        typeof latitude === 'number' && typeof longitude === 'number'
+          ? { latitude, longitude }
+          : undefined,
+    });
 
-  return reply.send(
-    suggestions.map((item) => ({
-      id: item.id,
-      title: item.title,
-      subtitle: item.subtitle,
-      address: item.address,
-      uri: item.uri,
-      pin: item.pin ? serializePoint(item.pin) : undefined,
-      distanceText: item.distanceText,
-    })),
-  );
+    return reply.send(
+      suggestions.map((item) => ({
+        id: item.id,
+        title: item.title,
+        subtitle: item.subtitle,
+        address: item.address,
+        uri: item.uri,
+        pin: item.pin ? serializePoint(item.pin) : undefined,
+        distanceText: item.distanceText,
+      })),
+    );
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(200).send([]); // Return empty results instead of 500 on suggestion failure
+  }
 }
 
 export async function handleResolveSuggestion(
@@ -51,13 +56,18 @@ export async function handleResolveSuggestion(
   }>,
   reply: FastifyReply,
 ) {
-  const result = await YandexMapsService.resolveSuggestion(request.body);
+  try {
+    const result = await YandexMapsService.resolveSuggestion(request.body);
 
-  return reply.send({
-    title: result.title,
-    address: result.address,
-    pin: serializePoint(result.pin),
-  });
+    return reply.send({
+      title: result.title,
+      address: result.address,
+      pin: serializePoint(result.pin),
+    });
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(400).send({ message: (error as Error).message });
+  }
 }
 
 export async function handleReverseGeocode(
@@ -69,12 +79,17 @@ export async function handleReverseGeocode(
   }>,
   reply: FastifyReply,
 ) {
-  const result = await YandexMapsService.reverseGeocode({
-    latitude: request.body.latitude,
-    longitude: request.body.longitude,
-  });
+  try {
+    const result = await YandexMapsService.reverseGeocode({
+      latitude: request.body.latitude,
+      longitude: request.body.longitude,
+    });
 
-  return reply.send(result);
+    return reply.send(result);
+  } catch (error) {
+    request.log.error(error);
+    return reply.send({ address: null });
+  }
 }
 
 export async function handleGetRouteDetails(
@@ -88,17 +103,22 @@ export async function handleGetRouteDetails(
   }>,
   reply: FastifyReply,
 ) {
-  const route = await YandexMapsService.getRouteDetails(request.body.from, request.body.to, {
-    mode: request.body.mode,
-    traffic: request.body.traffic,
-  });
+  try {
+    const route = await YandexMapsService.getRouteDetails(request.body.from, request.body.to, {
+      mode: request.body.mode,
+      traffic: request.body.traffic,
+    });
 
-  return reply.send({
-    distanceMeters: route.distanceMeters,
-    etaSeconds: route.etaSeconds,
-    polyline: route.polyline.map(serializePoint),
-    source: 'yandex-router',
-  });
+    return reply.send({
+      distanceMeters: route.distanceMeters,
+      etaSeconds: route.etaSeconds,
+      polyline: route.polyline.map(serializePoint),
+      source: 'yandex-router',
+    });
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(400).send({ message: (error as Error).message });
+  }
 }
 
 export async function handleGetDistanceMatrix(

@@ -21,6 +21,7 @@ export default function YandexLocationPicker({
   const mapRef = useRef<any>(null);
   const routeRef = useRef<any>(null);
   const userPlacemarkRef = useRef<any>(null);
+  const userAccuracyCircleRef = useRef<any>(null);
   const restaurantPlacemarkRef = useRef<any>(null);
   const routeSyncTimeoutRef = useRef<number | null>(null);
   const routeRequestIdRef = useRef(0);
@@ -28,6 +29,12 @@ export default function YandexLocationPicker({
   const lastRouteInfoRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(isYandexMapsEnabled());
   const [hasFallback, setHasFallback] = useState(!isYandexMapsEnabled());
+  const handlersRef = useRef({ onInteractionStart, onInteractionEnd, onLocationSelect });
+
+  // Keep handlers stable via ref
+  useEffect(() => {
+    handlersRef.current = { onInteractionStart, onInteractionEnd, onLocationSelect };
+  }, [onInteractionStart, onInteractionEnd, onLocationSelect]);
 
   const focusSelectedCenter = () => {
     if (!mapRef.current) {
@@ -160,7 +167,14 @@ export default function YandexLocationPicker({
           {
             center: toYandexCoords(initialCenter),
             zoom: 17,
-            controls: ['zoomControl'],
+            controls: [
+              new ymaps.control.ZoomControl({
+                options: {
+                  size: 'large',
+                  position: { left: 10, top: 108 }, // Align with the left slider location
+                },
+              }),
+            ],
           },
           {
             suppressMapOpenBlock: true,
@@ -220,13 +234,13 @@ export default function YandexLocationPicker({
           const coords = map.getCenter() as number[] | undefined;
           if (coords) {
             skipNextViewportSyncRef.current = true;
-            emitLocation(coords);
+            handlersRef.current.onLocationSelect?.({ lat: coords[0], lng: coords[1] });
           }
-          onInteractionEnd?.();
+          handlersRef.current.onInteractionEnd?.();
         });
 
         map.events.add('actionbegin', () => {
-          onInteractionStart?.();
+          handlersRef.current.onInteractionStart?.();
         });
 
         userPlacemarkRef.current = userPlacemark;
@@ -283,32 +297,58 @@ export default function YandexLocationPicker({
       return;
     }
 
-    if (userLocationPin) {
-      if (!userPlacemarkRef.current) {
-        const ymaps = window.ymaps;
-        if (!ymaps) {
-          return;
-        }
+    const map = mapRef.current;
+    const ymaps = window.ymaps;
+    if (!ymaps) return;
 
-        userPlacemarkRef.current = new ymaps.Placemark(
-          toYandexCoords(userLocationPin),
+    if (userLocationPin) {
+      const coords = toYandexCoords(userLocationPin);
+      
+      // Update or create accuracy circle (10-meter radius as requested)
+      if (!userAccuracyCircleRef.current) {
+        userAccuracyCircleRef.current = new ymaps.Circle(
+          [coords, 10],
           {
-            hintContent: 'Sizning joylashuvingiz',
-            balloonContent: 'Sizning joriy joylashuvingiz',
+            hintContent: 'Sizning aniq joylashuvingiz',
           },
           {
-            preset: 'islands#blueCircleDotIcon',
+            fillColor: 'rgba(56, 189, 248, 0.15)',
+            strokeColor: 'rgba(56, 189, 248, 0.45)',
+            strokeOpacity: 0.8,
+            strokeWidth: 2,
+          }
+        );
+        map.geoObjects.add(userAccuracyCircleRef.current);
+      } else {
+        userAccuracyCircleRef.current.geometry.setCoordinates(coords);
+      }
+
+      // Update or create placemark
+      if (!userPlacemarkRef.current) {
+        userPlacemarkRef.current = new ymaps.Placemark(
+          coords,
+          {
+            hintContent: 'Sizning joylashuvingiz',
+          },
+          {
+            preset: 'islands#blueCircleDotIconWithOutline',
+            iconColor: '#0ea5e9',
             draggable: false,
           },
         );
-
-        mapRef.current.geoObjects.add(userPlacemarkRef.current);
+        map.geoObjects.add(userPlacemarkRef.current);
       } else {
-        userPlacemarkRef.current.geometry?.setCoordinates(toYandexCoords(userLocationPin));
+        userPlacemarkRef.current.geometry?.setCoordinates(coords);
       }
-    } else if (userPlacemarkRef.current) {
-      mapRef.current.geoObjects.remove(userPlacemarkRef.current);
-      userPlacemarkRef.current = null;
+    } else {
+      if (userAccuracyCircleRef.current) {
+        map.geoObjects.remove(userAccuracyCircleRef.current);
+        userAccuracyCircleRef.current = null;
+      }
+      if (userPlacemarkRef.current) {
+        map.geoObjects.remove(userPlacemarkRef.current);
+        userPlacemarkRef.current = null;
+      }
     }
   }, [userLocationPin?.lat, userLocationPin?.lng]);
 

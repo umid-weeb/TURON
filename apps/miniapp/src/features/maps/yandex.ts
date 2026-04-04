@@ -19,6 +19,10 @@ type YandexMapsNamespace = {
   multiRouter?: {
     MultiRoute: new (model: Record<string, unknown>, options?: Record<string, unknown>) => any;
   };
+  Circle: new (geometry: [number[], number], properties?: Record<string, unknown>, options?: Record<string, unknown>) => any;
+  control: {
+    ZoomControl: new (options?: Record<string, unknown>) => any;
+  };
 };
 
 let mapsLoadPromise: Promise<YandexMapsNamespace> | null = null;
