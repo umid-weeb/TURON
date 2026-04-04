@@ -161,7 +161,7 @@ const CheckoutPage: React.FC = () => {
   return (
     <div
       className="min-h-screen animate-in slide-in-from-right duration-300"
-      style={{ paddingBottom: 'calc(var(--customer-nav-top-edge, 78px) + 120px)' }} // Increased padding to prevent overlap
+      style={{ paddingBottom: 'calc(var(--customer-nav-top-edge, 78px) + 140px)' }} // Increased padding to prevent overlap
     >
       <section className="px-4 pb-5 pt-[calc(env(safe-area-inset-top,0px)+14px)]">
         <div className="flex items-start gap-3">
@@ -267,7 +267,7 @@ const CheckoutPage: React.FC = () => {
 
       <div
         className="fixed inset-x-0 z-40 px-4"
-        style={{ bottom: 'var(--customer-floating-cart-offset, calc(env(safe-area-inset-bottom, 0px) + 88px))' }}
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }}
       >
         <div className="mx-auto flex h-[72px] w-full max-w-[430px] items-center rounded-[6px] border border-white/10 bg-[#111827]/94 px-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
           <button

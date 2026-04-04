@@ -131,7 +131,7 @@ const CartPage: React.FC = () => {
 
       <div
         className="fixed inset-x-0 z-40 px-4"
-        style={{ bottom: 'var(--customer-floating-cart-offset, calc(env(safe-area-inset-bottom, 0px) + 88px))' }}
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }}
       >
         <div className="mx-auto w-full max-w-[430px] rounded-[16px] border border-white/10 bg-[#111827]/94 p-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
           <div className="mb-3 flex items-center justify-between">
