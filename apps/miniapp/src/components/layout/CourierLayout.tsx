@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Home, List, Navigation, Truck } from 'lucide-react';
+import { Bell, CircleUserRound, History, Home, List, Navigation, Truck } from 'lucide-react';
 import { UserRoleEnum } from '@turon/shared';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { isActiveDeliveryStage } from '../../features/courier/deliveryStage';
@@ -28,9 +28,9 @@ const CourierLayout: React.FC = () => {
         : 'Offline';
   const availabilityLabel = courierStatus?.isOnline
     ? courierStatus.isAcceptingOrders
-      ? 'Online • qabul ochiq'
-      : 'Online • qabul yopiq'
-    : 'Offline • Turon';
+      ? "Online / qabul ochiq"
+      : "Online / qabul yopiq"
+    : 'Offline / Turon';
 
   const NavItem: React.FC<{
     path: string;
@@ -46,7 +46,7 @@ const CourierLayout: React.FC = () => {
       <button
         type="button"
         onClick={() => navigate(path)}
-        className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl px-4 py-2 transition-all ${
+        className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl px-3 py-2 transition-all ${
           isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'
         }`}
       >
@@ -124,10 +124,11 @@ const CourierLayout: React.FC = () => {
       </main>
 
       {!isMapPage && (
-        <nav className="safe-area-inset-bottom fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-around border-t border-slate-100 bg-white/95 px-6 shadow-2xl backdrop-blur-md">
+        <nav className="safe-area-inset-bottom fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-around border-t border-slate-100 bg-white/95 px-4 shadow-2xl backdrop-blur-md">
           <NavItem path="/courier" icon={<Home size={24} />} label="Holat" />
           <NavItem path="/courier/orders" icon={<List size={24} />} label="Buyurtmalar" />
-          <NavItem path="/courier/notifications" icon={<Bell size={24} />} label="Xabarlar" />
+          <NavItem path="/courier/history" icon={<History size={24} />} label="Tarix" />
+          <NavItem path="/courier/profile" icon={<CircleUserRound size={24} />} label="Profil" />
         </nav>
       )}
     </div>

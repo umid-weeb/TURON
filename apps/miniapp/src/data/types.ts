@@ -187,6 +187,92 @@ export interface AdminCourierOption {
   fullName: string;
   phoneNumber: string;
   activeAssignments: number;
+  isOnline?: boolean;
+  isAcceptingOrders?: boolean;
+  rank?: number;
+  distanceMeters?: number | null;
+  etaMinutes?: number | null;
+  rankingSource?: string | null;
+  hasLiveLocation?: boolean;
+  liveLocationUpdatedAt?: string | null;
+}
+
+export interface AdminCourierDirectoryItem {
+  id: string;
+  telegramId: string;
+  telegramUsername?: string | null;
+  fullName: string;
+  phoneNumber?: string | null;
+  isActive: boolean;
+  isOnline: boolean;
+  isAcceptingOrders: boolean;
+  activeAssignments: number;
+  completedToday: number;
+  totalDelivered: number;
+  deliveryFeesToday: number;
+  lastOnlineAt?: string | null;
+  lastOfflineAt?: string | null;
+  lastSeenAt?: string | null;
+  currentOrderId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastDeliveredAt?: string | null;
+}
+
+export interface CourierProfile {
+  courierId: string;
+  telegramId: string;
+  telegramUsername?: string | null;
+  fullName: string;
+  phoneNumber?: string | null;
+  isActive: boolean;
+  isOnline: boolean;
+  isAcceptingOrders: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastOnlineAt?: string | null;
+  lastOfflineAt?: string | null;
+  lastSeenAt?: string | null;
+  totalDeliveredCount: number;
+  activeAssignments: number;
+  completedToday: number;
+  latestPresence?: {
+    latitude: number;
+    longitude: number;
+    updatedAt: string;
+    orderId?: string | null;
+  } | null;
+  activeAssignment?: {
+    assignmentId: string;
+    orderId: string;
+    orderNumber: string;
+    assignmentStatus: string;
+    orderStatus: OrderStatus;
+  } | null;
+  todayStats: CourierTodayStats;
+}
+
+export interface CourierHistoryEntry {
+  assignmentId: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone?: string | null;
+  destinationAddress: string;
+  assignmentStatus: string;
+  orderStatus: OrderStatus;
+  paymentMethod: PaymentMethod;
+  total: number;
+  deliveryFee: number;
+  itemCount: number;
+  note?: string | null;
+  assignedAt: string;
+  acceptedAt?: string | null;
+  pickedUpAt?: string | null;
+  deliveringAt?: string | null;
+  deliveredAt?: string | null;
+  cancelledAt?: string | null;
+  latestEventType?: string | null;
 }
 
 export interface PromoValidationResult {

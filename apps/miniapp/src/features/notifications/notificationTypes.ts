@@ -5,7 +5,7 @@ export interface AppNotification {
   roleTarget: UserRoleEnum;
   userId?: string; // Optional for user-specific targeting
   type: NotificationTypeEnum;
-  event: AppEventEnum;
+  event?: AppEventEnum | null;
   title: string;
   message: string;
   relatedOrderId?: string;

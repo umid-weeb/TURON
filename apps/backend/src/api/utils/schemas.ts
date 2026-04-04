@@ -152,6 +152,48 @@ export const CourierProblemSchema = z.object({
   text: z.string().trim().min(5).max(500),
 });
 
+export const AdminCreateCourierSchema = z.object({
+  telegramId: z.coerce.bigint(),
+  fullName: z.string().trim().min(3).max(120),
+  phoneNumber: z.string().trim().max(32).optional().or(z.literal('')),
+  telegramUsername: z.string().trim().max(64).optional().or(z.literal('')),
+  isActive: z.boolean().default(true),
+});
+
+export const AdminUpdateCourierSchema = z
+  .object({
+    fullName: z.string().trim().min(3).max(120).optional(),
+    phoneNumber: z.string().trim().max(32).optional().or(z.literal('')),
+    telegramUsername: z.string().trim().max(64).optional().or(z.literal('')),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (value) =>
+      typeof value.fullName === 'string' ||
+      typeof value.phoneNumber === 'string' ||
+      typeof value.telegramUsername === 'string' ||
+      typeof value.isActive === 'boolean',
+    {
+      message: "Kamida bitta kuryer maydoni yuborilishi kerak",
+    },
+  );
+
+export const UpdateCourierProfileSchema = z
+  .object({
+    fullName: z.string().trim().min(3).max(120).optional(),
+    phoneNumber: z.string().trim().max(32).optional().or(z.literal('')),
+    telegramUsername: z.string().trim().max(64).optional().or(z.literal('')),
+  })
+  .refine(
+    (value) =>
+      typeof value.fullName === 'string' ||
+      typeof value.phoneNumber === 'string' ||
+      typeof value.telegramUsername === 'string',
+    {
+      message: "Kamida bitta profil maydoni yuborilishi kerak",
+    },
+  );
+
 // Support
 export const SupportThreadQuerySchema = z.object({
   orderId: UuidSchema.optional(),

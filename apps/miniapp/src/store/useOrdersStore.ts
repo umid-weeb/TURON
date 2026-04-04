@@ -1,7 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { Order, OrderStatus, DeliveryStage, OrderTrackingState, PaymentStatus } from '../data/types';
-import { notifyOrderCreated, notifyOrderConfirmed, notifyPaymentVerified, notifyPaymentFailed, notifyCourierAssigned, notifyOrderDelivered, notifyOrderCancelled } from '../features/notifications/notificationTriggers';
+import { notifyOrderConfirmed, notifyPaymentVerified, notifyPaymentFailed, notifyCourierAssigned, notifyOrderDelivered, notifyOrderCancelled } from '../features/notifications/notificationTriggers';
 
 function mergeOrders(existingOrders: Order[], incomingOrders: Order[]) {
   const orderMap = new Map(existingOrders.map((order) => [order.id, order]));
@@ -33,7 +32,6 @@ interface OrdersState {
 }
 
 export const useOrdersStore = create<OrdersState>()(
-  persist(
     (set, get) => ({
       orders: [],
       addOrder: (order) => set((state) => ({ orders: [order, ...state.orders] })),
@@ -115,9 +113,5 @@ export const useOrdersStore = create<OrdersState>()(
       },
       getOrderById: (id) => get().orders.find((o) => o.id === id),
       clearHistory: () => set({ orders: [] }),
-    }),
-    {
-      name: 'turon-orders-storage',
-    }
-  )
+    })
 );

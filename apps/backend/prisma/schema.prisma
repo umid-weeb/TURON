@@ -107,6 +107,7 @@ enum NotificationTypeEnum {
 model User {
   id                 String                @id @default(uuid())
   telegramId         BigInt                @unique @map("telegram_id")
+  telegramUsername   String?               @map("telegram_username")
   fullName           String                @map("full_name")
   phoneNumber        String?               @map("phone")
   role               UserRoleEnum          @default(CUSTOMER)

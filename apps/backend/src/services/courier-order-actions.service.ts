@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { NotificationTypeEnum, OrderStatusEnum, UserRoleEnum } from '@turon/shared';
 import { prisma } from '../lib/prisma.js';
 import { ORDER_INCLUDE, getActiveCourierAssignment } from '../api/modules/orders/order-helpers.js';
+import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { StatusService } from './status.service.js';
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
@@ -23,6 +24,11 @@ interface ActionMutationPlan {
   orderUpdate?: Record<string, unknown>;
   payload?: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
   adminNotification?: {
+    title: string;
+    message: string;
+  };
+  customerNotification?: {
+    type: NotificationTypeEnum;
     title: string;
     message: string;
   };
@@ -112,6 +118,11 @@ function buildActionMutationPlan(input: {
         orderUpdate: {
           courierId: assignment.courierId,
         },
+        customerNotification: {
+          type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+          title: 'Kuryer buyurtmani qabul qildi',
+          message: `${assignment.courier?.fullName || 'Kuryer'} #${String(order.orderNumber)} buyurtma uchun yo'lga chiqdi`,
+        },
       } satisfies ActionMutationPlan;
     }
     case 'ARRIVE_RESTAURANT': {
@@ -152,6 +163,11 @@ function buildActionMutationPlan(input: {
           status: OrderStatusEnum.DELIVERING as any,
           courierId: assignment.courierId,
         },
+        customerNotification: {
+          type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+          title: 'Taom restorandan olindi',
+          message: `#${String(order.orderNumber)} buyurtma mijozga olib chiqildi`,
+        },
       } satisfies ActionMutationPlan;
     }
     case 'START_DELIVERY': {
@@ -172,6 +188,11 @@ function buildActionMutationPlan(input: {
         orderUpdate: {
           status: OrderStatusEnum.DELIVERING as any,
           courierId: assignment.courierId,
+        },
+        customerNotification: {
+          type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+          title: "Buyurtma yo'lda",
+          message: `#${String(order.orderNumber)} buyurtma siz tomonga olib kelinmoqda`,
         },
       } satisfies ActionMutationPlan;
     }
@@ -218,6 +239,11 @@ function buildActionMutationPlan(input: {
         orderUpdate: {
           status: OrderStatusEnum.DELIVERED as any,
           courierId: assignment.courierId,
+        },
+        customerNotification: {
+          type: NotificationTypeEnum.SUCCESS,
+          title: 'Buyurtma topshirildi',
+          message: `#${String(order.orderNumber)} buyurtma muvaffaqiyatli topshirildi`,
         },
       } satisfies ActionMutationPlan;
     }
@@ -296,26 +322,29 @@ export class CourierOrderActionsService {
       });
 
       if (mutationPlan.adminNotification) {
-        const admins = await tx.user.findMany({
-          where: {
-            role: UserRoleEnum.ADMIN as any,
-            isActive: true,
+        await InAppNotificationsService.notifyAdmins(
+          {
+            type: NotificationTypeEnum.WARNING,
+            title: mutationPlan.adminNotification.title,
+            message: mutationPlan.adminNotification.message,
+            relatedOrderId: order.id,
           },
-          select: { id: true },
-        });
+          tx,
+        );
+      }
 
-        if (admins.length > 0) {
-          await tx.notification.createMany({
-            data: admins.map((admin) => ({
-              userId: admin.id,
-              roleTarget: UserRoleEnum.ADMIN as any,
-              type: NotificationTypeEnum.WARNING as any,
-              title: mutationPlan.adminNotification!.title,
-              message: mutationPlan.adminNotification!.message,
-              relatedOrderId: order.id,
-            })),
-          });
-        }
+      if (mutationPlan.customerNotification) {
+        await InAppNotificationsService.notifyUser(
+          {
+            userId: order.userId,
+            roleTarget: UserRoleEnum.CUSTOMER,
+            type: mutationPlan.customerNotification.type,
+            title: mutationPlan.customerNotification.title,
+            message: mutationPlan.customerNotification.message,
+            relatedOrderId: order.id,
+          },
+          tx,
+        );
       }
 
       const refreshedOrder = await tx.order.findUnique({

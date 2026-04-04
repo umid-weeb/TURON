@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { UserRoleEnum } from '@turon/shared';
 import { AppNotification } from '../features/notifications/notificationTypes';
 
@@ -14,7 +13,6 @@ interface NotificationState {
 }
 
 export const useNotificationStore = create<NotificationState>()(
-  persist(
     (set, get) => ({
       notifications: [],
       
@@ -45,9 +43,5 @@ export const useNotificationStore = create<NotificationState>()(
       clearNotifications: (role) => set((state) => ({
         notifications: state.notifications.filter((n) => n.roleTarget !== role)
       })),
-    }),
-    {
-      name: 'turon-notifications-storage',
-    }
-  )
+    })
 );

@@ -25,6 +25,7 @@ export async function telegramAuthHandler(
   }
 
   const telegramId = BigInt(tgUser.id);
+  const telegramUsername = tgUser.username?.trim() || null;
   const fullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ').trim() || 'Telegram User';
   const language =
     tgUser.language_code === 'ru'
@@ -39,12 +40,14 @@ export async function telegramAuthHandler(
     user = await prisma.user.upsert({
       where: { telegramId },
       update: {
+        telegramUsername,
         fullName,
         language,
         isActive: true,
       },
       create: {
         telegramId,
+        telegramUsername,
         fullName,
         language,
         role: UserRoleEnum.CUSTOMER,
@@ -86,6 +89,7 @@ export async function telegramAuthHandler(
     user: {
       id: user.id,
       telegramId: user.telegramId.toString(),
+      telegramUsername: user.telegramUsername,
       fullName: user.fullName,
       phoneNumber: user.phoneNumber,
       role: primaryRole,

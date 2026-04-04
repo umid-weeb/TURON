@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import {
+  NotificationTypeEnum,
   OrderStatusEnum,
   PaymentStatusEnum,
   UserRoleEnum,
@@ -8,6 +9,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { AuditService } from '../../../services/audit.service.js';
 import { CourierAssignmentService } from '../../../services/courier-assignment.service.js';
 import { DeliveryQuoteService } from '../../../services/delivery-quote.service.js';
+import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import { StatusService } from '../../../services/status.service.js';
 import {
@@ -256,6 +258,97 @@ function serializeOrderQuote(quote: Awaited<ReturnType<typeof buildOrderPricing>
   };
 }
 
+async function dispatchOrderStatusNotifications(params: {
+  status: OrderStatusEnum;
+  order: {
+    id: string;
+    userId: string;
+    orderNumber: bigint;
+    courierAssignments: Array<{
+      courierId: string;
+      status: string;
+    }>;
+  };
+}) {
+  const { status, order } = params;
+
+  if (status === OrderStatusEnum.PREPARING) {
+    await InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+      title: 'Buyurtma tasdiqlandi',
+      message: `#${String(order.orderNumber)} buyurtma tayyorlanmoqda`,
+      relatedOrderId: order.id,
+    });
+    return;
+  }
+
+  if (status === OrderStatusEnum.READY_FOR_PICKUP) {
+    await InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+      title: "Buyurtma tayyor bo'ldi",
+      message: `#${String(order.orderNumber)} buyurtma restoranda tayyor`,
+      relatedOrderId: order.id,
+    });
+    return;
+  }
+
+  if (status === OrderStatusEnum.DELIVERING) {
+    await InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+      title: "Buyurtma yo'lda",
+      message: `#${String(order.orderNumber)} buyurtma siz tomonga olib chiqildi`,
+      relatedOrderId: order.id,
+    });
+    return;
+  }
+
+  if (status === OrderStatusEnum.DELIVERED) {
+    await InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.SUCCESS,
+      title: 'Buyurtma topshirildi',
+      message: `#${String(order.orderNumber)} buyurtma muvaffaqiyatli yakunlandi`,
+      relatedOrderId: order.id,
+    });
+    return;
+  }
+
+  if (status === OrderStatusEnum.CANCELLED) {
+    await InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.ERROR,
+      title: 'Buyurtma bekor qilindi',
+      message: `#${String(order.orderNumber)} buyurtma bekor qilindi`,
+      relatedOrderId: order.id,
+    });
+
+    const activeCourierIds = order.courierAssignments
+      .filter((assignment: any) => StatusService.isActiveAssignmentStatus(assignment.status))
+      .map((assignment: any) => assignment.courierId);
+
+    if (activeCourierIds.length > 0) {
+      await InAppNotificationsService.createMany(
+        activeCourierIds.map((courierId) => ({
+          userId: courierId,
+          roleTarget: UserRoleEnum.COURIER,
+          type: NotificationTypeEnum.WARNING,
+          title: 'Buyurtma bekor qilindi',
+          message: `#${String(order.orderNumber)} buyurtma endi faol emas`,
+          relatedOrderId: order.id,
+        })),
+      );
+    }
+  }
+}
+
 export async function handleQuoteOrder(
   request: FastifyRequest<{ Body: any }>,
   reply: FastifyReply,
@@ -362,6 +455,13 @@ export async function handleCreateOrder(
   if (serializedOrder) {
     orderTrackingService.publishOrderUpdate(createdOrder.id, serializedOrder);
   }
+
+  await InAppNotificationsService.notifyAdmins({
+    type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+    title: 'Yangi buyurtma tushdi',
+    message: `#${serializedOrder?.orderNumber || ''} buyurtma tasdiq kutmoqda`,
+    relatedOrderId: createdOrder.id,
+  });
 
   recordOrderCreatedAudit({
     userId: user.id,
@@ -684,6 +784,11 @@ export async function handleUpdateStatus(
     newValue: { status },
   });
 
+  await dispatchOrderStatusNotifications({
+    status,
+    order,
+  });
+
   const serializedOrder = await publishOrderSnapshot(order.id);
   return reply.send(serializedOrder);
 }
@@ -786,6 +891,15 @@ export async function handleAssignCourier(
   if (serializedOrder) {
     orderTrackingService.publishOrderUpdate(order.id, serializedOrder);
   }
+
+  await InAppNotificationsService.notifyUser({
+    userId: order.userId,
+    roleTarget: UserRoleEnum.CUSTOMER,
+    type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+    title: 'Kuryer biriktirildi',
+    message: `#${String(order.orderNumber)} buyurtmangizga ${assignment.courierName} biriktirildi`,
+    relatedOrderId: order.id,
+  });
   return reply.send(serializedOrder);
 }
 
@@ -862,6 +976,15 @@ export async function handleApprovePayment(
     metadata: {
       orderId: order.id,
     },
+  });
+
+  await InAppNotificationsService.notifyUser({
+    userId: order.userId,
+    roleTarget: UserRoleEnum.CUSTOMER,
+    type: NotificationTypeEnum.SUCCESS,
+    title: "To'lov tasdiqlandi",
+    message: `#${String(order.orderNumber)} buyurtma uchun to'lov qabul qilindi`,
+    relatedOrderId: order.id,
   });
 
   return reply.send(serializedOrder);
@@ -986,6 +1109,15 @@ export async function handleRejectPayment(
       to: OrderStatusEnum.CANCELLED,
     });
   }
+
+  await InAppNotificationsService.notifyUser({
+    userId: order.userId,
+    roleTarget: UserRoleEnum.CUSTOMER,
+    type: NotificationTypeEnum.ERROR,
+    title: "To'lov rad etildi",
+    message: `#${String(order.orderNumber)} buyurtma to'lovi rad etildi`,
+    relatedOrderId: order.id,
+  });
 
   return reply.send(serializedOrder);
 }

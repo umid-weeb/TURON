@@ -1,12 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotificationStore } from '../../../store/useNotificationStore';
 import { AppNotification } from '../notificationTypes';
 import { formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
-import { Bell, CheckCircle2, AlertCircle, Info, Package, ChevronRight } from 'lucide-react';
+import { Bell, CheckCircle2, AlertCircle, Info, Package, ChevronRight, Loader2 } from 'lucide-react';
 import { NotificationTypeEnum, UserRoleEnum } from '@turon/shared';
 import { useCustomerLanguage } from '../../i18n/customerLocale';
+import {
+  useMarkAllNotificationsAsRead,
+  useMarkNotificationAsRead,
+  useNotifications,
+} from '../../../hooks/queries/useNotifications';
 
 interface NotificationListProps {
   role: UserRoleEnum;
@@ -15,9 +19,9 @@ interface NotificationListProps {
 const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
   const navigate = useNavigate();
   const { language } = useCustomerLanguage();
-  const notifications = useNotificationStore((state) => state.getNotificationsByRole(role));
-  const markAsRead = useNotificationStore((state) => state.markAsRead);
-  const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
+  const { data: notifications = [], isLoading, isError, error } = useNotifications(role);
+  const markAsRead = useMarkNotificationAsRead(role);
+  const markAllAsRead = useMarkAllNotificationsAsRead(role);
   const copy =
     language === 'ru'
       ? {
@@ -55,11 +59,38 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
   };
 
   const handleNotificationClick = (notification: AppNotification) => {
-    markAsRead(notification.id);
+    if (!notification.isRead) {
+      markAsRead.mutate(notification.id);
+    }
+
     if (notification.actionRoute) {
       navigate(notification.actionRoute);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+          <Loader2 size={28} className="animate-spin text-slate-400" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">Bildirishnomalar yuklanmoqda</h3>
+        <p className="text-sm text-slate-500">Real notification oqimi serverdan olinmoqda.</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4">
+          <AlertCircle size={28} className="text-red-400" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">Bildirishnomalar yuklanmadi</h3>
+        <p className="text-sm text-slate-500">{(error as Error).message}</p>
+      </div>
+    );
+  }
 
   if (notifications.length === 0) {
     return (
@@ -78,10 +109,11 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
       <div className="flex justify-between items-center px-1 mb-2">
         <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">{copy.heading}</span>
         <button 
-          onClick={() => markAllAsRead(role)}
+          onClick={() => markAllAsRead.mutate()}
           className="text-[11px] font-black uppercase tracking-widest text-amber-600 active:text-amber-700"
+          disabled={markAllAsRead.isPending}
         >
-          {copy.markAll}
+          {markAllAsRead.isPending ? "Yuklanmoqda..." : copy.markAll}
         </button>
       </div>
 

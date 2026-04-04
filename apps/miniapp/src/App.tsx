@@ -25,6 +25,7 @@ import AdminProductsPage from './pages/admin/menu/AdminProductsPage';
 import AdminProductFormPage from './pages/admin/menu/AdminProductFormPage';
 import AdminPromosPage from './pages/admin/promos/AdminPromosPage';
 import AdminPromoFormPage from './pages/admin/promos/AdminPromoFormPage';
+import AdminCouriersPage from './pages/admin/AdminCouriersPage';
 
 // --- Courier Pages ---
 import CourierStatusPage from './pages/courier/CourierStatusPage';
@@ -32,6 +33,8 @@ import CourierOrdersPage from './pages/courier/CourierOrdersPage';
 import CourierOrderDetailPage from './pages/courier/CourierOrderDetailPage';
 import CourierMapPage from './pages/courier/CourierMapPage';
 import CourierNotificationsPage from './pages/courier/CourierNotificationsPage';
+import CourierHistoryPage from './pages/courier/CourierHistoryPage';
+import CourierProfilePage from './pages/courier/CourierProfilePage';
 
 // --- Customer Pages ---
 import HomePage from './pages/customer/HomePage';
@@ -125,6 +128,7 @@ export default function App() {
             <Route path="promos" element={<AdminPromosPage />} />
             <Route path="promos/new" element={<AdminPromoFormPage />} />
             <Route path="promos/:promoId/edit" element={<AdminPromoFormPage />} />
+            <Route path="couriers" element={<AdminCouriersPage />} />
           </Route>
 
           {/* Courier Module */}
@@ -137,6 +141,8 @@ export default function App() {
             <Route path="orders" element={<CourierOrdersPage />} />
             <Route path="order/:orderId" element={<CourierOrderDetailPage />} />
             <Route path="map/:orderId" element={<CourierMapPage />} />
+            <Route path="history" element={<CourierHistoryPage />} />
+            <Route path="profile" element={<CourierProfilePage />} />
             <Route path="notifications" element={<CourierNotificationsPage />} />
           </Route>
 

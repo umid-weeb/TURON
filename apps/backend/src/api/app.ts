@@ -8,11 +8,13 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import authRoutes from './modules/auth/auth.routes.js';
 import courierRoutes from './modules/courier/courier.routes.js';
+import couriersRoutes from './modules/couriers/couriers.routes.js';
 import menuRoutes from './modules/menu/menu.routes.js';
 import orderRoutes from './modules/orders/orders.routes.js';
 import addressRoutes from './modules/addresses/addresses.routes.js';
 import promoRoutes from './modules/promos/promos.routes.js';
 import mapRoutes from './modules/maps/maps.routes.js';
+import notificationsRoutes from './modules/notifications/notifications.routes.js';
 import supportRoutes from './modules/support/support.routes.js';
 
 export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginOptions) {
@@ -36,9 +38,11 @@ export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginO
     authenticated.addHook('preHandler', authenticated.authenticate);
     
     authenticated.register(courierRoutes, { prefix: '/courier' });
+    authenticated.register(couriersRoutes, { prefix: '/couriers' });
     authenticated.register(orderRoutes, { prefix: '/orders' });
     authenticated.register(addressRoutes, { prefix: '/addresses' });
     authenticated.register(mapRoutes, { prefix: '/maps' });
+    authenticated.register(notificationsRoutes, { prefix: '/notifications' });
     authenticated.register(supportRoutes, { prefix: '/support' });
   });
 

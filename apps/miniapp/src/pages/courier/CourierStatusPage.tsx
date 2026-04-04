@@ -4,6 +4,7 @@ import {
   AlertCircle,
   ArrowRight,
   Clock3,
+  History,
   Loader2,
   Navigation,
   Power,
@@ -11,8 +12,9 @@ import {
   ShieldCheck,
   Truck,
   UserCheck,
+  UserCircle2,
 } from 'lucide-react';
-import { useCourierStatus, useCourierTodayStats, useUpdateCourierStatus } from '../../hooks/queries/useOrders';
+import { useCourierOrders, useCourierStatus, useCourierTodayStats, useUpdateCourierStatus } from '../../hooks/queries/useOrders';
 import { useAuthStore } from '../../store/useAuthStore';
 
 function formatMoney(value: number) {
@@ -40,6 +42,7 @@ const CourierStatusPage: React.FC = () => {
     error: statsError,
     refetch: refetchTodayStats,
   } = useCourierTodayStats();
+  const { data: courierOrders = [] } = useCourierOrders();
   const updateStatus = useUpdateCourierStatus();
 
   if (isLoading) {
@@ -86,6 +89,10 @@ const CourierStatusPage: React.FC = () => {
       ? 'Buyurtma qabul qilmoqda'
       : 'Onlayn, lekin qabul yopiq';
   const activeAssignment = status.activeAssignment ?? null;
+  const newAssignmentsCount = courierOrders.filter((order) => order.courierAssignmentStatus === 'ASSIGNED').length;
+  const activeAssignmentsCount = courierOrders.filter((order) =>
+    ['ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(order.courierAssignmentStatus || ''),
+  ).length;
 
   const toggleOnline = () => {
     updateStatus.mutate({ isOnline: !status.isOnline });
@@ -258,7 +265,7 @@ const CourierStatusPage: React.FC = () => {
                     <div className="min-w-0">
                       <p className="text-sm font-black text-slate-900">Buyurtma #{completedOrder.orderNumber}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {formatClock(completedOrder.deliveredAt)} • {formatMoney(completedOrder.total)}
+                        {formatClock(completedOrder.deliveredAt)} / {formatMoney(completedOrder.total)}
                       </p>
                     </div>
                     <div className="rounded-full bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
@@ -372,6 +379,72 @@ const CourierStatusPage: React.FC = () => {
             <ArrowRight size={18} className="text-emerald-700" />
           </button>
         ) : null}
+
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={() => navigate('/courier/history')}
+            className="flex items-center justify-between rounded-[30px] border border-slate-200 bg-white p-5 text-left shadow-sm transition-transform active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+                <History size={22} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Tarix</p>
+                <p className="mt-1 text-base font-black text-slate-900">Yetkazilgan buyurtmalar</p>
+              </div>
+            </div>
+            <ArrowRight size={18} className="text-slate-400" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/courier/profile')}
+            className="flex items-center justify-between rounded-[30px] border border-slate-200 bg-white p-5 text-left shadow-sm transition-transform active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                <UserCircle2 size={22} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Profil</p>
+                <p className="mt-1 text-base font-black text-slate-900">Aloqa va akkaunt</p>
+              </div>
+            </div>
+            <ArrowRight size={18} className="text-slate-400" />
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Operatsion navbat</p>
+            <p className="mt-1 text-lg font-black text-slate-900">Kutilayotgan topshiriqlar</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/courier/orders')}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700"
+          >
+            <Truck size={14} />
+            <span>Panelni ochish</span>
+          </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Yangi</p>
+            <p className="mt-2 text-2xl font-black text-slate-900">{newAssignmentsCount}</p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">Biriktirilgan, ammo hali qabul qilinmagan</p>
+          </div>
+          <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Faol</p>
+            <p className="mt-2 text-2xl font-black text-slate-900">{activeAssignmentsCount}</p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">Qabul qilingan yoki yo'lda bo'lgan vazifa</p>
+          </div>
+        </div>
       </section>
     </div>
   );

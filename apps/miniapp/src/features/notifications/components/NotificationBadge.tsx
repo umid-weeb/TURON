@@ -1,9 +1,9 @@
 import React from 'react';
 import { UserRoleEnum } from '@turon/shared';
+import { useUnreadNotificationCount } from '../../../hooks/queries/useNotifications';
 
-// Mock implementation. Connect to real store later.
 export const NotificationBadge: React.FC<{ role: UserRoleEnum }> = ({ role }) => {
-  const unreadCount = 0; // Replace with real count
+  const { unreadCount } = useUnreadNotificationCount(role);
 
   if (unreadCount === 0) return null;
 
