@@ -12,7 +12,9 @@ import {
   Search,
   ShoppingBag,
   ShoppingCart,
+  Trash2,
   User,
+  Utensils,
 } from 'lucide-react';
 import { ProductAvailabilityEnum, ProductBadgeEnum, UserRoleEnum } from '@turon/shared';
 import type { CartItem, ProductSnapshot } from '../../data/types';
@@ -514,11 +516,87 @@ export const ProductGrid: React.FC<{ products: DisplayProduct[] }> = ({ products
   </div>
 );
 
+export const UpsellProductCard: React.FC<{
+  product: DisplayProduct;
+  onAdd: (product: any) => void;
+}> = ({ product, onAdd }) => {
+  const { formatText } = useCustomerLanguage();
+  const rawImage = getDisplayProductImage(product);
+  const posterSrc = React.useMemo(() => getProductPosterUrl(product), [product]);
+  const [imageSrc, setImageSrc] = React.useState(() =>
+    getProductImageUrl(
+      {
+        id: product.id,
+        name: product.name,
+        imageUrl: rawImage,
+        categoryId: product.categoryId,
+      },
+      product.categoryId,
+    ),
+  );
+
+  React.useEffect(() => {
+    setImageSrc(
+      getProductImageUrl(
+        {
+          id: product.id,
+          name: product.name,
+          imageUrl: rawImage,
+          categoryId: product.categoryId,
+        },
+        product.categoryId,
+      ),
+    );
+  }, [product, rawImage]);
+
+  return (
+    <div className="flex w-[128px] shrink-0 flex-col gap-2">
+      <div className="relative aspect-square w-full overflow-hidden rounded-[16px] bg-white/[0.04]">
+        <img
+          src={imageSrc}
+          alt={formatText(product.name)}
+          className="h-full w-full object-cover"
+          onError={() => {
+            if (imageSrc !== posterSrc) {
+              setImageSrc(posterSrc);
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={() =>
+            onAdd({
+              id: product.id,
+              menuItemId: 'menuItemId' in product ? product.menuItemId ?? product.id : product.id,
+              categoryId: product.categoryId,
+              name: product.name,
+              description: product.description,
+              price: product.price,
+              image: imageSrc,
+              isAvailable: true,
+            })
+          }
+          className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-950 shadow-md active:scale-90"
+        >
+          <Plus size={16} strokeWidth={3} />
+        </button>
+      </div>
+      <div>
+        <p className="text-[14px] font-black leading-tight text-white">{product.price.toLocaleString()} so'm</p>
+        <p className="mt-0.5 line-clamp-1 text-[11px] font-semibold text-white/52">{formatText(product.name)}</p>
+        {isMenuProduct(product) && product.weight ? (
+          <p className="mt-0.5 text-[10px] text-white/34">{product.weight}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
 export const CartItemCard: React.FC<{
   item: CartItem;
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemove: (id: string) => void;
-}> = ({ item, onUpdateQuantity, onRemove }) => {
+}> = ({ item, onUpdateQuantity }) => {
   const { formatText } = useCustomerLanguage();
   const posterSrc = React.useMemo(() => getProductPosterUrl(item), [item]);
   const [imageSrc, setImageSrc] = React.useState(() => getCartItemImageUrl(item));
@@ -528,61 +606,49 @@ export const CartItemCard: React.FC<{
   }, [item]);
 
   return (
-    <div className="rounded-[12px] border border-white/8 bg-[#111827] p-3 shadow-[0_12px_24px_rgba(2,6,23,0.18)]">
-      <div className="flex items-center gap-4">
-        <div className="relative h-[84px] w-[84px] overflow-hidden rounded-[10px]">
-          <img
-            src={imageSrc}
-            alt={formatText(item.name)}
-            className="h-full w-full object-cover"
-            onError={() => {
-              if (imageSrc !== posterSrc) {
-                setImageSrc(posterSrc);
-              }
-            }}
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.03)_0%,rgba(2,6,23,0.46)_100%)]" />
-        </div>
+    <div className="flex items-center gap-4 border-b border-white/[0.05] py-4 first:pt-0">
+      <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[12px] bg-white/[0.04]">
+        <img
+          src={imageSrc}
+          alt={formatText(item.name)}
+          className="h-full w-full object-cover"
+          onError={() => {
+            if (imageSrc !== posterSrc) {
+              setImageSrc(posterSrc);
+            }
+          }}
+        />
+      </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h4 className="line-clamp-2 text-[15px] font-black leading-tight text-white">{formatText(item.name)}</h4>
-              <p className="mt-2 text-xs font-semibold text-white/46">{formatText(item.description).slice(0, 54)}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onRemove(item.id)}
-            className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/56"
-            >
-              O'chirish
-            </button>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-lg font-black text-white">{(item.price * item.quantity).toLocaleString()} so'm</p>
-              <p className="mt-1 text-xs font-semibold text-white/38">{item.price.toLocaleString()} so'm / dona</p>
-            </div>
-            <div className="flex items-center rounded-full border border-white/10 bg-white/[0.05] p-1">
-              <button
-                type="button"
-                onClick={() => onUpdateQuantity(item.id, -1)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] text-white"
-              >
-                <Minus size={16} />
-              </button>
-              <span className="w-9 text-center text-sm font-black text-white">{item.quantity}</span>
-              <button
-                type="button"
-                onClick={() => onUpdateQuantity(item.id, 1)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-950"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-          </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-center">
+        <h4 className="line-clamp-2 text-[15px] font-bold leading-tight text-white">{formatText(item.name)}</h4>
+        <div className="mt-1.5 flex items-baseline gap-1.5 text-[13px] font-semibold text-white/52">
+          <span>{item.price.toLocaleString()} so'm</span>
+          {item.weight ? (
+            <>
+              <span className="text-[8px] opacity-40">•</span>
+              <span>{item.weight}</span>
+            </>
+          ) : null}
         </div>
+      </div>
+
+      <div className="flex items-center gap-3 rounded-[10px] bg-white/[0.06] p-1">
+        <button
+          type="button"
+          onClick={() => onUpdateQuantity(item.id, -1)}
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] transition-all active:scale-90 active:bg-white/5"
+        >
+          <Minus size={16} className="text-white/80" />
+        </button>
+        <span className="min-w-[20px] text-center text-[15px] font-black text-white">{item.quantity}</span>
+        <button
+          type="button"
+          onClick={() => onUpdateQuantity(item.id, 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] transition-all active:scale-90 active:bg-white/5"
+        >
+          <Plus size={16} className="text-white" />
+        </button>
       </div>
     </div>
   );

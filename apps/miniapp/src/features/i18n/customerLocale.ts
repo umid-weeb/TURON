@@ -873,19 +873,19 @@ const translations: TranslationMap = {
     ru: 'Поддержка',
   },
   'language.uzLatn': {
-    'uz-latn': 'O‘zbekcha',
-    'uz-cyrl': 'Ўзбекча',
-    ru: 'Uzbek',
+    'uz-latn': 'UZBEK',
+    'uz-cyrl': 'ЎЗБЕК',
+    ru: 'UZBEK',
   },
   'language.uzCyrl': {
-    'uz-latn': 'Ўзбекча',
-    'uz-cyrl': 'Ўзбекча',
-    ru: 'Узбекский (кирилл)',
+    'uz-latn': 'ЎЗБЕК',
+    'uz-cyrl': 'ЎЗБЕК',
+    ru: 'ЎЗБЕК',
   },
   'language.ru': {
-    'uz-latn': 'Русский',
-    'uz-cyrl': 'Русский',
-    ru: 'Русский',
+    'uz-latn': 'РУССКИЙ',
+    'uz-cyrl': 'РУССКИЙ',
+    ru: 'РУССКИЙ',
   },
 };
 

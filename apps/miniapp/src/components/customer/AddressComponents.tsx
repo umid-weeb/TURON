@@ -99,32 +99,31 @@ export const SelectedAddressCard: React.FC<{
   return (
     <div className="rounded-[12px] border border-white/8 bg-[#111827] p-3 shadow-[0_12px_24px_rgba(2,6,23,0.2)]">
       <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white/[0.06] text-white">
-          <MapPin size={22} />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06] text-white">
+          <MapPin size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Yetkazish manzili</p>
-          <h4 className="mt-1.5 text-base font-black tracking-tight text-white">{formatText(address.label)}</h4>
-          <p className="mt-1.5 text-sm leading-6 text-white/62">{formatText(address.addressText)}</p>
+          <h4 className="text-sm font-black tracking-tight text-white">{formatText(address.label)}</h4>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-white/62 line-clamp-2">{formatText(address.addressText)}</p>
 
           {address.note ? (
-            <div className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full border border-white/8 bg-white/[0.06] px-3 py-2 text-[11px] font-semibold text-white/68">
-              <MessageCircle size={12} />
+            <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full border border-white/8 bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-semibold text-white/60">
+              <MessageCircle size={11} />
               <span className="truncate">{formatText(address.note)}</span>
             </div>
           ) : null}
 
           {routeInfo ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <div className="rounded-full border border-white/8 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/66">
+            <div className="mt-3 flex flex-wrap gap-2">
+              <div className="rounded-full border border-white/8 bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/66">
                 <span className="flex items-center gap-1.5">
-                  <Route size={12} />
+                  <Route size={11} />
                   {routeInfo.distance}
                 </span>
               </div>
-              <div className="rounded-full border border-emerald-300/16 bg-emerald-400/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
+              <div className="rounded-full border border-emerald-300/16 bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
                 <span className="flex items-center gap-1.5">
-                  <Clock3 size={12} />
+                  <Clock3 size={11} />
                   {routeInfo.eta}
                 </span>
               </div>

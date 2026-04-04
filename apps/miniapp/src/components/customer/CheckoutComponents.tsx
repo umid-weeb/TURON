@@ -11,10 +11,7 @@ export const CheckoutSectionCard: React.FC<{
 }> = ({ title, children, actionLabel, onAction }) => (
   <section className="rounded-[12px] border border-white/8 bg-[#111827] p-3 shadow-[0_12px_24px_rgba(2,6,23,0.2)]">
     <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Bo'lim</p>
-        <h3 className="mt-1.5 text-base font-black tracking-tight text-white">{title}</h3>
-      </div>
+      <h3 className="text-base font-black tracking-tight text-white">{title}</h3>
       {actionLabel ? (
         <button
           type="button"
@@ -25,7 +22,7 @@ export const CheckoutSectionCard: React.FC<{
         </button>
       ) : null}
     </div>
-    <div className="pt-3">{children}</div>
+    <div className="pt-2">{children}</div>
   </section>
 );
 

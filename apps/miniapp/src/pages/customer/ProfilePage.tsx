@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight, Globe2, MapPinned, MessageCircle, Package2, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTelegram } from '../../hooks/useTelegram';
 import { useAddresses } from '../../hooks/queries/useAddresses';
 import { useMyOrders } from '../../hooks/queries/useOrders';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -8,10 +9,22 @@ import { customerLanguageOptions, useCustomerLanguage } from '../../features/i18
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
+  const { tg, requestPhoneContact } = useTelegram();
   const { data: addresses = [] } = useAddresses();
   const { data: orders = [] } = useMyOrders();
   const { language, setLanguage, tr, formatText } = useCustomerLanguage();
+
+  const handleSyncPhone = () => {
+    requestPhoneContact((shared, contact) => {
+      if (shared && contact?.phone_number) {
+        updateUser({ phoneNumber: contact.phone_number });
+        if (tg?.HapticFeedback) {
+          tg.HapticFeedback.notificationOccurred('success');
+        }
+      }
+    });
+  };
 
   const actions = [
     {
@@ -68,36 +81,36 @@ const ProfilePage: React.FC = () => {
           {formatText(user?.fullName || 'Turon mijozi')}
         </h2>
         <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-3 rounded-[22px] bg-white/90 px-4 py-4 shadow-sm">
-            <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-slate-100 text-slate-500">
+          <div className="flex items-center gap-3 rounded-[22px] bg-white/90 px-4 py-4 shadow-sm transition-all active:scale-[0.99]" onClick={!user?.phoneNumber ? handleSyncPhone : undefined}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-[18px] ${!user?.phoneNumber ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
               <Phone size={18} />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">{tr('profile.phone')}</p>
-              <p className="text-sm font-bold text-slate-900">
-                {user?.phoneNumber ||
-                  (language === 'ru' ? 'Не указан' : language === 'uz-cyrl' ? 'Киритилмаган' : 'Kiritilmagan')}
+              <p className={`text-sm font-bold ${!user?.phoneNumber ? 'text-amber-600' : 'text-slate-900'}`}>
+                {user?.phoneNumber || (language === 'ru' ? 'Синхронизация с Telegram' : language === 'uz-cyrl' ? 'Telegram билан уланиш' : 'Telegramdan olish')}
               </p>
             </div>
+            {!user?.phoneNumber && <ChevronRight size={16} className="text-amber-400" />}
           </div>
 
           <div className="flex items-start gap-3 rounded-[22px] bg-white/90 px-4 py-4 shadow-sm">
-            <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-amber-50 text-amber-700">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-slate-100 text-slate-500">
               <Globe2 size={18} />
             </div>
             <div className="flex-1">
               <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">{tr('profile.language')}</p>
-              <p className="text-sm font-bold text-slate-900">{tr('profile.languageHint')}</p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              
+              <div className="mt-3 flex flex-wrap gap-2">
                 {customerLanguageOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => setLanguage(option.value)}
-                    className={`rounded-[18px] px-3 py-3 text-[12px] font-black transition-all ${
+                    className={`h-10 flex-1 min-w-[80px] rounded-full px-3 text-[11px] font-black tracking-wider transition-all active:scale-[0.95] ${
                       language === option.value
-                        ? 'bg-slate-900 text-white shadow-lg shadow-slate-200'
-                        : 'bg-slate-100 text-slate-600'
+                        ? 'bg-slate-900 text-white shadow-xl shadow-slate-200'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                     }`}
                   >
                     {tr(option.labelKey)}

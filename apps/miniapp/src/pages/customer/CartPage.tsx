@@ -1,22 +1,25 @@
 import React, { useEffect } from 'react';
-import { ArrowLeft, ArrowRight, ReceiptText, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Clock, Minus, PackageCheck, Plus, Trash2, Utensils } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { CartItemCard } from '../../components/customer/CustomerComponents';
+import { CartItemCard, UpsellProductCard } from '../../components/customer/CustomerComponents';
 import { EmptyCartState } from '../../components/customer/CheckoutComponents';
-import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
-import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
 import { useAddresses } from '../../hooks/queries/useAddresses';
-import { useProducts } from '../../hooks/queries/useMenu';
+import { useProducts, useCategories } from '../../hooks/queries/useMenu';
 import { useOrderQuote } from '../../hooks/queries/useOrders';
 import { useAddressStore } from '../../store/useAddressStore';
 import { useCartStore } from '../../store/useCartStore';
+import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeFromCart, clearCart, getSubtotal, getDiscount, appliedPromo, syncWithProducts } = useCartStore();
+  const { tr } = useCustomerLanguage();
+  const { items, updateQuantity, removeFromCart, clearCart, getSubtotal, getDiscount, appliedPromo, syncWithProducts, addToCart } = useCartStore();
   const { selectedAddressId } = useAddressStore();
   const { data: addresses = [] } = useAddresses();
   const { data: products = [], isLoading: isProductsLoading, isError: isProductsError } = useProducts();
+  const { data: categories = [] } = useCategories();
+  
+  const [cutlery, setCutlery] = React.useState(true);
 
   const subtotal = getSubtotal();
   const discount = getDiscount();
@@ -35,7 +38,17 @@ const CartPage: React.FC = () => {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const merchandiseTotal = Math.max(0, subtotal - discount);
   const totalPrice = orderQuote?.total ?? merchandiseTotal;
-  const hasUnavailableItems = items.some((item) => item.isAvailable === false);
+
+  const upsellProducts = React.useMemo(() => {
+    if (!products.length) return [];
+    // Filter for sauces, drinks, sides
+    const keywords = ['sous', 'ichimlik', 'napitok', 'garnir', 'free', 'fri', 'kola', 'pepsi', 'fanta', 'sprite', 'chili'];
+    return products.filter((p) => {
+      const name = p.name.toLowerCase();
+      const inCart = items.some((item) => item.id === p.id);
+      return !inCart && keywords.some((kw) => name.includes(kw));
+    }).slice(0, 8);
+  }, [products, items]);
 
   useEffect(() => {
     if (isProductsLoading || isProductsError) {
@@ -51,123 +64,127 @@ const CartPage: React.FC = () => {
   return (
     <div
       className="min-h-screen animate-in slide-in-from-right duration-300"
-      style={{ paddingBottom: '320px' }} // Highly increased padding to ensure everything scrolls above the fixed panel
+      style={{ paddingBottom: '200px' }}
     >
-      <section className="px-4 pb-5 pt-[calc(env(safe-area-inset-top,0px)+14px)]">
-        <div className="flex items-start justify-between gap-3">
+      <header className="sticky top-0 z-40 border-b border-white/[0.05] bg-[#0b1220]/94 px-4 py-3 backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.06] text-white"
           >
             <ArrowLeft size={20} />
           </button>
 
-          <div className="flex-1 px-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Savat</p>
-            <h1 className="mt-1.5 text-[1.9rem] font-black tracking-[-0.05em] text-white">Buyurtma xulosasi</h1>
-            <p className="mt-2 text-[13px] leading-6 text-white/58">
-              Taomlar, promokod va jami summa ixcham delivery oqimida ko'rsatiladi.
-            </p>
+          <div className="flex flex-col items-center">
+            <h1 className="text-[17px] font-black text-white">Oqtepa Lavash</h1>
+            <div className="mt-0.5 flex items-center gap-2 text-[12px] font-bold">
+              <span className="text-emerald-400">{totalPrice.toLocaleString()} so'm</span>
+              <span className="text-white/20">•</span>
+              <span className="flex items-center gap-1 text-white/40">
+                <Clock size={12} />
+                15-25 daq
+              </span>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={clearCart}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-rose-300/18 bg-rose-400/10 text-rose-200"
-            title="Tozalash"
-            aria-label="Tozalash"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.06] text-white/60"
           >
             <Trash2 size={18} />
           </button>
         </div>
-      </section>
+      </header>
 
-      <section className="px-4">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-[12px] border border-white/8 bg-white/[0.05] px-3 py-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/34">Turi</p>
-            <p className="mt-2 text-lg font-black text-white">{items.length}</p>
-          </div>
-          <div className="rounded-[12px] border border-white/8 bg-white/[0.05] px-3 py-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/34">Soni</p>
-            <p className="mt-2 text-lg font-black text-white">{totalItems}</p>
-          </div>
-          <div className="rounded-[12px] border border-amber-300/16 bg-amber-400/10 px-3 py-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-100/70">Jami</p>
-            <p className="mt-2 text-lg font-black text-amber-100">{totalPrice.toLocaleString()} so'm</p>
-          </div>
+      <section className="px-4 pt-4">
+        <div className="divide-y divide-white/[0.05]">
+          {items.map((item) => (
+            <CartItemCard
+              key={item.id}
+              item={item}
+              onUpdateQuantity={updateQuantity}
+              onRemove={removeFromCart}
+            />
+          ))}
         </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/customer')}
+          className="mt-6 flex h-14 w-full items-center justify-center rounded-[16px] bg-white/[0.06] text-[15px] font-bold text-white transition-all active:scale-[0.985]"
+        >
+          Menyuni ochish
+        </button>
       </section>
 
-      <section className="space-y-3 px-4 pt-5">
-        {items.map((item) => (
-          <CartItemCard
-            key={item.id}
-            item={item}
-            onUpdateQuantity={updateQuantity}
-            onRemove={removeFromCart}
-          />
-        ))}
-      </section>
-
-      <section className="space-y-5 px-4 pt-5">
-        <CustomerPromoInputCard subtotal={subtotal} />
-
-        <div>
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-white/[0.06] text-white">
-              <ReceiptText size={18} />
+      {/* Tools / Cutlery Section */}
+      <section className="mt-8 px-4">
+        <div className="flex items-center justify-between rounded-[20px] bg-white/[0.03] p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.06] text-white/60">
+              <Utensils size={20} />
             </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Summary</p>
-              <h2 className="mt-1 text-base font-black tracking-tight text-white">Buyurtma xulosasi</h2>
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] p-1">
+              <button
+                type="button"
+                onClick={() => updateQuantity(items[0]?.id || '', Math.max(1, (items[0]?.quantity || 1) - 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 transition-colors active:bg-white/5"
+              >
+                <Minus size={14} />
+              </button>
+              <span className="min-w-[16px] text-center text-[14px] font-black text-white">{totalItems}</span>
+              <button
+                type="button"
+                onClick={() => updateQuantity(items[0]?.id || '', (items[0]?.quantity || 1) + 1)}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 transition-colors active:bg-white/5"
+              >
+                <Plus size={14} />
+              </button>
             </div>
           </div>
-
-          <OrderSummaryCard quote={orderQuote} isQuoteLoading={orderQuoteQuery.isLoading} />
-        </div>
-      </section>
-
-      <div
-        className="fixed inset-x-0 z-40 px-4"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 66px)' }}
-      >
-        <div className="mx-auto w-full max-w-[430px] rounded-[16px] border border-white/10 bg-[#111827]/94 p-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/34">Jami summa</p>
-              <p className="mt-1 text-[26px] font-black tracking-[-0.04em] text-white">{totalPrice.toLocaleString()} so'm</p>
-              {!selectedAddress ? (
-                <p className="mt-1 text-[11px] font-semibold text-white/48">
-                  Yetkazish narxi checkoutda manzil bo'yicha hisoblanadi
-                </p>
-              ) : orderQuoteQuery.isError ? (
-                <p className="mt-1 text-[11px] font-semibold text-rose-300">{orderQuoteQuery.error.message}</p>
-              ) : null}
-            </div>
-            <div className="rounded-full border border-white/8 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/62">
-              {totalItems} ta
-            </div>
-          </div>
-
           <button
             type="button"
-            onClick={() => {
-              if (hasUnavailableItems) {
-                window.alert("Savatda hozir mavjud bo'lmagan taomlar bor. Pozitsiyalarni tekshiring.");
-                return;
-              }
-
-              navigate('/customer/checkout');
-            }}
-            disabled={isProductsLoading}
-            className="flex h-[56px] w-full items-center justify-center gap-3 rounded-[6px] bg-white text-base font-black text-slate-950 shadow-xl transition-transform active:scale-[0.985] disabled:opacity-60"
+            onClick={() => setCutlery(!cutlery)}
+            className={`relative h-7 w-12 rounded-full transition-all duration-300 ${cutlery ? 'bg-amber-400' : 'bg-white/10'}`}
           >
-            <span>Buyurtmani tasdiqlash</span>
-            <ArrowRight size={20} />
+            <div className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${cutlery ? 'left-6' : 'left-1'}`} />
           </button>
         </div>
+      </section>
+
+      {upsellProducts.length > 0 && (
+        <section className="mt-10 overflow-hidden px-4">
+          <h2 className="text-[20px] font-black tracking-tight text-white">Yana nimadir kerakmi?</h2>
+          <div className="scrollbar-hide -mx-4 mt-4 flex gap-4 overflow-x-auto px-4 pb-6">
+            {upsellProducts.map((p) => (
+              <UpsellProductCard key={p.id} product={p} onAdd={addToCart} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Floating Action Section */}
+      <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col items-end gap-3 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pointer-events-none">
+        {/* Free Delivery Badge */}
+        <div className="flex items-center gap-2.5 rounded-full bg-[#9333ea] px-5 py-2.5 text-[12px] font-black text-white shadow-[0_12px_24px_rgba(147,51,234,0.3)] pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
+            <PackageCheck size={13} />
+          </div>
+          <span>Bepul yetkazish</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/customer/checkout')}
+          className="flex items-center gap-4 rounded-full bg-[#facc15] py-4.5 pl-7 pr-4 font-black text-slate-950 shadow-[0_20px_40px_rgba(250,204,21,0.35)] transition-all active:scale-[0.96] pointer-events-auto group"
+        >
+          <span className="text-[17px] tracking-tight">To'lovga</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white transition-transform duration-300 group-hover:translate-x-1">
+            <ChevronRight size={22} />
+          </div>
+        </button>
       </div>
     </div>
   );

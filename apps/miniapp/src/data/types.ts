@@ -16,6 +16,7 @@ export interface ProductSnapshot {
   description: string;
   price: number;
   image: string;
+  weight?: string;
   isAvailable?: boolean;
 }
 

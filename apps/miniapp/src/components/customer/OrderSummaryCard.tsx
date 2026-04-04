@@ -62,28 +62,28 @@ const OrderSummaryCard: React.FC<{
         </div>
       ) : null}
 
-      <div className={`${compact ? '' : 'mt-4 '}space-y-3 rounded-[12px] border border-white/8 bg-white/[0.04] p-3`}>
-        <div className="flex items-center justify-between text-sm font-semibold text-white/72">
+      <div className={`${compact ? 'space-y-2 ' : 'mt-4 space-y-3 '}rounded-[12px] border border-white/8 bg-white/[0.04] p-2.5`}>
+        <div className="flex items-center justify-between text-[13px] font-semibold text-white/72">
           <div className="flex items-center gap-2">
-            <ShoppingBag size={15} className="text-white/40" />
+            <ShoppingBag size={14} className="text-white/40" />
             <span>Taomlar ({itemCount} ta)</span>
           </div>
           <span className="font-black text-white">{subtotal.toLocaleString()} so'm</span>
         </div>
 
-        <div className="flex items-center justify-between text-sm font-semibold text-white/72">
+        <div className="flex items-center justify-between text-[13px] font-semibold text-white/72">
           <div className="flex items-center gap-2">
-            <Truck size={15} className="text-white/40" />
+            <Truck size={14} className="text-white/40" />
             <span>Yetkazish</span>
           </div>
           <span className="font-black text-white">{deliveryFeeLabel}</span>
         </div>
 
         {discount > 0 ? (
-          <div className="flex items-center justify-between text-sm font-semibold text-emerald-300">
+          <div className="flex items-center justify-between text-[13px] font-semibold text-emerald-300">
             <div className="flex items-center gap-2">
-              <Tag size={15} />
-              <span>{appliedPromo ? `Promokod (${appliedPromo.code})` : 'Chegirma'}</span>
+              <Tag size={14} />
+              <span>{appliedPromo ? `Promokod` : 'Chegirma'}</span>
             </div>
             <span className="font-black">-{discount.toLocaleString()} so'm</span>
           </div>
@@ -91,30 +91,30 @@ const OrderSummaryCard: React.FC<{
       </div>
 
       {resolvedRouteInfo ? (
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div className="rounded-[12px] border border-white/8 bg-white/[0.04] p-3">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/38">
-              <Route size={14} />
+        <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+          <div className="rounded-[10px] border border-white/8 bg-white/[0.04] p-2.5">
+            <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.14em] text-white/30">
+              <Route size={12} />
               <span>Masofa</span>
             </div>
-            <p className="mt-2 text-base font-black text-white">{resolvedRouteInfo.distance}</p>
+            <p className="mt-1 text-sm font-black text-white">{resolvedRouteInfo.distance}</p>
           </div>
-          <div className="rounded-[12px] border border-white/8 bg-white/[0.04] p-3">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/38">
-              <Truck size={14} />
+          <div className="rounded-[10px] border border-white/8 bg-white/[0.04] p-2.5">
+            <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.14em] text-white/30">
+              <Truck size={12} />
               <span>ETA</span>
             </div>
-            <p className="mt-2 text-base font-black text-white">{resolvedRouteInfo.eta}</p>
+            <p className="mt-1 text-sm font-black text-white">{resolvedRouteInfo.eta}</p>
           </div>
         </div>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-between rounded-[12px] border border-white/8 bg-slate-950/46 px-3 py-3">
+      <div className={`mt-3 flex items-center justify-between rounded-[12px] border border-white/8 bg-slate-950/46 px-3 ${compact ? 'py-2.5' : 'py-3'}`}>
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
             {quote ? 'Jami summa' : 'Taomlar jami'}
           </p>
-          <p className="mt-1.5 text-[28px] font-black tracking-tight text-white">{total.toLocaleString()} so'm</p>
+          <p className={`mt-1 font-black tracking-tight text-white ${compact ? 'text-[22px]' : 'text-[28px]'}`}>{total.toLocaleString()} so'm</p>
         </div>
         {!compact ? (
           <div className="text-right">

@@ -161,28 +161,27 @@ const CheckoutPage: React.FC = () => {
   return (
     <div
       className="min-h-screen animate-in slide-in-from-right duration-300"
-      style={{ paddingBottom: '300px' }} // Increased padding to allow all cards to scroll above the fixed bar
+      style={{ paddingBottom: '140px' }}
     >
-      <section className="px-4 pb-5 pt-[calc(env(safe-area-inset-top,0px)+14px)]">
-        <div className="flex items-start gap-3">
+      <section className="px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)]">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => navigate('/customer/cart')}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
           <div className="flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Tasdiqlash</p>
-            <h1 className="mt-1.5 text-[1.75rem] font-black tracking-[-0.05em] text-white">Buyurtma yakuni</h1>
-            <p className="mt-2 max-w-[280px] text-[13px] leading-6 text-white/58">
-              Kod, to'lov va manzilni tekshirib buyurtmani tasdiqlang.
+            <h1 className="text-[1.5rem] font-black tracking-[-0.05em] text-white">Buyurtma yakuni</h1>
+            <p className="mt-0.5 text-[11px] leading-tight text-white/45">
+              Kod, to'lov va manzilni tekshiring.
             </p>
           </div>
         </div>
       </section>
 
-      <section className="space-y-4 px-4">
+      <section className="space-y-2.5 px-4">
         <CheckoutSectionCard title="Yetkazish manzili">
           {selectedAddress ? (
             <SelectedAddressCard
@@ -202,28 +201,28 @@ const CheckoutPage: React.FC = () => {
             </button>
           )}
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={handleAutoDetectAddress}
               disabled={autoDetectAddressMutation.isPending}
-              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[12px] font-black text-white transition-transform active:scale-[0.985] disabled:opacity-60"
+              className="flex h-10 items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[11px] font-black text-white transition-transform active:scale-[0.985] disabled:opacity-60"
             >
               {autoDetectAddressMutation.isPending ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={14} className="animate-spin" />
               ) : (
-                <LocateFixed size={16} />
+                <LocateFixed size={14} />
               )}
-              <span>Avtomatik aniqlash</span>
+              <span>Topish</span> 
             </button>
 
             <button
               type="button"
               onClick={handleMapSelection}
-              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[12px] font-black text-white transition-transform active:scale-[0.985]"
+              className="flex h-10 items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[11px] font-black text-white transition-transform active:scale-[0.985]"
             >
-              <MapPin size={16} />
-              <span>Xaritadan tanlash</span>
+              <MapPin size={14} />
+              <span>Xaritadan qidirish</span>
             </button>
           </div>
 
@@ -267,7 +266,7 @@ const CheckoutPage: React.FC = () => {
 
       <div
         className="fixed inset-x-0 z-40 px-4"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 66px)' }}
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
       >
         <div className="mx-auto flex h-[72px] w-full max-w-[430px] items-center rounded-[6px] border border-white/10 bg-[#111827]/94 px-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
           <button
