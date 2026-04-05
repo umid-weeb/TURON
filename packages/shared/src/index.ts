@@ -98,4 +98,11 @@ export enum ProductBadgeEnum {
   DISCOUNT = 'DISCOUNT'
 }
 
+export enum SpecialEventTypeEnum {
+  BIRTHDAY = 'BIRTHDAY',
+  FRIDAY = 'FRIDAY',
+  HOLIDAY = 'HOLIDAY',
+  CAMPAIGN = 'CAMPAIGN'
+}
+
 export * from './constants.js';
