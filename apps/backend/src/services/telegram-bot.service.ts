@@ -86,11 +86,13 @@ async function getStoredMessageId(chatId: number): Promise<number | null> {
 
 async function storeMessageId(chatId: number, messageId: number): Promise<void> {
   try {
+    const key = `${BOT_MSG_PREFIX}${chatId}`;
     await prisma.restaurantSetting.upsert({
-      where: { key: `${BOT_MSG_PREFIX}${chatId}` },
+      where: { key },
       update: { value: String(messageId) },
       create: {
-        key: `${BOT_MSG_PREFIX}${chatId}`,
+        id: `bot-msg-${chatId}`,
+        key,
         value: String(messageId),
         dataType: 'number',
       },

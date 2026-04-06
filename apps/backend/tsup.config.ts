@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     'api/index': 'src/api/index.ts',
-    'bot/index': 'src/bot/index.ts'
+    'bot/index': 'src/bot/index.ts',
   },
   format: ['esm'],
   target: 'es2022',
