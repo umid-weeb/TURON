@@ -59,22 +59,26 @@ export async function telegramAuthHandler(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
     ) {
-      user = await prisma.user.findUnique({
-        where: { telegramId },
-      });
+      try {
+        user = await prisma.user.findUnique({ where: { telegramId } });
+      } catch (findError) {
+        console.error('[Auth] Failed to recover from P2002 conflict:', findError);
+        return reply.status(503).send({ error: "Xizmat vaqtincha ishlamayapti. Qayta urinib ko'ring." });
+      }
     } else {
-      throw error;
+      console.error('[Auth] Database error during user upsert:', error);
+      return reply.status(503).send({ error: "Xizmat vaqtincha ishlamayapti. Qayta urinib ko'ring." });
     }
   }
 
   if (!user) {
-    return reply.status(500).send({ error: 'Foydalanuvchini yaratib bo\'lmadi' });
+    return reply.status(503).send({ error: "Foydalanuvchi ma'lumotlarini olishda xato yuz berdi." });
   }
 
   const primaryRole = user.role as UserRoleEnum;
 
-  // 4. Audit Log
-  await AuditService.record({
+  // 4. Audit Log (non-critical — errors are swallowed inside AuditService)
+  void AuditService.record({
     userId: user.id,
     action: 'LOGIN',
     entity: 'User',
@@ -83,7 +87,14 @@ export async function telegramAuthHandler(
     newValue: { role: primaryRole, timestamp: new Date() }
   });
 
-  const token = await reply.jwtSign({ id: user.id, role: primaryRole });
+  const token = await (reply.jwtSign({ id: user.id, role: primaryRole }) as Promise<string>).catch((jwtError: unknown) => {
+    console.error('[Auth] JWT sign failed:', jwtError);
+    return null;
+  });
+
+  if (!token) {
+    return reply.status(503).send({ error: "Token yaratishda xato yuz berdi." });
+  }
 
   return reply.send({
     user: {

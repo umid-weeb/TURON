@@ -60,13 +60,55 @@ type AdminReplyMessage = {
   reply_to_message?: { message_id?: number };
 };
 
-// ─── In-memory last-message tracker ──────────────────────────────────────────
+// ─── DB-backed message ID storage ─────────────────────────────────────────────
 //
-// Stores the last /start message_id sent to each user so we can delete it before
-// sending a fresh one. Resets on server restart (harmless — next /start just
-// sends a new message without deleting anything).
+// We store the last /start message_id per chat in RestaurantSetting using a
+// namespaced key: `_bot_msg_<chatId>`. This survives server restarts and
+// Railway redeploys, so we can always edit/delete the old message.
+//
+// RestaurantSetting is a key-value table that already exists — no migration needed.
 
-const lastStartMessageByChatId = new Map<number, number>();
+const BOT_MSG_PREFIX = '_bot_msg_';
+
+async function getStoredMessageId(chatId: number): Promise<number | null> {
+  try {
+    const row = await prisma.restaurantSetting.findUnique({
+      where: { key: `${BOT_MSG_PREFIX}${chatId}` },
+      select: { value: true },
+    });
+    if (!row) return null;
+    const id = parseInt(row.value, 10);
+    return isNaN(id) ? null : id;
+  } catch {
+    return null;
+  }
+}
+
+async function storeMessageId(chatId: number, messageId: number): Promise<void> {
+  try {
+    await prisma.restaurantSetting.upsert({
+      where: { key: `${BOT_MSG_PREFIX}${chatId}` },
+      update: { value: String(messageId) },
+      create: {
+        key: `${BOT_MSG_PREFIX}${chatId}`,
+        value: String(messageId),
+        dataType: 'number',
+      },
+    });
+  } catch {
+    // Non-critical — message tracking failure doesn't break bot functionality
+  }
+}
+
+async function clearStoredMessageId(chatId: number): Promise<void> {
+  try {
+    await prisma.restaurantSetting.delete({
+      where: { key: `${BOT_MSG_PREFIX}${chatId}` },
+    });
+  } catch {
+    // Ignore if not found
+  }
+}
 
 // ─── Bot singleton ────────────────────────────────────────────────────────────
 
@@ -208,69 +250,72 @@ async function setupMenuButton(bot: Telegraf) {
   }
 }
 
+// ─── Send or edit start message ───────────────────────────────────────────────
+//
+// Strategy (survives server restarts):
+//   1. Load previously stored message_id from DB for this chat
+//   2. Try to EDIT that message with updated role-based content + button URL
+//   3. If edit fails (message deleted, too old) → send a brand new message
+//   4. Store the final message_id in DB for next time
+
+async function sendOrUpdateStartMessage(
+  bot: Telegraf,
+  chatId: number,
+  role: UserRoleEnum,
+): Promise<void> {
+  const launchUrl = resolveRoleLaunchUrl(role);
+  const { text, buttonLabel } = getStartMessageContent(role);
+  const keyboard = Markup.inlineKeyboard([[Markup.button.webApp(buttonLabel, launchUrl)]]);
+
+  const prevMessageId = await getStoredMessageId(chatId);
+
+  if (prevMessageId) {
+    try {
+      await bot.telegram.editMessageText(
+        chatId,
+        prevMessageId,
+        undefined,
+        text,
+        { ...keyboard, parse_mode: undefined },
+      );
+      // Successfully edited — no new message, no DB update needed
+      return;
+    } catch {
+      // Message was deleted, too old, or not from this bot — fall through to send new
+      await clearStoredMessageId(chatId);
+    }
+  }
+
+  // Send a fresh message and persist its ID
+  const sent = await bot.telegram.sendMessage(chatId, text, keyboard);
+  await storeMessageId(chatId, sent.message_id);
+}
+
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 function bindHandlers(bot: Telegraf) {
-  // /start — delete previous start message, send fresh one
+  // /start — edit existing start message (or send new if none stored)
   bot.start(async (ctx) => {
     const telegramId = ctx.from.id.toString();
     const chatId = ctx.chat.id;
-
-    // Delete the previous /start message sent by the bot (if we tracked it)
-    const prevMessageId = lastStartMessageByChatId.get(chatId);
-    if (prevMessageId) {
-      try {
-        await ctx.telegram.deleteMessage(chatId, prevMessageId);
-      } catch {
-        // Message may be too old or already deleted — ignore silently
-      }
-      lastStartMessageByChatId.delete(chatId);
-    }
-
     const role = await getUserRole(telegramId);
-    const launchUrl = resolveRoleLaunchUrl(role);
-    const { text, buttonLabel } = getStartMessageContent(role);
-
-    const sentMessage = await ctx.reply(
-      text,
-      Markup.inlineKeyboard([[Markup.button.webApp(buttonLabel, launchUrl)]]),
-    );
-
-    // Track this message so next /start can clean it up
-    lastStartMessageByChatId.set(chatId, sentMessage.message_id);
+    await sendOrUpdateStartMessage(bot, chatId, role);
   });
 
-  // /app — shortcut, same as /start but minimal text
+  // /app — shortcut that deletes the command message then shows the app button
   bot.command('app', async (ctx) => {
     const telegramId = ctx.from.id.toString();
     const chatId = ctx.chat.id;
 
-    const role = await getUserRole(telegramId);
-    const launchUrl = resolveRoleLaunchUrl(role);
-    const { buttonLabel } = getStartMessageContent(role);
-
-    // Delete command message for clean UX
+    // Delete the /app command message for clean UX
     try {
       await ctx.deleteMessage();
     } catch {
       // Ignore if can't delete
     }
 
-    const prevMessageId = lastStartMessageByChatId.get(chatId);
-    if (prevMessageId) {
-      try {
-        await ctx.telegram.deleteMessage(chatId, prevMessageId);
-      } catch {
-        // Ignore
-      }
-    }
-
-    const sentMessage = await ctx.reply(
-      'Ilovani ochish:',
-      Markup.inlineKeyboard([[Markup.button.webApp(buttonLabel, launchUrl)]]),
-    );
-
-    lastStartMessageByChatId.set(chatId, sentMessage.message_id);
+    const role = await getUserRole(telegramId);
+    await sendOrUpdateStartMessage(bot, chatId, role);
   });
 
   // Handle admin support replies
