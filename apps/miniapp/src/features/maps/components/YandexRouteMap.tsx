@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { RouteMapProps } from '../MapProvider';
-import { fetchRouteDetails } from '../api';
 import { getMapAnimationDuration, getMapZoomMargin } from '../performance';
 import MockMapComponent from './MockMapComponent';
 import { createBoundsFromPins, isYandexMapsEnabled, loadYandexMaps, toYandexCoords } from '../yandex';
@@ -35,30 +34,92 @@ export default function YandexRouteMap({
 
   const emitRouteInfo = (distance: string, eta: string) => {
     const nextKey = `${distance}|${eta}`;
-    if (lastRouteInfoRef.current === nextKey) {
-      return;
-    }
-
+    if (lastRouteInfoRef.current === nextKey) return;
     lastRouteInfoRef.current = nextKey;
     onRouteInfoChange?.({ distance, eta });
   };
 
   const fitBounds = (pins: Array<typeof pickup | undefined>) => {
-    if (!mapRef.current) {
-      return;
-    }
-
+    if (!mapRef.current) return;
     const bounds = createBoundsFromPins(pins.filter((pin): pin is typeof pickup => Boolean(pin)));
-    if (!bounds) {
-      return;
-    }
-
+    if (!bounds) return;
     mapRef.current.setBounds(bounds, {
       checkZoomRange: true,
       zoomMargin: getMapZoomMargin(60),
       duration: getMapAnimationDuration(200),
     });
   };
+
+  // Build a road-following route using ymaps.route() and style it
+  function buildYmapsRoute(ymaps: any, map: any, from: typeof pickup, to: typeof pickup, requestId: number) {
+    return ymaps
+      .route([toYandexCoords(from), toYandexCoords(to)], {
+        routingMode: 'auto',
+        mapStateAutoApply: false,
+        avoidTrafficJams: true,
+      })
+      .then((route: any) => {
+        if (requestId !== routeRequestIdRef.current || !mapRef.current || !ymaps) return;
+
+        // Remove old route
+        if (routeRef.current) {
+          map.geoObjects.remove(routeRef.current);
+          routeRef.current = null;
+        }
+
+        // Hide default waypoint markers
+        route.getWayPoints().each((wp: any) => {
+          wp.options.set({ visible: false });
+        });
+
+        // Style route paths
+        route.getPaths().each((path: any) => {
+          path.options.set({
+            strokeColor: '#FFD700',
+            strokeOpacity: 0.9,
+            strokeWidth: 5,
+          });
+        });
+
+        map.geoObjects.add(route);
+        routeRef.current = route;
+
+        // Extract route info
+        try {
+          const distanceM = route.getLength();
+          const durationS = route.getTime();
+          if (typeof distanceM === 'number' && typeof durationS === 'number') {
+            const distKm = distanceM / 1000;
+            const distStr = distKm < 1
+              ? `${Math.round(distanceM)} m`
+              : `${distKm.toFixed(1)} km`;
+            const etaMin = Math.ceil(durationS / 60);
+            emitRouteInfo(distStr, `${etaMin} daq`);
+          }
+        } catch {
+          // ignore info extraction errors
+        }
+
+        fitBounds(markerPins);
+      })
+      .catch(() => {
+        if (requestId !== routeRequestIdRef.current || !mapRef.current) return;
+        // Fallback: draw straight line
+        if (routeRef.current) {
+          map.geoObjects.remove(routeRef.current);
+          routeRef.current = null;
+        }
+        if (ymaps.Polyline) {
+          routeRef.current = new ymaps.Polyline(
+            [toYandexCoords(from), toYandexCoords(to)],
+            {},
+            { strokeColor: '#f59e0b', strokeOpacity: 0.9, strokeWidth: 5 },
+          );
+          map.geoObjects.add(routeRef.current);
+        }
+        fitBounds(markerPins);
+      });
+  }
 
   useEffect(() => {
     let isDisposed = false;
@@ -72,56 +133,29 @@ export default function YandexRouteMap({
 
       try {
         const ymaps = await loadYandexMaps();
-
-        if (isDisposed || !mapContainerRef.current) {
-          return;
-        }
+        if (isDisposed || !mapContainerRef.current) return;
 
         ymapsRef.current = ymaps;
 
         const map = new ymaps.Map(
           mapContainerRef.current,
-          {
-            center: toYandexCoords(pickup),
-            zoom: 14,
-            controls: ['zoomControl'],
-          },
-          {
-            suppressMapOpenBlock: true,
-            suppressLbsEvents: true,
-          },
+          { center: toYandexCoords(pickup), zoom: 14, controls: ['zoomControl'] },
+          { suppressMapOpenBlock: true, suppressLbsEvents: true },
         );
 
-        map.behaviors.enable([
-          'scrollZoom',
-          'dblClickZoom',
-          'multiTouchZoom',
-          'drag',
-        ]);
+        map.behaviors.enable(['scrollZoom', 'dblClickZoom', 'multiTouchZoom', 'drag']);
         map.behaviors.disable(['leftMouseButtonMagnifier']);
 
         const pickupPlacemark = new ymaps.Placemark(
           toYandexCoords(pickup),
-          {
-            hintContent: 'Restoran',
-            balloonContent: 'Restorandan olib ketish nuqtasi',
-          },
-          {
-            preset: 'islands#greenCircleIcon',
-            iconColor: '#10B981',
-          },
+          { hintContent: 'Restoran', balloonContent: 'Restorandan olib ketish nuqtasi' },
+          { preset: 'islands#greenCircleIcon', iconColor: '#10B981' },
         );
 
         const destinationPlacemark = new ymaps.Placemark(
           toYandexCoords(destination),
-          {
-            hintContent: 'Mijoz',
-            balloonContent: 'Yetkazib berish manzili',
-          },
-          {
-            preset: 'islands#redCircleIcon',
-            iconColor: '#EF4444',
-          },
+          { hintContent: 'Mijoz', balloonContent: 'Yetkazib berish manzili' },
+          { preset: 'islands#redCircleIcon', iconColor: '#EF4444' },
         );
 
         map.geoObjects.add(pickupPlacemark);
@@ -134,87 +168,25 @@ export default function YandexRouteMap({
         if (courierPos) {
           const courierPlacemark = new ymaps.Placemark(
             toYandexCoords(courierPos),
-            {
-              hintContent: 'Kuryer',
-              balloonContent: 'Kuryerning joriy joylashuvi',
-            },
-            {
-              preset: 'islands#blueDotIcon',
-            },
+            { hintContent: 'Kuryer', balloonContent: 'Kuryerning joriy joylashuvi' },
+            { preset: 'islands#yellowCircleIcon', iconColor: '#FFD700', zIndex: 200 },
           );
-
           map.geoObjects.add(courierPlacemark);
           courierPlacemarkRef.current = courierPlacemark;
         }
 
         routeRequestIdRef.current += 1;
-        const currentRequestId = routeRequestIdRef.current;
-        const referencePoints = [toYandexCoords(activeRouteFrom), toYandexCoords(activeRouteTo)];
+        const requestId = routeRequestIdRef.current;
 
-        try {
-          const routeDetails = await fetchRouteDetails(activeRouteFrom, activeRouteTo);
-
-          if (isDisposed || currentRequestId !== routeRequestIdRef.current || !mapRef.current) {
-            return;
-          }
-
-          emitRouteInfo(routeDetails.distance, routeDetails.eta);
-
-          if (ymaps.Polyline) {
-            // Shadow polyline for depth
-            const shadow = new ymaps.Polyline(
-              (routeDetails.polyline?.length ? routeDetails.polyline : [activeRouteFrom, activeRouteTo]).map(
-                toYandexCoords,
-              ),
-              {},
-              {
-                strokeColor: '#FFD700',
-                strokeOpacity: 0.15,
-                strokeWidth: 9,
-                zIndex: 49,
-              },
-            );
-
-            routeRef.current = new ymaps.Polyline(
-              (routeDetails.polyline?.length ? routeDetails.polyline : [activeRouteFrom, activeRouteTo]).map(
-                toYandexCoords,
-              ),
-              {},
-              {
-                strokeColor: '#FFD700',
-                strokeOpacity: 0.9,
-                strokeWidth: 4.5,
-                zIndex: 50,
-              },
-            );
-
-            map.geoObjects.add(shadow);
-            map.geoObjects.add(routeRef.current);
-          }
-        } catch {
-          if (isDisposed || currentRequestId !== routeRequestIdRef.current || !mapRef.current) {
-            return;
-          }
-
-          if (ymaps.Polyline) {
-            routeRef.current = new ymaps.Polyline(referencePoints, {}, {
-              strokeColor: '#f59e0b',
-              strokeOpacity: 0.9,
-              strokeWidth: 6,
-            });
-
-            map.geoObjects.add(routeRef.current);
-          }
+        if (!isDisposed) {
+          await buildYmapsRoute(ymaps, map, activeRouteFrom, activeRouteTo, requestId);
         }
 
-        fitBounds(markerPins);
         onMapReady?.(map);
       } catch {
         setHasFallback(true);
       } finally {
-        if (!isDisposed) {
-          setIsLoading(false);
-        }
+        if (!isDisposed) setIsLoading(false);
       }
     }
 
@@ -223,11 +195,7 @@ export default function YandexRouteMap({
     return () => {
       isDisposed = true;
       routeRequestIdRef.current += 1;
-
-      if (mapRef.current) {
-        mapRef.current.destroy();
-      }
-
+      if (mapRef.current) mapRef.current.destroy();
       mapRef.current = null;
       ymapsRef.current = null;
       routeRef.current = null;
@@ -240,10 +208,7 @@ export default function YandexRouteMap({
   useEffect(() => {
     const ymaps = ymapsRef.current;
     const map = mapRef.current;
-
-    if (!ymaps || !map) {
-      return;
-    }
+    if (!ymaps || !map) return;
 
     pickupPlacemarkRef.current?.geometry?.setCoordinates?.(toYandexCoords(pickup));
     destinationPlacemarkRef.current?.geometry?.setCoordinates?.(toYandexCoords(destination));
@@ -252,17 +217,9 @@ export default function YandexRouteMap({
       if (!courierPlacemarkRef.current) {
         courierPlacemarkRef.current = new ymaps.Placemark(
           toYandexCoords(courierPos),
-          {
-            hintContent: 'Kuryer',
-            balloonContent: 'Kuryerning joriy joylashuvi',
-          },
-          {
-            preset: 'islands#yellowCircleIcon',
-            iconColor: '#FFD700',
-            zIndex: 200,
-          },
+          { hintContent: 'Kuryer', balloonContent: 'Kuryerning joriy joylashuvi' },
+          { preset: 'islands#yellowCircleIcon', iconColor: '#FFD700', zIndex: 200 },
         );
-
         map.geoObjects.add(courierPlacemarkRef.current);
       } else {
         courierPlacemarkRef.current.geometry?.setCoordinates?.(toYandexCoords(courierPos));
@@ -273,71 +230,7 @@ export default function YandexRouteMap({
     }
 
     const requestId = ++routeRequestIdRef.current;
-
-    void fetchRouteDetails(activeRouteFrom, activeRouteTo)
-      .then((routeDetails) => {
-        if (requestId !== routeRequestIdRef.current || !mapRef.current || !ymaps) {
-          return;
-        }
-
-        emitRouteInfo(routeDetails.distance, routeDetails.eta);
-
-        if (routeRef.current) {
-          map.geoObjects.remove(routeRef.current);
-          routeRef.current = null;
-        }
-
-        if (ymaps.Polyline) {
-          const coords = (routeDetails.polyline?.length ? routeDetails.polyline : [activeRouteFrom, activeRouteTo]).map(
-            toYandexCoords,
-          );
-
-          const shadow = new ymaps.Polyline(coords, {}, {
-            strokeColor: '#FFD700',
-            strokeOpacity: 0.15,
-            strokeWidth: 9,
-            zIndex: 49,
-          });
-
-          routeRef.current = new ymaps.Polyline(coords, {}, {
-            strokeColor: '#FFD700',
-            strokeOpacity: 0.9,
-            strokeWidth: 4.5,
-            zIndex: 50,
-          });
-
-          map.geoObjects.add(shadow);
-          map.geoObjects.add(routeRef.current);
-        }
-
-        fitBounds(markerPins);
-      })
-      .catch(() => {
-        if (requestId !== routeRequestIdRef.current || !mapRef.current || !ymaps) {
-          return;
-        }
-
-        if (routeRef.current) {
-          map.geoObjects.remove(routeRef.current);
-          routeRef.current = null;
-        }
-
-        if (ymaps.Polyline) {
-          routeRef.current = new ymaps.Polyline(
-            [toYandexCoords(activeRouteFrom), toYandexCoords(activeRouteTo)],
-            {},
-            {
-              strokeColor: '#f59e0b',
-              strokeOpacity: 0.9,
-              strokeWidth: 6,
-            },
-          );
-          map.geoObjects.add(routeRef.current);
-        }
-
-        fitBounds(markerPins);
-      });
-
+    void buildYmapsRoute(ymaps, map, activeRouteFrom, activeRouteTo, requestId);
   }, [
     pickup.lat,
     pickup.lng,
@@ -377,7 +270,6 @@ export default function YandexRouteMap({
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-gray-100 shadow-inner ${className}`} style={{ height }}>
       <div ref={mapContainerRef} className="h-full w-full" />
-
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 backdrop-blur-sm">
           <div className="flex items-center gap-3 rounded-full bg-white px-5 py-3 shadow-lg">
