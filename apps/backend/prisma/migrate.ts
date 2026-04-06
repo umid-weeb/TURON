@@ -148,7 +148,7 @@ async function main() {
     throw new Error('DATABASE_URL or DIRECT_URL must be set before running migrations.');
   }
 
-  const migrationsDir = path.resolve(__dirname, '../../../supabase/migrations');
+  const migrationsDir = path.resolve(__dirname, 'sql');
   const files = (await readdir(migrationsDir))
     .filter((file) => file.endsWith('.sql'))
     .sort();
