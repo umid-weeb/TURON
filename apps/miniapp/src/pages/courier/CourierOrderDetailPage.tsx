@@ -206,7 +206,7 @@ const CourierOrderDetailPage: React.FC = () => {
         </button>
         <div className="text-center">
           <p className="text-[19px] font-black text-slate-900">#{order.orderNumber}</p>
-          <p className="text-[11px] font-bold text-slate-400">{order.restaurantName}</p>
+          <p className="text-[11px] font-bold text-slate-400">{order.customerName || 'Buyurtma'}</p>
         </div>
         <button
           type="button"
