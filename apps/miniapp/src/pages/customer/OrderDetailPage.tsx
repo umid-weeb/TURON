@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Copy, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
 import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
