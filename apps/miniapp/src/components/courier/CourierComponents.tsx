@@ -120,54 +120,100 @@ export function CourierStageButtons({
 }) {
   const currentIndex = getCourierStageProgressIndex(currentStage);
   const nextStage = getNextCourierStage(currentStage);
+  const isDark = theme === 'dark';
 
   return (
     <div className="grid grid-cols-2 gap-2">
       {COURIER_STAGE_BUTTONS.map((button, index) => {
         const isCompleted = currentIndex > index;
-        const isCurrent = currentIndex === index;
+        const isCurrent   = currentIndex === index;
         const isAvailable = nextStage === button.target;
-        const surfaceClasses = getStageSurfaceClasses(
-          isCompleted ? 'completed' : isCurrent ? 'current' : isAvailable ? 'available' : 'upcoming',
-          theme,
-        );
-        const isDisabled = !interactive || !isAvailable || isUpdating;
-        const isLast = index === COURIER_STAGE_BUTTONS.length - 1;
+        const isLast      = index === COURIER_STAGE_BUTTONS.length - 1;
+        const canClick    = interactive && isAvailable && !isUpdating;
+
+        // ── Surface styles per state ──────────────────────────────────
+        let cardCls = '';
+        let badgeCls = '';
+        let labelCls = '';
+        let statusCls = '';
+
+        if (isCompleted) {
+          cardCls   = isDark
+            ? 'border-emerald-400/30 bg-emerald-500/12'
+            : 'border-emerald-200 bg-emerald-50';
+          badgeCls  = 'bg-emerald-500 text-white';
+          labelCls  = isDark ? 'text-emerald-200' : 'text-emerald-700';
+          statusCls = isDark ? 'text-emerald-400/70' : 'text-emerald-500';
+        } else if (isAvailable && interactive) {
+          cardCls   = isDark
+            ? 'border-amber-400/40 bg-gradient-to-br from-amber-400/20 to-orange-500/10 shadow-lg shadow-amber-900/20 ring-1 ring-amber-400/20'
+            : 'border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md shadow-amber-100 ring-1 ring-amber-200/60';
+          badgeCls  = 'bg-amber-400 text-slate-900';
+          labelCls  = isDark ? 'text-amber-100' : 'text-amber-900';
+          statusCls = isDark ? 'text-amber-300/80' : 'text-amber-600';
+        } else if (isCurrent) {
+          cardCls   = isDark
+            ? 'border-sky-400/25 bg-sky-500/10'
+            : 'border-sky-200 bg-sky-50';
+          badgeCls  = 'bg-sky-500 text-white';
+          labelCls  = isDark ? 'text-sky-200' : 'text-sky-700';
+          statusCls = isDark ? 'text-sky-400/70' : 'text-sky-500';
+        } else {
+          cardCls   = isDark
+            ? 'border-white/8 bg-white/[0.04]'
+            : 'border-slate-100 bg-slate-50/80';
+          badgeCls  = isDark ? 'bg-white/10 text-white/40' : 'bg-slate-100 text-slate-400';
+          labelCls  = isDark ? 'text-white/35' : 'text-slate-400';
+          statusCls = isDark ? 'text-white/25' : 'text-slate-300';
+        }
 
         return (
           <button
             key={button.key}
             type="button"
-            onClick={() => {
-              if (interactive && isAvailable) {
-                onStageSelect(button.target);
-              }
-            }}
-            disabled={isDisabled}
+            onClick={() => { if (canClick) onStageSelect(button.target); }}
+            disabled={!canClick}
             aria-pressed={isCurrent}
-            className={`rounded-[22px] border px-3 py-3 text-left transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-100 ${surfaceClasses} ${isLast ? 'col-span-2' : ''}`}
+            className={`
+              relative overflow-hidden rounded-[22px] border p-3.5 text-left
+              transition-all duration-200
+              ${canClick ? 'cursor-pointer active:scale-[0.95] hover:brightness-105' : 'cursor-default'}
+              ${isLast ? 'col-span-2' : ''}
+              ${cardCls}
+            `}
           >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[10px] font-black uppercase tracking-[0.18em]">
+            {/* Glow pulse for available button */}
+            {isAvailable && interactive && (
+              <span className="pointer-events-none absolute inset-0 rounded-[22px] animate-pulse opacity-30 bg-amber-400/20" />
+            )}
+
+            <div className="relative flex items-center justify-between gap-2">
+              {/* Step badge circle */}
+              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${badgeCls}`}>
+                {isCompleted ? (
+                  <CheckCircle2 size={14} strokeWidth={2.5} />
+                ) : isUpdating && isAvailable ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  index + 1
+                )}
+              </div>
+
+              {/* Status label */}
+              <span className={`text-[10px] font-black uppercase tracking-[0.16em] ${statusCls}`}>
                 {isCompleted
-                  ? 'Tayyor'
-                  : isCurrent
-                    ? 'Joriy'
-                    : isAvailable
-                      ? interactive
-                        ? 'Bosish mumkin'
-                        : 'Navbatdagi'
+                  ? 'Tayyor ✓'
+                  : isAvailable && interactive
+                    ? 'Navbatdagi'
+                    : isCurrent
+                      ? 'Joriy'
                       : 'Keyin'}
               </span>
-              {isCompleted ? (
-                <CheckCircle2 size={15} />
-              ) : isUpdating && isAvailable ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <span className="text-[11px] font-black">{index + 1}</span>
-              )}
             </div>
-            <p className="mt-2 text-[12px] font-black leading-snug">{button.label}</p>
+
+            <p className={`mt-2.5 text-[13px] font-black leading-snug ${labelCls}`}>
+              {button.label}
+            </p>
           </button>
         );
       })}
@@ -190,47 +236,44 @@ export function SlideToConfirmAction({
   disabled?: boolean;
   theme?: 'light' | 'dark';
 }) {
-  const trackRef = React.useRef<HTMLDivElement | null>(null);
-  const offsetRef = React.useRef(0);
-  const [offset, setOffset] = React.useState(0);
+  const trackRef   = React.useRef<HTMLDivElement | null>(null);
+  const offsetRef  = React.useRef(0);
+  const [offset, setOffset]       = React.useState(0);
   const [isDragging, setIsDragging] = React.useState(false);
-  const knobSize = 56;
-  const threshold = 0.82;
+  const [confirmed, setConfirmed]  = React.useState(false);
+  const knobSize = 52;
+  const threshold = 0.80;
 
-  const setSliderOffset = (nextOffset: number) => {
-    offsetRef.current = nextOffset;
-    setOffset(nextOffset);
-  };
+  const setSliderOffset = (v: number) => { offsetRef.current = v; setOffset(v); };
 
+  // Reset when label changes (new action)
   React.useEffect(() => {
-    if (!isDragging && !isLoading) {
-      setSliderOffset(0);
-    }
-  }, [isDragging, isLoading, label]);
+    setConfirmed(false);
+    setSliderOffset(0);
+  }, [label]);
+
+  // Snap back when not dragging and not confirmed/loading
+  React.useEffect(() => {
+    if (!isDragging && !isLoading && !confirmed) setSliderOffset(0);
+  }, [isDragging, isLoading, confirmed]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (disabled || isLoading || !trackRef.current) {
-      return;
-    }
-
+    if (disabled || isLoading || confirmed || !trackRef.current) return;
     event.preventDefault();
     const trackRect = trackRef.current.getBoundingClientRect();
     const maxOffset = Math.max(trackRect.width - knobSize - 8, 0);
     const startX = event.clientX;
     const startOffset = offsetRef.current;
-
     setIsDragging(true);
 
-    const handleMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      const nextOffset = Math.min(maxOffset, Math.max(0, startOffset + delta));
-      setSliderOffset(nextOffset);
+    const handleMove = (e: PointerEvent) => {
+      const next = Math.min(maxOffset, Math.max(0, startOffset + e.clientX - startX));
+      setSliderOffset(next);
     };
 
     const handleUp = () => {
       const progress = maxOffset > 0 ? offsetRef.current / maxOffset : 0;
       const shouldConfirm = progress >= threshold;
-
       setIsDragging(false);
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
@@ -238,10 +281,11 @@ export function SlideToConfirmAction({
 
       if (shouldConfirm) {
         setSliderOffset(maxOffset);
-        onConfirm();
+        setConfirmed(true);
+        window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+        window.setTimeout(() => { onConfirm(); }, 380);
         return;
       }
-
       setSliderOffset(0);
     };
 
@@ -250,51 +294,88 @@ export function SlideToConfirmAction({
     window.addEventListener('pointercancel', handleUp);
   };
 
-  const baseClass =
-    theme === 'dark'
-      ? 'border-white/10 bg-white/[0.06] text-white'
-      : 'border-slate-200 bg-slate-50 text-slate-900';
-  const fillClass =
-    theme === 'dark' ? 'from-amber-300 via-orange-400 to-orange-500' : 'from-amber-400 to-orange-500';
-  const knobClass =
-    theme === 'dark'
-      ? 'border-white/10 bg-white text-slate-950 shadow-[0_12px_28px_rgba(255,255,255,0.14)]'
-      : 'border-amber-200 bg-white text-amber-600 shadow-[0_12px_28px_rgba(249,115,22,0.16)]';
-  const hintClass = theme === 'dark' ? 'text-white/55' : 'text-slate-500';
+  const isDark = theme === 'dark';
+
+  // ── Track base ──────────────────────────────────────────────────────────────
+  const trackBase = isDark
+    ? 'border-white/12 bg-white/[0.07] text-white'
+    : 'border-slate-200 bg-slate-100 text-slate-900';
+
+  // ── Fill gradient (confirmed = emerald, normal = amber) ──────────────────
+  const fillGradient = confirmed
+    ? 'from-emerald-400 to-emerald-500'
+    : isDark
+      ? 'from-amber-300 via-orange-400 to-orange-500'
+      : 'from-amber-400 to-orange-500';
+
+  // ── Knob ───────────────────────────────────────────────────────────────────
+  const knobBase = confirmed
+    ? 'bg-emerald-500 text-white border-emerald-400 shadow-[0_8px_24px_rgba(16,185,129,0.45)]'
+    : isDark
+      ? 'bg-white text-slate-950 border-white/20 shadow-[0_8px_24px_rgba(255,255,255,0.18)]'
+      : 'bg-white text-amber-600 border-amber-200 shadow-[0_8px_24px_rgba(249,115,22,0.20)]';
+
   const progressWidth = offset + knobSize + 8;
+
+  // ── Center text ────────────────────────────────────────────────────────────
+  const centerLabel = confirmed
+    ? 'Tasdiqlandi'
+    : isLoading
+      ? 'Bajarilmoqda...'
+      : label;
+  const centerSub = confirmed ? null : "O'ngga suring →";
 
   return (
     <div>
       <div
         ref={trackRef}
-        className={`relative overflow-hidden rounded-[26px] border p-1 ${baseClass} ${
-          disabled ? 'opacity-55' : ''
-        }`}
+        className={`relative overflow-hidden rounded-full border p-1 transition-colors duration-300 ${trackBase} ${disabled ? 'opacity-50' : ''}`}
       >
+        {/* Fill bar */}
         <div
-          className={`pointer-events-none absolute inset-y-1 left-1 rounded-[22px] bg-gradient-to-r ${fillClass} transition-[width] duration-150`}
+          className={`pointer-events-none absolute inset-y-1 left-1 rounded-full bg-gradient-to-r transition-[width] duration-200 ${fillGradient}`}
           style={{ width: `${progressWidth}px` }}
         />
-        <div className="pointer-events-none relative z-10 flex min-h-[64px] items-center justify-center px-16 text-center">
+
+        {/* Center text */}
+        <div className="pointer-events-none relative z-10 flex h-14 items-center justify-center px-16 text-center">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em]">
-              {isLoading ? 'Bajarilmoqda' : "Tasdiqlash uchun o'ngga suring"}
+            <p className={`text-[13px] font-black transition-colors duration-300 ${confirmed ? (isDark ? 'text-white' : 'text-white') : ''}`}>
+              {centerLabel}
             </p>
-            <p className="mt-1 text-sm font-black">{label}</p>
+            {centerSub && !confirmed && (
+              <p className={`text-[10px] font-semibold opacity-60 mt-0.5 ${isDark ? 'text-white' : 'text-slate-600'}`}>
+                {centerSub}
+              </p>
+            )}
           </div>
         </div>
+
+        {/* Knob — fully circular */}
         <button
           type="button"
           onPointerDown={handlePointerDown}
-          disabled={disabled || isLoading}
-          className={`absolute left-1 top-1 z-20 flex h-14 w-14 items-center justify-center rounded-[22px] border transition-transform ${knobClass}`}
+          disabled={disabled || isLoading || confirmed}
+          className={`absolute left-1 top-1 z-20 flex h-[52px] w-[52px] items-center justify-center rounded-full border-2 transition-all duration-300 active:scale-95 ${knobBase}`}
           style={{ transform: `translateX(${offset}px)` }}
           aria-label={label}
         >
-          {isLoading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+          {isLoading ? (
+            <Loader2 size={19} className="animate-spin" />
+          ) : confirmed ? (
+            <CheckCircle2 size={22} strokeWidth={2.5} />
+          ) : (
+            <ChevronRight size={22} strokeWidth={2.5} />
+          )}
         </button>
       </div>
-      {hint ? <p className={`mt-3 text-xs font-semibold ${hintClass}`}>{hint}</p> : null}
+
+      {/* Hint — hidden after confirm */}
+      {hint && !confirmed && (
+        <p className={`mt-2.5 text-center text-[11px] font-semibold ${isDark ? 'text-white/45' : 'text-slate-400'}`}>
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
