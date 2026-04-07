@@ -1,12 +1,13 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, CircleUserRound, History, Home, List, Navigation, Truck } from 'lucide-react';
+import { Bell, CircleUserRound, History, Home, List, Navigation } from 'lucide-react';
 import { UserRoleEnum } from '@turon/shared';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { isActiveDeliveryStage } from '../../features/courier/deliveryStage';
 import { useCourierOrders, useCourierStatus, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 import { OrderInterruptModal } from '../courier/OrderInterruptModal';
 import { useOrderInterruptStore } from '../../store/useOrderInterruptStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 // ─── New-order interrupt detection ──────────────────────────────────────────
 function useCourierNewOrderDetection() {
@@ -18,8 +19,6 @@ function useCourierNewOrderDetection() {
   React.useEffect(() => {
     const assignedOrders = orders.filter((o) => o.courierAssignmentStatus === 'ASSIGNED');
 
-    // First load: mark all currently-ASSIGNED orders as seen so we don't
-    // show stale interrupts for orders that were assigned before app opened.
     if (!initializedRef.current) {
       assignedOrders.forEach((o) => markSeen(o.id));
       setInitialized();
@@ -27,7 +26,6 @@ function useCourierNewOrderDetection() {
       return;
     }
 
-    // On every subsequent update: check for a NEW assigned order we haven't shown yet.
     const newOrder = assignedOrders.find((o) => !seenOrderIds.has(o.id));
     if (newOrder) {
       showInterrupt(newOrder);
@@ -40,129 +38,152 @@ const CourierLayout: React.FC = () => {
   const location = useLocation();
   const { data: orders = [] } = useCourierOrders();
   const { data: courierStatus } = useCourierStatus();
-  const { connectionState, isConnected } = useOrdersRealtimeSync();
+  const { isConnected } = useOrdersRealtimeSync();
+  const user = useAuthStore((state) => state.user);
 
-  // Activate interrupt detection for the entire courier session
   useCourierNewOrderDetection();
+
   const isMapPage = location.pathname.includes('/map/');
-  const activeDelivery = orders.find((order) => isActiveDeliveryStage(order.deliveryStage));
-  const syncBadgeClass = isConnected
-    ? 'bg-emerald-50 text-emerald-700'
-    : connectionState === 'reconnecting' || connectionState === 'connecting'
-      ? 'bg-amber-50 text-amber-700'
-      : 'bg-slate-100 text-slate-500';
-  const syncLabel = isConnected
-    ? 'Jonli sync'
-    : connectionState === 'reconnecting'
-      ? 'Qayta ulanmoqda'
-      : connectionState === 'connecting'
-        ? 'Ulanmoqda'
-        : 'Offline';
-  const availabilityLabel = courierStatus?.isOnline
-    ? courierStatus.isAcceptingOrders
-      ? "Online / qabul ochiq"
-      : "Online / qabul yopiq"
-    : 'Offline / Turon';
+  const activeDelivery = orders.find((o) => isActiveDeliveryStage(o.deliveryStage));
 
-  const NavItem: React.FC<{
-    path: string;
-    icon: React.ReactNode;
-    label: string;
-  }> = ({ path, icon, label }) => {
-    const isActive =
-      path === '/courier'
-        ? location.pathname === '/courier'
-        : location.pathname.startsWith(path);
+  // Courier initials for avatar
+  const initials = user?.fullName
+    ? user.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'K';
 
-    return (
-      <button
-        type="button"
-        onClick={() => navigate(path)}
-        className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl px-3 py-2 transition-all ${
-          isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'
-        }`}
-      >
-        <div className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100'}`}>{icon}</div>
-        <span
-          className={`text-[10px] font-black uppercase tracking-widest ${
-            isActive ? 'text-indigo-700' : 'text-slate-400'
-          }`}
-        >
-          {label}
-        </span>
-      </button>
-    );
-  };
+  const isOnline = courierStatus?.isOnline ?? false;
+
+  const tabs = [
+    { path: '/courier', icon: Home, label: 'Asosiy', exact: true },
+    { path: '/courier/orders', icon: List, label: 'Buyurtmalar', exact: false },
+    { path: '/courier/history', icon: History, label: 'Tarix', exact: false },
+    { path: '/courier/profile', icon: CircleUserRound, label: 'Profil', exact: false },
+  ];
 
   return (
-    <div className="flex min-h-screen flex-col overflow-x-hidden bg-slate-50 pb-32 font-sans text-slate-900">
-      {/* Global new-order interrupt — renders above everything including map */}
+    <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-900">
+      {/* Global interrupt — renders above all content including map */}
       <OrderInterruptModal />
+
+      {/* ─── Header ───────────────────────────────────────────────── */}
       {!isMapPage && (
-        <header className="fixed left-0 right-0 top-0 z-50 flex h-20 items-center justify-between border-b border-slate-100 bg-white/80 px-6 backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg">
-              <Navigation size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-black uppercase italic leading-none tracking-tighter">Kuryer</h2>
-              <div className="mt-1 flex items-center gap-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{availabilityLabel}</p>
-                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${syncBadgeClass}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'animate-pulse bg-emerald-500' : 'bg-current/50'}`} />
-                  <span>{syncLabel}</span>
-                </span>
+        <header className="fixed left-0 right-0 top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-xl"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          <div className="flex h-16 items-center justify-between px-5">
+            {/* Left: avatar + name + status dot */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-[13px] font-black text-white">
+                  {initials}
+                </div>
+                {/* Online/offline dot */}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
+                    isOnline ? 'bg-emerald-500' : 'bg-slate-400'
+                  }`}
+                />
+              </div>
+              <div>
+                <p className="text-[15px] font-black leading-none text-slate-900">
+                  {user?.fullName?.split(' ')[0] || 'Kuryer'}
+                </p>
+                <p className={`mt-0.5 text-[11px] font-semibold ${isOnline ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {isOnline
+                    ? courierStatus?.isAcceptingOrders
+                      ? 'Faol — buyurtma qabul qilmoqda'
+                      : 'Onlayn — qabul yopiq'
+                    : 'Offline'}
+                </p>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
+            {/* Right: notification bell */}
             <button
               type="button"
               onClick={() => navigate('/courier/notifications')}
-              className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-400 transition-transform active:scale-95"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-transform active:scale-95"
             >
-              <Bell size={20} />
+              <Bell size={19} />
               <NotificationBadge role={UserRoleEnum.COURIER} />
             </button>
-            <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-white bg-slate-100 shadow-sm">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Courier" alt="Avatar" />
-            </div>
           </div>
         </header>
       )}
 
-      <main className={`relative h-full w-full flex-1 ${!isMapPage ? 'mt-20' : ''}`}>
-        {!isMapPage && activeDelivery && (
+      {/* ─── Active delivery banner ────────────────────────────────── */}
+      {!isMapPage && activeDelivery && (
+        <div
+          className="fixed left-0 right-0 z-40"
+          style={{ top: `calc(env(safe-area-inset-top, 0px) + 64px)` }}
+        >
           <button
             type="button"
             onClick={() => navigate(`/courier/map/${activeDelivery.id}`)}
-            className="mx-6 mb-2 mt-4 flex items-center justify-between rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 p-4 text-white shadow-lg shadow-emerald-200 transition-transform active:scale-95"
+            className="flex w-full items-center justify-between bg-emerald-500 px-5 py-3 text-white active:bg-emerald-600"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
-                <Truck size={20} className="animate-bounce text-white" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">Faol yetkazib berish</span>
-                <span className="font-black">Buyurtma {activeDelivery.orderNumber}</span>
+              <Navigation size={18} className="animate-pulse" />
+              <div className="text-left">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100">
+                  Faol yetkazish
+                </p>
+                <p className="text-[14px] font-black">#{activeDelivery.orderNumber} — xaritada ochish</p>
               </div>
             </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
-              <Navigation size={16} />
-            </div>
+            <span className="text-emerald-200">›</span>
           </button>
-        )}
+        </div>
+      )}
 
+      {/* ─── Main content ──────────────────────────────────────────── */}
+      <main
+        className="flex-1"
+        style={{
+          paddingTop: isMapPage
+            ? 0
+            : activeDelivery
+              ? 'calc(env(safe-area-inset-top, 0px) + 64px + 52px)'
+              : 'calc(env(safe-area-inset-top, 0px) + 64px)',
+          paddingBottom: isMapPage ? 0 : 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        }}
+      >
         <Outlet />
       </main>
 
+      {/* ─── Bottom navigation ─────────────────────────────────────── */}
       {!isMapPage && (
-        <nav className="safe-area-inset-bottom fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-around border-t border-slate-100 bg-white/95 px-4 shadow-2xl backdrop-blur-md">
-          <NavItem path="/courier" icon={<Home size={24} />} label="Holat" />
-          <NavItem path="/courier/orders" icon={<List size={24} />} label="Buyurtmalar" />
-          <NavItem path="/courier/history" icon={<History size={24} />} label="Tarix" />
-          <NavItem path="/courier/profile" icon={<CircleUserRound size={24} />} label="Profil" />
+        <nav
+          className="fixed bottom-0 left-0 right-0 z-50 flex items-center border-t border-slate-100 bg-white/95 backdrop-blur-xl"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', height: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
+        >
+          <div className="flex w-full items-center justify-around px-2 pt-2">
+            {tabs.map(({ path, icon: Icon, label, exact }) => {
+              const isActive = exact
+                ? location.pathname === path
+                : location.pathname.startsWith(path);
+
+              return (
+                <button
+                  key={path}
+                  type="button"
+                  onClick={() => navigate(path)}
+                  className={`flex flex-1 flex-col items-center gap-1 rounded-2xl py-2 transition-colors ${
+                    isActive ? 'text-indigo-600' : 'text-slate-400'
+                  }`}
+                >
+                  <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider ${
+                      isActive ? 'text-indigo-600' : 'text-slate-400'
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </nav>
       )}
     </div>

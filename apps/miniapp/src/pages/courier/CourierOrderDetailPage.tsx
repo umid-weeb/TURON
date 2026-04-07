@@ -1,26 +1,19 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
+  AlertTriangle,
   ArrowLeft,
-  CreditCard,
+  CheckCircle2,
+  ChevronRight,
   Loader2,
-  Map,
   MapPin,
   Package,
   Phone,
-  Route,
-  ShoppingBag,
-  TimerReset,
-  User,
+  Send,
 } from 'lucide-react';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
-import {
-  CourierProblemReporter,
-  CourierStageButtons,
-  getCourierPaymentLabel,
-  SlideToConfirmAction,
-} from '../../components/courier/CourierComponents';
+import { getCourierPaymentLabel } from '../../components/courier/CourierComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import {
   useCourierOrderDetails,
@@ -34,8 +27,42 @@ import {
   getCourierStageProgressIndex,
   getDeliveryStageAction,
   getDeliveryRouteMeta,
-  getDeliveryStageMeta,
 } from '../../features/courier/deliveryStage';
+
+// ─── Stage progress dots ──────────────────────────────────────────────────────
+function StageProgress({ currentIndex }: { currentIndex: number }) {
+  return (
+    <div className="flex items-center gap-1.5 px-1">
+      {DELIVERY_STAGE_FLOW.map((step, i) => {
+        const done = i <= currentIndex;
+        const active = i === currentIndex;
+        return (
+          <React.Fragment key={step.key}>
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                  done
+                    ? active
+                      ? 'bg-amber-500 ring-2 ring-amber-200'
+                      : 'bg-emerald-500'
+                    : 'bg-slate-200'
+                }`}
+              />
+              <p className={`text-[9px] font-bold ${done ? 'text-slate-600' : 'text-slate-300'}`}>
+                {step.title}
+              </p>
+            </div>
+            {i < DELIVERY_STAGE_FLOW.length - 1 && (
+              <div
+                className={`mb-3 h-px flex-1 ${i < currentIndex ? 'bg-emerald-400' : 'bg-slate-200'}`}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
 const CourierOrderDetailPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
@@ -44,19 +71,16 @@ const CourierOrderDetailPage: React.FC = () => {
   const updateStageMutation = useUpdateCourierOrderStage();
   const reportProblemMutation = useReportCourierProblem();
   const [problemDraft, setProblemDraft] = React.useState('');
-  const [problemFeedback, setProblemFeedback] = React.useState<{
-    text: string;
-    tone: 'success' | 'error' | 'neutral';
-  } | null>(null);
+  const [problemSent, setProblemSent] = React.useState(false);
+  const [problemError, setProblemError] = React.useState<string | null>(null);
+  const [confirmingDelivered, setConfirmingDelivered] = React.useState(false);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-5 shadow-sm">
-          <Loader2 size={28} className="mx-auto animate-spin text-sky-600" />
-          <p className="mt-4 text-sm font-black uppercase tracking-[0.22em] text-slate-500">
-            Topshiriq yuklanmoqda
-          </p>
+      <div className="flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 size={32} className="animate-spin text-indigo-500" />
+          <p className="text-[13px] font-bold text-slate-400">Yuklanmoqda...</p>
         </div>
       </div>
     );
@@ -67,20 +91,19 @@ const CourierOrderDetailPage: React.FC = () => {
       <ErrorStateCard
         title="Buyurtma yuklanmadi"
         message={(error as Error).message}
-        onRetry={() => {
-          void refetch();
-        }}
+        onRetry={() => void refetch()}
       />
     );
   }
 
   if (!order) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <h3 className="mb-2 text-xl font-black tracking-tight text-slate-900">Buyurtma topilmadi</h3>
+      <div className="flex flex-col items-center justify-center py-24 text-center px-6">
+        <p className="text-[17px] font-black text-slate-900">Buyurtma topilmadi</p>
         <button
+          type="button"
           onClick={() => navigate('/courier/orders')}
-          className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-600"
+          className="mt-4 text-[13px] font-bold text-indigo-600"
         >
           Ro'yxatga qaytish
         </button>
@@ -89,9 +112,12 @@ const CourierOrderDetailPage: React.FC = () => {
   }
 
   const currentStage = order.deliveryStage ?? DeliveryStage.IDLE;
-  const stageMeta = getDeliveryStageMeta(currentStage);
   const primaryAction = getDeliveryStageAction(currentStage);
   const routeMeta = getDeliveryRouteMeta(currentStage);
+  const stageIndex = getCourierStageProgressIndex(currentStage);
+  const isDelivered = currentStage === DeliveryStage.DELIVERED;
+  const isLastAction = primaryAction.next === DeliveryStage.DELIVERED;
+
   const pickup = {
     lat: order.pickupLat ?? DEFAULT_RESTAURANT_LOCATION.pin.lat,
     lng: order.pickupLng ?? DEFAULT_RESTAURANT_LOCATION.pin.lng,
@@ -116,39 +142,26 @@ const CourierOrderDetailPage: React.FC = () => {
     minimumDistanceKm: 0.1,
     minimumEtaMinutes: 1,
   });
-  const createdAt = new Date(order.createdAt).toLocaleString('uz-UZ', {
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const stageIndex = getCourierStageProgressIndex(currentStage);
-  const canReportProblem = currentStage !== DeliveryStage.DELIVERED;
 
-  const handleCall = () => {
-    if (!order.customerPhone) {
-      window.alert('Mijozning telefon raqami mavjud emas');
+  const handleStageAdvance = () => {
+    if (!primaryAction.next || updateStageMutation.isPending) return;
+
+    // If delivering → delivered, require a second tap to confirm
+    if (isLastAction && !confirmingDelivered) {
+      setConfirmingDelivered(true);
       return;
     }
 
-    window.location.href = `tel:${order.customerPhone}`;
-  };
-
-  const handleStageSelect = (nextStage: DeliveryStage) => {
-    if (updateStageMutation.isPending) {
-      return;
-    }
-
+    setConfirmingDelivered(false);
     updateStageMutation.mutate(
-      { id: order.id, stage: nextStage },
+      { id: order.id, stage: primaryAction.next },
       {
         onSuccess: () => {
           if (window.Telegram?.WebApp?.HapticFeedback) {
             window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
           }
-
-          if (nextStage === DeliveryStage.DELIVERED) {
-            window.setTimeout(() => navigate('/courier/orders'), 1400);
+          if (primaryAction.next === DeliveryStage.DELIVERED) {
+            window.setTimeout(() => navigate('/courier/orders'), 1200);
           }
         },
       },
@@ -157,123 +170,154 @@ const CourierOrderDetailPage: React.FC = () => {
 
   const handleProblemSubmit = () => {
     const text = problemDraft.trim();
-
     if (text.length < 5) {
-      setProblemFeedback({
-        text: "Muammoni kamida 5 ta belgi bilan yozing.",
-        tone: 'error',
-      });
+      setProblemError("Kamida 5 ta harf yozing");
       return;
     }
-
+    setProblemError(null);
     reportProblemMutation.mutate(
       { id: order.id, text },
       {
         onSuccess: () => {
           setProblemDraft('');
-          setProblemFeedback({
-            text: 'Muammo operatorga yuborildi.',
-            tone: 'success',
-          });
-
+          setProblemSent(true);
           if (window.Telegram?.WebApp?.HapticFeedback) {
             window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
           }
         },
-        onError: (mutationError) => {
-          setProblemFeedback({
-            text: mutationError instanceof Error ? mutationError.message : "Muammoni yuborib bo'lmadi",
-            tone: 'error',
-          });
+        onError: (err) => {
+          setProblemError(err instanceof Error ? err.message : "Yuborib bo'lmadi");
         },
       },
     );
   };
 
   return (
-    <div className="space-y-6 px-6 py-6 pb-40 animate-in fade-in slide-in-from-bottom duration-500">
+    <div className="space-y-3 px-4 py-5 pb-32">
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <button
+          type="button"
           onClick={() => navigate('/courier/orders')}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-transform active:scale-95"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm active:scale-95 transition-transform"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={20} className="text-slate-600" />
         </button>
-        <div className="text-right">
-          <h2 className="text-xl font-black tracking-tight text-slate-900">#{order.orderNumber}</h2>
-          <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{createdAt}</p>
+        <div className="text-center">
+          <p className="text-[19px] font-black text-slate-900">#{order.orderNumber}</p>
+          <p className="text-[11px] font-bold text-slate-400">{order.restaurantName}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => navigate(`/courier/map/${order.id}`)}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400 shadow-md active:scale-95 transition-transform"
+        >
+          <MapPin size={19} className="text-slate-900" />
+        </button>
       </div>
 
-      <section className="relative overflow-hidden rounded-[34px] bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.28),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.18),transparent_22%),linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-6 py-6 text-white shadow-[0_30px_80px_rgba(15,23,42,0.2)]">
-        <div className="absolute -right-10 top-4 h-28 w-28 rounded-full bg-white/8 blur-3xl" />
-        <div className="absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-sky-300/10 blur-3xl" />
+      {/* ── Stage progress ──────────────────────────────────────────── */}
+      <div className="rounded-2xl bg-white border border-slate-100 shadow-sm px-4 py-4">
+        <StageProgress currentIndex={stageIndex} />
+      </div>
 
-        <div className="relative z-10">
-          <div className="flex items-start justify-between gap-4">
+      {/* ── Primary action button ───────────────────────────────────── */}
+      {!isDelivered ? (
+        <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-4">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            Keyingi qadam
+          </p>
+          <p className="mb-3 text-[15px] font-bold text-slate-700 leading-snug">
+            {routeMeta.description}
+          </p>
+
+          {confirmingDelivered ? (
+            <div className="space-y-2">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-[14px] font-black text-amber-800">
+                  Buyurtmani haqiqatan topshirdingizmi?
+                </p>
+                <p className="mt-1 text-[12px] text-amber-700">
+                  Bu amaliyotni bekor qilib bo'lmaydi.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelivered(false)}
+                  className="h-14 rounded-2xl border border-slate-200 bg-white text-[14px] font-black text-slate-700 active:scale-95 transition-transform"
+                >
+                  Yo'q
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStageAdvance}
+                  disabled={updateStageMutation.isPending}
+                  className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-[14px] font-black text-white shadow-lg shadow-emerald-200 active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  {updateStageMutation.isPending ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 size={20} />
+                      <span>Ha, topshirdim</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStageAdvance}
+              disabled={updateStageMutation.isPending}
+              className={`flex h-16 w-full items-center justify-center gap-3 rounded-2xl text-[16px] font-black shadow-lg active:scale-[0.98] transition-transform disabled:opacity-50 ${
+                isLastAction
+                  ? 'bg-emerald-500 text-white shadow-emerald-200'
+                  : 'bg-amber-400 text-slate-900 shadow-amber-200'
+              }`}
+            >
+              {updateStageMutation.isPending ? (
+                <Loader2 size={22} className="animate-spin" />
+              ) : (
+                <>
+                  <span>{primaryAction.label}</span>
+                  <ChevronRight size={22} />
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-3xl bg-emerald-50 border border-emerald-200 p-5">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 size={28} className="shrink-0 text-emerald-600" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/50">
-                Operatsion topshiriq
-              </p>
-              <h3 className="mt-3 text-2xl font-black tracking-tight text-white">
-                {order.customerName || 'Mijoz'}
-              </h3>
-              <p className="mt-2 max-w-[260px] text-sm font-semibold leading-relaxed text-white/72">
-                {order.customerAddress?.addressText || "Manzil ko'rsatilmagan"}
-              </p>
+              <p className="text-[16px] font-black text-emerald-900">Buyurtma topshirildi</p>
+              <p className="text-[13px] text-emerald-700">Muvaffaqiyatli yakunlandi</p>
             </div>
-            <div className={`rounded-[20px] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${stageMeta.badgeClass}`}>
-              {stageMeta.label}
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-3 gap-3">
-            <div className="rounded-[22px] border border-white/10 bg-white/10 px-4 py-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">ETA</p>
-              <p className="mt-2 text-lg font-black text-white">{routeInfo.eta}</p>
-            </div>
-            <div className="rounded-[22px] border border-white/10 bg-white/10 px-4 py-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Masofa</p>
-              <p className="mt-2 text-lg font-black text-white">{routeInfo.distance}</p>
-            </div>
-            <div className="rounded-[22px] border border-white/10 bg-white/10 px-4 py-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Jami</p>
-              <p className="mt-2 text-lg font-black text-white">{order.total.toLocaleString()} so'm</p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <button
-              onClick={handleCall}
-              disabled={!order.customerPhone}
-              className="flex h-14 items-center justify-center gap-3 rounded-[22px] border border-white/10 bg-white/10 text-[11px] font-black uppercase tracking-[0.18em] text-white transition-transform active:scale-[0.98] disabled:opacity-50"
-            >
-              <Phone size={16} />
-              <span>Qo'ng'iroq</span>
-            </button>
-            <button
-              onClick={() => navigate(`/courier/map/${order.id}`)}
-              className="flex h-14 items-center justify-center gap-3 rounded-[22px] bg-amber-400 text-[11px] font-black uppercase tracking-[0.18em] text-slate-950 shadow-xl shadow-amber-900/20 transition-transform active:scale-[0.98]"
-            >
-              <Map size={16} />
-              <span>Xaritada ochish</span>
-            </button>
           </div>
         </div>
-      </section>
+      )}
 
-      <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Marshrut preview</p>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-lg font-black text-slate-900">{routeMeta.title}</p>
-              <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500">{routeMeta.description}</p>
-            </div>
-            <div className="rounded-full bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-              {stageIndex + 1}/{DELIVERY_STAGE_FLOW.length}
-            </div>
+      {/* ── Map + route info ────────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-[13px] font-black text-slate-900">{routeMeta.title}</p>
+            <p className="text-[11px] text-slate-400">
+              {routeInfo.distance} · ~{routeInfo.eta}
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => navigate(`/courier/map/${order.id}`)}
+            className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-[12px] font-black text-amber-700 active:scale-95 transition-transform"
+          >
+            <MapPin size={13} />
+            Xarita
+          </button>
         </div>
         <CourierMapView
           pickup={pickup}
@@ -281,185 +325,133 @@ const CourierOrderDetailPage: React.FC = () => {
           courierPos={courierPin}
           routeFrom={courierPin}
           routeTo={routeTo}
-          height="260px"
+          height="200px"
           className="rounded-none border-0 shadow-none"
         />
-      </section>
+      </div>
 
-      <section className="rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-            <Route size={18} />
+      {/* ── Customer info ───────────────────────────────────────────── */}
+      <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          Mijoz
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[17px] font-black text-slate-900">{order.customerName || 'Mijoz'}</p>
+            {order.customerAddress?.addressText && (
+              <div className="mt-1.5 flex items-start gap-2">
+                <MapPin size={14} className="mt-0.5 shrink-0 text-slate-400" />
+                <p className="text-[13px] leading-snug text-slate-500">
+                  {order.customerAddress.addressText}
+                </p>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Bosqichlar</p>
-            <p className="mt-1 text-sm font-semibold text-slate-600">
-              Bosqichni to'g'ri va ketma-ket yangilang
-            </p>
-          </div>
+          {order.customerPhone && (
+            <a
+              href={`tel:${order.customerPhone}`}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 active:scale-95 transition-transform"
+            >
+              <Phone size={20} />
+            </a>
+          )}
         </div>
 
-        {primaryAction.next ? (
-          <SlideToConfirmAction
-            label={primaryAction.slideLabel}
-            hint={primaryAction.hint}
-            onConfirm={() => handleStageSelect(primaryAction.next!)}
-            isLoading={updateStageMutation.isPending}
-            theme="light"
-          />
-        ) : (
-          <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">
-              Yakunlangan holat
-            </p>
-            <p className="mt-2 text-sm font-black text-emerald-900">Buyurtma muvaffaqiyatli topshirilgan.</p>
+        {order.note && (
+          <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-amber-600">Izoh</p>
+            <p className="mt-1 text-[13px] leading-snug text-amber-800">{order.note}</p>
           </div>
         )}
 
-        <div className="mt-4">
-          <CourierStageButtons
-            currentStage={currentStage}
-            onStageSelect={handleStageSelect}
-            isUpdating={updateStageMutation.isPending}
-            theme="light"
-            interactive={false}
-          />
+        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5">
+          <p className="text-[12px] font-bold text-slate-500">To'lov:</p>
+          <p className="text-[13px] font-black text-slate-900">
+            {getCourierPaymentLabel(order.paymentMethod)}
+          </p>
+          <p className="ml-auto text-[13px] font-black text-slate-900">
+            {order.total.toLocaleString()} so'm
+          </p>
         </div>
-      </section>
+      </div>
 
-      <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-              <TimerReset size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">ETA</p>
-              <p className="mt-1 text-lg font-black text-slate-900">{routeInfo.eta}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
-              <Route size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Masofa</p>
-              <p className="mt-1 text-lg font-black text-slate-900">{routeInfo.distance}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-              <CreditCard size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">To'lov</p>
-              <p className="mt-1 text-sm font-black text-slate-900">{getCourierPaymentLabel(order.paymentMethod)}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
-              <ShoppingBag size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Status</p>
-              <p className="mt-1 text-sm font-black text-slate-900">{stageMeta.description}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-            <User size={18} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Mijoz va manzil</p>
-            <p className="mt-1 text-base font-black text-slate-900">{order.customerName || 'Mijoz'}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="rounded-[24px] bg-slate-50 p-4">
-            <div className="flex items-start gap-3">
-              <MapPin size={18} className="mt-0.5 shrink-0 text-amber-500" />
-              <div>
-                <p className="text-sm font-black text-slate-900">{order.customerAddress?.label || 'Manzil'}</p>
-                <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                  {order.customerAddress?.addressText || "Manzil ko'rsatilmagan"}
+      {/* ── Order items ─────────────────────────────────────────────── */}
+      <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          Buyurtma tarkibi · {order.items.length} ta
+        </p>
+        <div className="space-y-2">
+          {order.items.map((item, idx) => (
+            <div
+              key={`${item.id}-${idx}`}
+              className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[12px] font-black text-slate-600 shadow-sm">
+                <Package size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-black text-slate-900">{item.name}</p>
+                <p className="text-[11px] text-slate-400">{item.price.toLocaleString()} so'm</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] font-bold text-slate-400">{item.quantity}x</p>
+                <p className="text-[13px] font-black text-slate-900">
+                  {(item.price * item.quantity).toLocaleString()}
                 </p>
               </div>
             </div>
-          </div>
-
-          {order.note ? (
-            <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">Izoh</p>
-              <p className="mt-2 text-sm font-semibold leading-relaxed text-amber-800">{order.note}</p>
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      {canReportProblem ? (
-        <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-          <CourierProblemReporter
-            value={problemDraft}
-            onChange={(value) => {
-              setProblemDraft(value);
-              if (problemFeedback) {
-                setProblemFeedback(null);
-              }
-            }}
-            onSubmit={handleProblemSubmit}
-            isSubmitting={reportProblemMutation.isPending}
-            theme="light"
-            helperText="Manzil topilmasa yoki mijoz bilan aloqa bo'lmasa shu yerdan yozing."
-            feedbackText={problemFeedback?.text || null}
-            feedbackTone={problemFeedback?.tone || 'neutral'}
-          />
-        </section>
-      ) : null}
-
-      <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-            <Package size={18} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Buyurtma tarkibi</p>
-            <p className="mt-1 text-base font-black text-slate-900">{order.items.length} ta mahsulot</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {order.items.map((item, index) => (
-            <div
-              key={`${item.id}-${index}`}
-              className="flex items-center justify-between rounded-[22px] bg-slate-50 px-4 py-3"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[10px] font-black text-slate-500 shadow-sm">
-                  {item.quantity}x
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-slate-900">{item.name}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-400">{item.price.toLocaleString()} so'm</p>
-                </div>
-              </div>
-              <p className="text-sm font-black text-slate-900">
-                {(item.price * item.quantity).toLocaleString()} so'm
-              </p>
-            </div>
           ))}
         </div>
-      </section>
+      </div>
+
+      {/* ── Problem report ──────────────────────────────────────────── */}
+      {!isDelivered && (
+        <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle size={16} className="text-red-400" />
+            <p className="text-[13px] font-black text-slate-700">Muammo bormi?</p>
+          </div>
+          <p className="mb-3 text-[12px] text-slate-400">
+            Manzil topilmasa yoki mijoz bilan aloqa bo'lmasa yozing.
+          </p>
+
+          {problemSent ? (
+            <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3">
+              <CheckCircle2 size={18} className="text-emerald-600" />
+              <p className="text-[13px] font-bold text-emerald-700">Muammo operatorga yuborildi</p>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={problemDraft}
+                onChange={(e) => {
+                  setProblemDraft(e.target.value);
+                  if (problemError) setProblemError(null);
+                }}
+                placeholder="Muammoni yozing..."
+                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleProblemSubmit}
+                disabled={reportProblemMutation.isPending || problemDraft.trim().length < 5}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white active:scale-95 transition-transform disabled:opacity-40"
+              >
+                {reportProblemMutation.isPending ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Send size={16} />
+                )}
+              </button>
+            </div>
+          )}
+
+          {problemError && (
+            <p className="mt-2 text-[12px] text-red-500">{problemError}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };
