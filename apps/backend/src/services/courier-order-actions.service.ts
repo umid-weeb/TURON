@@ -86,7 +86,8 @@ async function getAccessibleAssignment(orderId: string, courierId: string, db: D
 
 async function runWriteTransaction<T>(db: DbClient, callback: (tx: Prisma.TransactionClient) => Promise<T>) {
   if ('$transaction' in db) {
-    return db.$transaction(callback);
+    // Increase timeout — notifications were previously inside the tx and caused timeouts
+    return db.$transaction(callback, { timeout: 15000, maxWait: 5000 });
   }
 
   return callback(db);
@@ -294,7 +295,8 @@ export class CourierOrderActionsService {
 
     const now = new Date();
 
-    const transactionResult = await runWriteTransaction(db, async (tx) => {
+    // ── Core writes only inside transaction (fast: ~3 DB ops, <500ms) ──────────
+    const createdEvent = await runWriteTransaction(db, async (tx) => {
       if (mutationPlan.assignmentUpdate && Object.keys(mutationPlan.assignmentUpdate).length > 0) {
         await tx.courierAssignment.update({
           where: { id: assignment.id },
@@ -309,7 +311,7 @@ export class CourierOrderActionsService {
         });
       }
 
-      const createdEvent = await tx.courierAssignmentEvent.create({
+      return tx.courierAssignmentEvent.create({
         data: {
           assignmentId: assignment.id,
           orderId: order.id,
@@ -320,63 +322,52 @@ export class CourierOrderActionsService {
           actorUserId: input.actorUserId ?? null,
         },
       });
-
-      if (mutationPlan.adminNotification) {
-        await InAppNotificationsService.notifyAdmins(
-          {
-            type: NotificationTypeEnum.WARNING,
-            title: mutationPlan.adminNotification.title,
-            message: mutationPlan.adminNotification.message,
-            relatedOrderId: order.id,
-          },
-          tx,
-        );
-      }
-
-      if (mutationPlan.customerNotification) {
-        await InAppNotificationsService.notifyUser(
-          {
-            userId: order.userId,
-            roleTarget: UserRoleEnum.CUSTOMER,
-            type: mutationPlan.customerNotification.type,
-            title: mutationPlan.customerNotification.title,
-            message: mutationPlan.customerNotification.message,
-            relatedOrderId: order.id,
-          },
-          tx,
-        );
-      }
-
-      const refreshedOrder = await tx.order.findUnique({
-        where: { id: order.id },
-        include: ORDER_INCLUDE as any,
-      });
-
-      if (!refreshedOrder) {
-        throw new Error('Buyurtma topilmadi');
-      }
-
-      const refreshedAssignment = getActiveCourierAssignment(refreshedOrder) ??
-        refreshedOrder.courierAssignments.find((item: any) => item.id === assignment.id);
-      const refreshedLatestEvent = refreshedAssignment?.events?.[0];
-      const nextStage = StatusService.mapAssignmentStatusToDeliveryStage(
-        refreshedAssignment?.status,
-        refreshedOrder.status as OrderStatusEnum,
-        refreshedLatestEvent?.eventType,
-      );
-
-      return {
-        createdEvent,
-        refreshedOrder,
-        refreshedAssignment,
-        refreshedLatestEvent,
-        nextStage,
-      };
     });
 
+    // ── Refresh order outside transaction (read-only, no atomicity needed) ────
+    const refreshedOrder = await (input.db ?? prisma).order.findUnique({
+      where: { id: order.id },
+      include: ORDER_INCLUDE as any,
+    });
+
+    if (!refreshedOrder) {
+      throw new Error('Buyurtma topilmadi');
+    }
+
+    const refreshedAssignment =
+      getActiveCourierAssignment(refreshedOrder) ??
+      refreshedOrder.courierAssignments.find((item: any) => item.id === assignment.id);
+    const refreshedLatestEvent = refreshedAssignment?.events?.[0];
+    const nextStage = StatusService.mapAssignmentStatusToDeliveryStage(
+      refreshedAssignment?.status,
+      refreshedOrder.status as OrderStatusEnum,
+      refreshedLatestEvent?.eventType,
+    );
+
+    // ── Notifications outside transaction (fire-and-forget, non-atomic) ───────
+    if (mutationPlan.adminNotification) {
+      InAppNotificationsService.notifyAdmins({
+        type: NotificationTypeEnum.WARNING,
+        title: mutationPlan.adminNotification.title,
+        message: mutationPlan.adminNotification.message,
+        relatedOrderId: order.id,
+      }).catch(() => { /* non-critical */ });
+    }
+
+    if (mutationPlan.customerNotification) {
+      InAppNotificationsService.notifyUser({
+        userId: order.userId,
+        roleTarget: UserRoleEnum.CUSTOMER,
+        type: mutationPlan.customerNotification.type,
+        title: mutationPlan.customerNotification.title,
+        message: mutationPlan.customerNotification.message,
+        relatedOrderId: order.id,
+      }).catch(() => { /* non-critical */ });
+    }
+
     return {
-      order: transactionResult.refreshedOrder,
-      eventId: transactionResult.createdEvent.id,
+      order: refreshedOrder,
+      eventId: createdEvent.id,
       eventType: mutationPlan.eventType,
       assignmentId: assignment.id,
       before: {
@@ -386,10 +377,10 @@ export class CourierOrderActionsService {
         latestEventType: latestEvent?.eventType ?? null,
       },
       after: {
-        orderStatus: transactionResult.refreshedOrder.status,
-        assignmentStatus: transactionResult.refreshedAssignment?.status ?? mutationPlan.assignmentStatus ?? assignment.status,
-        deliveryStage: transactionResult.nextStage,
-        latestEventType: transactionResult.refreshedLatestEvent?.eventType ?? mutationPlan.eventType,
+        orderStatus: refreshedOrder.status,
+        assignmentStatus: refreshedAssignment?.status ?? mutationPlan.assignmentStatus ?? assignment.status,
+        deliveryStage: nextStage,
+        latestEventType: refreshedLatestEvent?.eventType ?? mutationPlan.eventType,
       },
     };
   }

@@ -587,6 +587,12 @@ export const DeliveryBottomPanel: React.FC<{
   distanceLabel?: string;
   etaLabel?: string;
   isEtaLive?: boolean;
+  /** true when courier is ≤50m from restaurant and hasn't arrived yet */
+  nearRestaurant?: boolean;
+  /** true when courier is ≤50m from customer and is delivering */
+  nearCustomer?: boolean;
+  /** true when courier is ≤500m from customer (notification already sent) */
+  approachingCustomer?: boolean;
 }> = ({
   order,
   currentStage,
@@ -606,6 +612,9 @@ export const DeliveryBottomPanel: React.FC<{
   distanceLabel = 'Qolgan masofa',
   etaLabel = 'Qolgan ETA',
   isEtaLive = false,
+  nearRestaurant = false,
+  nearCustomer = false,
+  approachingCustomer = false,
 }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isProblemOpen, setIsProblemOpen] = React.useState(false);
@@ -755,6 +764,49 @@ export const DeliveryBottomPanel: React.FC<{
                 </button>
               ) : null}
             </div>
+
+            {/* ── Proximity banners ───────────────────────────────────── */}
+            {nearRestaurant && (
+              <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-emerald-400/30 bg-emerald-400/15 px-4 py-3 animate-in slide-in-from-bottom duration-300">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">
+                  <Store size={16} />
+                </span>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-emerald-300">
+                    Restoranga yetdingiz!
+                  </p>
+                  <p className="text-[12px] text-emerald-200/80">50 metrdan kamroq — "Yetdim" ni bosing</p>
+                </div>
+              </div>
+            )}
+
+            {approachingCustomer && !nearCustomer && (
+              <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-sky-400/25 bg-sky-400/12 px-4 py-3 animate-in slide-in-from-bottom duration-300">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-400/20 text-sky-300">
+                  <Navigation size={16} />
+                </span>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-sky-300">
+                    Mijozga yaqinlashmoqdasiz
+                  </p>
+                  <p className="text-[12px] text-sky-200/80">500 metrdan kam qoldi — mijozga xabar yuborildi</p>
+                </div>
+              </div>
+            )}
+
+            {nearCustomer && (
+              <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-amber-400/35 bg-amber-400/15 px-4 py-3 animate-in slide-in-from-bottom duration-300">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400/25 text-amber-300 animate-pulse">
+                  <MapPin size={16} />
+                </span>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-amber-300">
+                    Mijoz manzilida!
+                  </p>
+                  <p className="text-[12px] text-amber-200/80">Buyurtmani topshiring va tasdiqlang</p>
+                </div>
+              </div>
+            )}
 
             {primaryAction.next ? (
               <div className="mt-4 rounded-[24px] border border-amber-300/12 bg-amber-400/10 px-4 py-3">

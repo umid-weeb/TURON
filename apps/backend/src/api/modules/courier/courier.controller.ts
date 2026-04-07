@@ -431,6 +431,37 @@ export async function declineCourierOrder(
   }
 }
 
+export async function notifyApproaching(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+  const { id: orderId } = request.params;
+
+  try {
+    const result = await getAccessibleCourierOrder(orderId, requester);
+    if (!result) {
+      return reply.status(403).send({ error: 'Ruxsat etilmadi' });
+    }
+
+    const order = result.order as any;
+
+    // Fire-and-forget — do not await to keep response fast
+    InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: 'CUSTOMER' as any,
+      type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+      title: "Buyurtmangiz yetib kelmoqda! 🛵",
+      message: `${String(requester.fullName || 'Kuryer')} 500 metrdan kam masofada — tez orada yetib boradi`,
+      relatedOrderId: orderId,
+    }).catch(() => {});
+
+    return reply.send({ ok: true });
+  } catch (error) {
+    return reply.status(400).send({ error: error instanceof Error ? error.message : 'Xato' });
+  }
+}
+
 export async function updateCourierLocation(
   request: FastifyRequest<{
     Params: { id: string };

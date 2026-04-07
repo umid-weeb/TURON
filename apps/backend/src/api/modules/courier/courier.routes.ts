@@ -8,6 +8,7 @@ import {
   getCourierOrderDetail,
   getCourierStatus,
   getCourierTodayStats,
+  notifyApproaching,
   pickupCourierOrder,
   reportCourierProblem,
   startCourierDelivery,
@@ -94,6 +95,10 @@ export default async function courierRoutes(fastify: FastifyInstance) {
       body: UpdateDeliveryStageSchema
     }
   }, updateOrderStage);
+
+  fastify.post('/order/:id/approaching', {
+    schema: { params: IdParamSchema },
+  }, notifyApproaching);
 
   fastify.patch('/order/:id/location', {
     schema: {

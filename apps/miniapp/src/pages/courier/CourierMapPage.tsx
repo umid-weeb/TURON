@@ -28,7 +28,21 @@ import {
   watchBrowserGeolocation,
 } from '../../features/maps/geolocation';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
+import { api } from '../../lib/api';
 import { getDeliveryRouteMeta, getDeliveryStageMeta, getDeliveryStateKey } from '../../features/courier/deliveryStage';
+
+/** Haversine distance in meters between two GPS points */
+function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const c =
+    sinLat * sinLat +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * sinLng * sinLng;
+  return R * 2 * Math.atan2(Math.sqrt(c), Math.sqrt(1 - c));
+}
 
 function getHeadingDegrees(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
   const latDelta = to.lat - from.lat;
@@ -103,6 +117,7 @@ const CourierMapPage: React.FC = () => {
   } | null>(null);
   const lastHeartbeatRef = useRef('');
   const previousCourierPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const approachingNotifiedRef = useRef(false); // prevent duplicate 500m notifications
 
   const restaurantPos = useMemo(
     () => ({
@@ -219,6 +234,38 @@ const CourierMapPage: React.FC = () => {
     updateLocationMutation,
     canPublishLiveLocation,
   ]);
+
+  // ── Proximity calculations (derived, no extra state) ──────────────────────
+  const distToRestaurant = distanceMeters(courierPos, restaurantPos);
+  const distToCustomer   = distanceMeters(courierPos, customerPos);
+
+  const nearRestaurant =
+    distToRestaurant <= 50 &&
+    (currentStage === DeliveryStage.GOING_TO_RESTAURANT || currentStage === DeliveryStage.IDLE);
+
+  const nearCustomer =
+    distToCustomer <= 50 &&
+    (currentStage === DeliveryStage.DELIVERING || currentStage === DeliveryStage.ARRIVED_AT_DESTINATION);
+
+  const approachingCustomer =
+    distToCustomer <= 500 &&
+    distToCustomer > 50 &&
+    currentStage === DeliveryStage.DELIVERING;
+
+  // ── Send "almost there" notification once when within 500m ────────────────
+  useEffect(() => {
+    if (!approachingCustomer || approachingNotifiedRef.current || !order?.id) return;
+    approachingNotifiedRef.current = true;
+    // Fire-and-forget — best effort, no UI feedback needed
+    void api.post(`/courier/order/${order.id}/approaching`).catch(() => {});
+  }, [approachingCustomer, order?.id]);
+
+  // Reset notification flag when stage changes away from DELIVERING
+  useEffect(() => {
+    if (currentStage !== DeliveryStage.DELIVERING) {
+      approachingNotifiedRef.current = false;
+    }
+  }, [currentStage]);
 
   if (isLoading) {
     return (
@@ -419,6 +466,9 @@ const CourierMapPage: React.FC = () => {
         onAction={handleStageAction}
         onCall={handleCall}
         onOpenDetails={() => navigate(`/courier/order/${order.id}`)}
+        nearRestaurant={nearRestaurant}
+        nearCustomer={nearCustomer}
+        approachingCustomer={approachingCustomer}
         problemPanel={
           currentStage !== DeliveryStage.DELIVERED ? (
             <CourierProblemReporter
