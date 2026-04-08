@@ -1,21 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { RouteMapProps, RouteStep } from '../MapProvider';
-import { getMapAnimationDuration, getMapZoomMargin } from '../performance';
+import type { RouteMapProps } from '../MapProvider';
+import { isYandexMaps3Enabled, loadYandexMaps3, toLngLat } from '../yandex3';
 import MockMapComponent from './MockMapComponent';
-import { createBoundsFromPins, isYandexMapsEnabled, loadYandexMaps, toYandexCoords } from '../yandex';
 
 const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_KEY` ni sozlang.';
-const NAV_ZOOM = 17; // Street-level zoom for navigation mode
+const NAV_ZOOM = 17;
+const NAV_TILT = 50; // degrees: 0=flat overhead, 50=3D perspective like Yandex Maps
 
-// ── Courier arrow SVG (pointing north = 0°, Yandex rotates by iconAngle) ─────
-const COURIER_ARROW_SVG = encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44">
-    <circle cx="22" cy="22" r="20" fill="rgba(239,68,68,0.18)"/>
-    <path d="M22 6 L34 36 L22 29 L10 36 Z"
-      fill="#EF4444" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-  </svg>`
-);
-const COURIER_ARROW_URL = `data:image/svg+xml;charset=utf-8,${COURIER_ARROW_SVG}`;
+// ── DOM marker helpers ────────────────────────────────────────────────────────
+
+function createCourierElement(): HTMLDivElement {
+  const el = document.createElement('div');
+  el.style.cssText = 'width:44px;height:44px;transform-origin:center center;will-change:transform;';
+  el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" width="44" height="44">
+    <circle cx="22" cy="22" r="20" fill="rgba(239,68,68,0.20)"/>
+    <path d="M22 6 L35 37 L22 30 L9 37 Z"
+      fill="#EF4444" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+  </svg>`;
+  return el;
+}
+
+function createPickupElement(): HTMLDivElement {
+  const el = document.createElement('div');
+  el.style.cssText =
+    'width:18px;height:18px;border-radius:50%;background:#10B981;' +
+    'border:3px solid white;box-shadow:0 2px 8px rgba(16,185,129,0.5);' +
+    'transform:translate(-50%,-50%);';
+  return el;
+}
+
+function createDestinationElement(): HTMLDivElement {
+  const el = document.createElement('div');
+  el.style.cssText =
+    'width:18px;height:18px;border-radius:50%;background:#EF4444;' +
+    'border:3px solid white;box-shadow:0 2px 8px rgba(239,68,68,0.5);' +
+    'transform:translate(-50%,-50%);';
+  return el;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function YandexRouteMap({
   pickup,
@@ -32,238 +55,256 @@ export default function YandexRouteMap({
   onRouteInfoChange,
   onNextStepChange,
 }: RouteMapProps) {
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<any>(null);
-  const ymapsRef = useRef<any>(null);
-  const routeRef = useRef<any>(null);
-  const pickupPlacemarkRef = useRef<any>(null);
-  const destinationPlacemarkRef = useRef<any>(null);
-  const courierPlacemarkRef = useRef<any>(null);
-  const routeRequestIdRef = useRef(0);
-  const lastRouteInfoRef = useRef<string | null>(null);
-  const followModeRef = useRef(followMode);
-  const courierPosRef = useRef(courierPos);
-  const hasNavZoomedRef = useRef(false);        // true after first GPS-based nav zoom
-  const isManualModeRef = useRef(false);        // true during user pan/zoom (snap-back)
-  const snapBackTimerRef = useRef<number | null>(null);
+  const mapContainerRef  = useRef<HTMLDivElement | null>(null);
+  const mapRef           = useRef<any>(null);
+  const ymaps3Ref        = useRef<any>(null);
+  const routeFeatureRef  = useRef<any>(null);
+  const pickupMarkerRef  = useRef<any>(null);
+  const destMarkerRef    = useRef<any>(null);
+  const courierMarkerRef = useRef<any>(null);
+  const courierElRef     = useRef<HTMLDivElement | null>(null);
+  const routeReqRef      = useRef(0);
+  const lastRouteKeyRef  = useRef<string | null>(null);
+  const followModeRef    = useRef(followMode);
+  const courierPosRef    = useRef(courierPos);
+  const headingRef       = useRef(heading);
+  const hasNavZoomedRef  = useRef(false);
+  const isManualRef      = useRef(false);
+  const snapTimerRef     = useRef<number | null>(null);
+  const cleanupEvtsRef   = useRef<(() => void) | null>(null);
 
-  const [isLoading, setIsLoading] = useState(isYandexMapsEnabled());
-  const [hasFallback, setHasFallback] = useState(!isYandexMapsEnabled());
+  const [isLoading,   setIsLoading]   = useState(isYandexMaps3Enabled());
+  const [hasFallback, setHasFallback] = useState(!isYandexMaps3Enabled());
 
-  const activeRouteFrom = routeFrom ?? pickup;
-  const activeRouteTo = routeTo ?? destination;
+  const activeFrom = routeFrom ?? pickup;
+  const activeTo   = routeTo   ?? destination;
 
   // Keep refs in sync
-  useEffect(() => { followModeRef.current = followMode; }, [followMode]);
-  useEffect(() => { courierPosRef.current = courierPos; }, [courierPos]);
+  useEffect(() => { followModeRef.current  = followMode;  }, [followMode]);
+  useEffect(() => { courierPosRef.current  = courierPos;  }, [courierPos]);
+  useEffect(() => { headingRef.current     = heading;     }, [heading]);
 
-  const emitRouteInfo = (distance: string, eta: string) => {
-    const nextKey = `${distance}|${eta}`;
-    if (lastRouteInfoRef.current === nextKey) return;
-    lastRouteInfoRef.current = nextKey;
-    onRouteInfoChange?.({ distance, eta });
+  // ── Emit route info (deduplicated) ──────────────────────────────────────────
+  const emitRouteInfo = (dist: string, eta: string) => {
+    const key = `${dist}|${eta}`;
+    if (lastRouteKeyRef.current === key) return;
+    lastRouteKeyRef.current = key;
+    onRouteInfoChange?.({ distance: dist, eta });
   };
 
-  const fitBounds = (pins: Array<typeof pickup | undefined>) => {
-    if (!mapRef.current) return;
-    const bounds = createBoundsFromPins(pins.filter((pin): pin is typeof pickup => Boolean(pin)));
-    if (!bounds) return;
-    mapRef.current.setBounds(bounds, {
-      checkZoomRange: true,
-      zoomMargin: getMapZoomMargin(60),
-      duration: getMapAnimationDuration(200),
-    });
-  };
-
-  // ── Route builder ─────────────────────────────────────────────────────────
-  function buildYmapsRoute(
-    ymaps: any,
-    map: any,
-    from: typeof pickup,
-    to: typeof pickup,
-    requestId: number,
-  ) {
-    return ymaps
-      .route([toYandexCoords(from), toYandexCoords(to)], {
-        routingMode: 'auto',
-        mapStateAutoApply: false,
-        avoidTrafficJams: true,
-      })
-      .then((route: any) => {
-        if (requestId !== routeRequestIdRef.current || !mapRef.current || !ymaps) return;
-
-        if (routeRef.current) {
-          map.geoObjects.remove(routeRef.current);
-          routeRef.current = null;
-        }
-
-        route.getWayPoints().each((wp: any) => {
-          wp.options.set({ visible: false });
-        });
-
-        route.getPaths().each((path: any) => {
-          path.options.set({
-            strokeColor: '#22c55e',   // green route — matches Yandex nav style
-            strokeOpacity: 0.95,
-            strokeWidth: 6,
-          });
-        });
-
-        map.geoObjects.add(route);
-        routeRef.current = route;
-
-        try {
-          const distanceM = route.getLength();
-          const durationS = route.getTime();
-          if (typeof distanceM === 'number' && typeof durationS === 'number') {
-            const distKm = distanceM / 1000;
-            const distStr = distKm < 1 ? `${Math.round(distanceM)} m` : `${distKm.toFixed(1)} km`;
-            const etaMin = Math.ceil(durationS / 60);
-            emitRouteInfo(distStr, `${etaMin} daq`);
-          }
-
-          // Extract turn-by-turn steps
-          const steps: RouteStep[] = [];
-          route.getPaths().each((path: any) => {
-            try {
-              path.getSegments().each((seg: any) => {
-                const text: string = seg.properties?.get?.('text') ?? '';
-                const dist: number = seg.properties?.get?.('distance.value') ?? 0;
-                if (text && text.trim()) {
-                  const dm = typeof dist === 'number' ? dist : 0;
-                  steps.push({
-                    instruction: text.trim(),
-                    distanceText: dm < 1000 ? `${Math.round(dm)} m` : `${(dm / 1000).toFixed(1)} km`,
-                    distanceMeters: dm,
-                  });
-                }
-              });
-            } catch {
-              // segment info unavailable
-            }
-          });
-          onNextStepChange?.(steps[0] ?? null);
-        } catch {
-          // ignore info extraction errors
-        }
-
-        // Only fit bounds on very first load (before courier GPS acquired)
-        if (!courierPlacemarkRef.current) {
-          fitBounds([pickup, destination, courierPos]);
-        }
-      })
-      .catch(() => {
-        if (requestId !== routeRequestIdRef.current || !mapRef.current) return;
-        if (routeRef.current) {
-          map.geoObjects.remove(routeRef.current);
-          routeRef.current = null;
-        }
-        if (ymaps.Polyline) {
-          routeRef.current = new ymaps.Polyline(
-            [toYandexCoords(from), toYandexCoords(to)],
-            {},
-            { strokeColor: '#22c55e', strokeOpacity: 0.9, strokeWidth: 6 },
-          );
-          map.geoObjects.add(routeRef.current);
-        }
-        if (!courierPlacemarkRef.current) {
-          fitBounds([pickup, destination, courierPos]);
-        }
+  // ── Camera: pan + rotate + tilt ─────────────────────────────────────────────
+  function applyCamera(pos: { lat: number; lng: number }, zoom?: number) {
+    const map = mapRef.current;
+    if (!map) return;
+    try {
+      map.update({
+        location: {
+          center: toLngLat(pos),
+          ...(zoom !== undefined ? { zoom } : {}),
+          duration: 600,
+        },
+        camera: {
+          azimuth: headingRef.current ?? 0,
+          tilt: NAV_TILT,
+        },
       });
+    } catch {
+      try { map.setLocation?.({ center: toLngLat(pos), duration: 600 }); } catch { /* skip */ }
+    }
   }
 
-  // ── Init map once ─────────────────────────────────────────────────────────
+  // ── Build route ─────────────────────────────────────────────────────────────
+  async function buildRoute(
+    ymaps3: any,
+    map: any,
+    from: { lat: number; lng: number },
+    to: { lat: number; lng: number },
+    reqId: number,
+  ) {
+    // Remove old route
+    if (routeFeatureRef.current) {
+      try { map.removeChild(routeFeatureRef.current); } catch { /* skip */ }
+      routeFeatureRef.current = null;
+    }
+
+    let coords: [number, number][] = [];
+    let distText = '';
+    let etaText  = '';
+    let firstStepInstruction = '';
+    let firstStepDistM = 0;
+
+    try {
+      const result = await ymaps3.route({
+        points: [
+          { type: 'coordinates', coordinates: toLngLat(from) },
+          { type: 'coordinates', coordinates: toLngLat(to) },
+        ],
+        type: 'driving',
+      });
+
+      if (reqId !== routeReqRef.current || !mapRef.current) return;
+
+      const route = result?.routes?.[0];
+      if (route) {
+        // Flatten MultiLineString or LineString coords
+        const rawCoords =
+          route.geometry?.type === 'MultiLineString'
+            ? (route.geometry.coordinates as number[][][]).flat(1)
+            : (route.geometry?.coordinates ?? []);
+        coords = rawCoords as [number, number][];
+
+        try {
+          const dM = route.properties?.distance?.value ?? route.distance?.value;
+          const dS = route.properties?.duration?.value ?? route.duration?.value;
+          if (typeof dM === 'number') {
+            const km = dM / 1000;
+            distText = km < 1 ? `${Math.round(dM)} m` : `${km.toFixed(1)} km`;
+          }
+          if (typeof dS === 'number') {
+            etaText = `${Math.ceil(dS / 60)} daq`;
+          }
+        } catch { /* skip */ }
+
+        try {
+          const step = (route.legs?.[0]?.steps ?? route.properties?.legs?.[0]?.steps ?? [])[0];
+          if (step) {
+            firstStepInstruction =
+              step.properties?.instruction ?? step.instruction ?? step.properties?.text ?? '';
+            firstStepDistM =
+              step.properties?.distance?.value ?? step.distance?.value ?? 0;
+          }
+        } catch { /* skip */ }
+      }
+    } catch {
+      if (reqId !== routeReqRef.current || !mapRef.current) return;
+      // Fallback: straight polyline
+      coords = [toLngLat(from), toLngLat(to)];
+    }
+
+    if (reqId !== routeReqRef.current || !mapRef.current) return;
+
+    // Draw route feature
+    if (coords.length >= 2) {
+      try {
+        const feature = new ymaps3.YMapFeature({
+          id: 'route',
+          geometry: { type: 'LineString', coordinates: coords },
+          style: { stroke: [{ color: '#22c55e', width: 6, opacity: 0.95 }] },
+        });
+        map.addChild(feature);
+        routeFeatureRef.current = feature;
+      } catch { /* skip */ }
+    }
+
+    if (distText && etaText) emitRouteInfo(distText, etaText);
+
+    if (firstStepInstruction) {
+      onNextStepChange?.({
+        instruction: firstStepInstruction,
+        distanceText:
+          firstStepDistM < 1000
+            ? `${Math.round(firstStepDistM)} m`
+            : `${(firstStepDistM / 1000).toFixed(1)} km`,
+        distanceMeters: firstStepDistM,
+      });
+    }
+  }
+
+  // ── Init map once ────────────────────────────────────────────────────────────
   useEffect(() => {
     let isDisposed = false;
 
     async function initMap() {
-      if (!isYandexMapsEnabled()) {
-        setHasFallback(true);
-        setIsLoading(false);
-        return;
-      }
+      if (!isYandexMaps3Enabled()) { setHasFallback(true); setIsLoading(false); return; }
 
       try {
-        const ymaps = await loadYandexMaps();
+        const ymaps3 = await loadYandexMaps3();
         if (isDisposed || !mapContainerRef.current) return;
 
-        ymapsRef.current = ymaps;
+        ymaps3Ref.current = ymaps3;
 
-        const map = new ymaps.Map(
-          mapContainerRef.current,
-          { center: toYandexCoords(pickup), zoom: 14, controls: ['zoomControl'] },
-          { suppressMapOpenBlock: true, suppressLbsEvents: true },
-        );
+        // Create map with 3D camera support
+        const map = new ymaps3.YMap(mapContainerRef.current, {
+          location: { center: toLngLat(pickup), zoom: 14 },
+          camera: { azimuth: 0, tilt: 0 },
+        });
 
-        map.behaviors.enable(['scrollZoom', 'dblClickZoom', 'multiTouchZoom', 'drag']);
-        map.behaviors.disable(['leftMouseButtonMagnifier']);
+        // Dark tile layer (matches our dark UI)
+        map.addChild(new ymaps3.YMapDefaultSchemeLayer({ theme: 'dark' }));
 
-        // ── Snap-back: re-center after user pans (3 seconds) ──────────────
-        map.events.add(['dragstart', 'multitouchstart'], () => {
-          isManualModeRef.current = true;
-          if (snapBackTimerRef.current) window.clearTimeout(snapBackTimerRef.current);
+        // Zoom control
+        try {
+          const controls = new ymaps3.YMapControls({ position: 'right' });
+          controls.addChild(new ymaps3.YMapZoomControl({}));
+          map.addChild(controls);
+        } catch { /* controls optional */ }
+
+        // ── Snap-back: DOM pointer events on map container ──────────────────
+        const el = mapContainerRef.current;
+        const onDown = () => {
+          isManualRef.current = true;
+          if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
           onMapInteraction?.();
-        });
-        map.events.add(['dragend', 'multitouchend'], () => {
-          if (snapBackTimerRef.current) window.clearTimeout(snapBackTimerRef.current);
-          snapBackTimerRef.current = window.setTimeout(() => {
-            isManualModeRef.current = false;
-            const pos = courierPosRef.current;
-            if (followModeRef.current && pos && mapRef.current) {
-              mapRef.current.panTo(toYandexCoords(pos), { flying: false, duration: 500 });
-            }
+        };
+        const onUp = () => {
+          if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
+          snapTimerRef.current = window.setTimeout(() => {
+            isManualRef.current = false;
+            const p = courierPosRef.current;
+            if (followModeRef.current && p && mapRef.current) applyCamera(p);
           }, 3000);
-        });
+        };
+        el.addEventListener('pointerdown', onDown, { passive: true });
+        el.addEventListener('pointerup',   onUp,   { passive: true });
+        el.addEventListener('pointercancel', onUp, { passive: true });
+        cleanupEvtsRef.current = () => {
+          el.removeEventListener('pointerdown', onDown);
+          el.removeEventListener('pointerup',   onUp);
+          el.removeEventListener('pointercancel', onUp);
+        };
 
-        // Pickup marker (green circle)
-        const pickupPlacemark = new ymaps.Placemark(
-          toYandexCoords(pickup),
-          { hintContent: 'Restoran' },
-          { preset: 'islands#greenCircleIcon', iconColor: '#10B981' },
+        // ── Pickup marker ────────────────────────────────────────────────────
+        const pickupEl = createPickupElement();
+        const pickupMarker = new ymaps3.YMapMarker(
+          { coordinates: toLngLat(pickup), zIndex: 100 },
+          pickupEl,
         );
+        map.addChild(pickupMarker);
+        pickupMarkerRef.current = pickupMarker;
 
-        // Destination marker (red circle)
-        const destinationPlacemark = new ymaps.Placemark(
-          toYandexCoords(destination),
-          { hintContent: 'Mijoz' },
-          { preset: 'islands#redCircleIcon', iconColor: '#EF4444' },
+        // ── Destination marker ────────────────────────────────────────────────
+        const destEl = createDestinationElement();
+        const destMarker = new ymaps3.YMapMarker(
+          { coordinates: toLngLat(destination), zIndex: 100 },
+          destEl,
         );
+        map.addChild(destMarker);
+        destMarkerRef.current = destMarker;
 
-        map.geoObjects.add(pickupPlacemark);
-        map.geoObjects.add(destinationPlacemark);
-
-        mapRef.current = map;
-        pickupPlacemarkRef.current = pickupPlacemark;
-        destinationPlacemarkRef.current = destinationPlacemark;
-
-        // Courier arrow marker
+        // ── Courier arrow marker ──────────────────────────────────────────────
         if (courierPos) {
-          const courierPlacemark = new ymaps.Placemark(
-            toYandexCoords(courierPos),
-            {},
-            {
-              iconLayout: 'default#image',
-              iconImageHref: COURIER_ARROW_URL,
-              iconImageSize: [44, 44],
-              iconImageOffset: [-22, -22],
-              iconAngle: heading ?? 0,
-              zIndex: 200,
-            },
+          const cEl = createCourierElement();
+          cEl.style.transform = `rotate(${heading ?? 0}deg)`;
+          courierElRef.current = cEl;
+          const cMarker = new ymaps3.YMapMarker(
+            { coordinates: toLngLat(courierPos), zIndex: 200 },
+            cEl,
           );
-          map.geoObjects.add(courierPlacemark);
-          courierPlacemarkRef.current = courierPlacemark;
+          map.addChild(cMarker);
+          courierMarkerRef.current = cMarker;
         }
 
-        routeRequestIdRef.current += 1;
-        const requestId = routeRequestIdRef.current;
+        mapRef.current = map;
 
+        // Build first route
+        const reqId = ++routeReqRef.current;
         if (!isDisposed) {
-          await buildYmapsRoute(ymaps, map, activeRouteFrom, activeRouteTo, requestId);
+          await buildRoute(ymaps3, map, activeFrom, activeTo, reqId);
         }
 
         onMapReady?.(map);
       } catch {
-        setHasFallback(true);
+        if (!isDisposed) setHasFallback(true);
       } finally {
         if (!isDisposed) setIsLoading(false);
       }
@@ -273,98 +314,114 @@ export default function YandexRouteMap({
 
     return () => {
       isDisposed = true;
-      routeRequestIdRef.current += 1;
-      if (snapBackTimerRef.current) window.clearTimeout(snapBackTimerRef.current);
-      if (mapRef.current) mapRef.current.destroy();
-      mapRef.current = null;
-      ymapsRef.current = null;
-      routeRef.current = null;
-      pickupPlacemarkRef.current = null;
-      destinationPlacemarkRef.current = null;
-      courierPlacemarkRef.current = null;
+      routeReqRef.current += 1;
+      if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
+      cleanupEvtsRef.current?.();
+      try { mapRef.current?.destroy(); } catch { /* skip */ }
+      mapRef.current       = null;
+      ymaps3Ref.current    = null;
+      routeFeatureRef.current  = null;
+      pickupMarkerRef.current  = null;
+      destMarkerRef.current    = null;
+      courierMarkerRef.current = null;
+      courierElRef.current     = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onMapReady]);
 
   // ── Rebuild route when endpoints change ───────────────────────────────────
   useEffect(() => {
-    const ymaps = ymapsRef.current;
-    const map = mapRef.current;
-    if (!ymaps || !map) return;
+    const ymaps3 = ymaps3Ref.current;
+    const map    = mapRef.current;
+    if (!ymaps3 || !map) return;
 
-    pickupPlacemarkRef.current?.geometry?.setCoordinates?.(toYandexCoords(pickup));
-    destinationPlacemarkRef.current?.geometry?.setCoordinates?.(toYandexCoords(destination));
+    try { pickupMarkerRef.current?.update({ coordinates: toLngLat(pickup) }); }     catch { /* skip */ }
+    try { destMarkerRef.current?.update({ coordinates: toLngLat(destination) }); } catch { /* skip */ }
 
-    const requestId = ++routeRequestIdRef.current;
-    void buildYmapsRoute(ymaps, map, activeRouteFrom, activeRouteTo, requestId);
+    const reqId = ++routeReqRef.current;
+    void buildRoute(ymaps3, map, activeFrom, activeTo, reqId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     pickup.lat, pickup.lng,
     destination.lat, destination.lng,
-    activeRouteFrom.lat, activeRouteFrom.lng,
-    activeRouteTo.lat, activeRouteTo.lng,
+    activeFrom.lat, activeFrom.lng,
+    activeTo.lat, activeTo.lng,
   ]);
 
-  // ── Update courier arrow position + follow ────────────────────────────────
+  // ── Update courier position + camera follow ───────────────────────────────
   useEffect(() => {
-    const ymaps = ymapsRef.current;
-    const map = mapRef.current;
-    if (!ymaps || !map) return;
+    const ymaps3 = ymaps3Ref.current;
+    const map    = mapRef.current;
+    if (!ymaps3 || !map) return;
 
     if (!courierPos) {
-      if (courierPlacemarkRef.current) {
-        map.geoObjects.remove(courierPlacemarkRef.current);
-        courierPlacemarkRef.current = null;
+      if (courierMarkerRef.current) {
+        try { map.removeChild(courierMarkerRef.current); } catch { /* skip */ }
+        courierMarkerRef.current = null;
+        courierElRef.current     = null;
       }
       return;
     }
 
-    if (!courierPlacemarkRef.current) {
-      // Create arrow marker on first GPS fix
-      courierPlacemarkRef.current = new ymaps.Placemark(
-        toYandexCoords(courierPos),
-        {},
-        {
-          iconLayout: 'default#image',
-          iconImageHref: COURIER_ARROW_URL,
-          iconImageSize: [44, 44],
-          iconImageOffset: [-22, -22],
-          iconAngle: heading ?? 0,
-          zIndex: 200,
-        },
+    // Create marker if it doesn't exist yet
+    if (!courierMarkerRef.current) {
+      const cEl = createCourierElement();
+      cEl.style.transform = `rotate(${heading ?? 0}deg)`;
+      courierElRef.current = cEl;
+      const marker = new ymaps3.YMapMarker(
+        { coordinates: toLngLat(courierPos), zIndex: 200 },
+        cEl,
       );
-      map.geoObjects.add(courierPlacemarkRef.current);
+      map.addChild(marker);
+      courierMarkerRef.current = marker;
     } else {
-      courierPlacemarkRef.current.geometry?.setCoordinates?.(toYandexCoords(courierPos));
+      try { courierMarkerRef.current.update({ coordinates: toLngLat(courierPos) }); }
+      catch { /* skip */ }
     }
 
-    // Follow: pan to courier (skip if user is temporarily panning)
-    if (followModeRef.current && !isManualModeRef.current) {
+    if (followModeRef.current && !isManualRef.current) {
       if (!hasNavZoomedRef.current) {
-        // First GPS fix: zoom to street level
         hasNavZoomedRef.current = true;
-        map.setCenter(toYandexCoords(courierPos), NAV_ZOOM, { duration: 600 });
+        applyCamera(courierPos, NAV_ZOOM);
       } else {
-        map.panTo(toYandexCoords(courierPos), { flying: false, duration: 600 });
+        applyCamera(courierPos);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierPos?.lat, courierPos?.lng]);
 
-  // ── Update courier arrow heading (iconAngle) ──────────────────────────────
+  // ── Update courier arrow CSS rotation + camera azimuth ───────────────────
   useEffect(() => {
-    if (courierPlacemarkRef.current && heading !== undefined) {
-      courierPlacemarkRef.current.options?.set?.('iconAngle', heading);
+    if (courierElRef.current && heading !== undefined) {
+      courierElRef.current.style.transform = `rotate(${heading}deg)`;
+    }
+    // Smoothly rotate the map camera to match heading in follow mode
+    if (
+      mapRef.current &&
+      followModeRef.current &&
+      !isManualRef.current &&
+      heading !== undefined
+    ) {
+      try {
+        mapRef.current.update({ camera: { azimuth: heading, tilt: NAV_TILT } });
+      } catch { /* skip */ }
     }
   }, [heading]);
 
+  // ── Fallback (no API key) ─────────────────────────────────────────────────
   if (hasFallback) {
     const markers = [
-      { id: 'pickup', position: pickup, label: 'RESTORAN', type: 'PICKUP' as const },
-      { id: 'destination', position: destination, label: 'MIJOZ', type: 'DELIVERY' as const },
-      ...(courierPos ? [{ id: 'courier', position: courierPos, label: 'KURYER', type: 'COURIER' as const }] : []),
+      { id: 'pickup',      position: pickup,      label: 'RESTORAN', type: 'PICKUP'   as const },
+      { id: 'destination', position: destination, label: 'MIJOZ',    type: 'DELIVERY' as const },
+      ...(courierPos
+        ? [{ id: 'courier', position: courierPos, label: 'KURYER', type: 'COURIER' as const }]
+        : []),
     ];
-
     return (
-      <div className={`relative overflow-hidden rounded-2xl bg-gray-100 shadow-inner ${className}`} style={{ height }}>
+      <div
+        className={`relative overflow-hidden rounded-2xl bg-gray-100 shadow-inner ${className}`}
+        style={{ height }}
+      >
         <MockMapComponent
           initialCenter={pickup}
           markers={markers}
@@ -380,7 +437,10 @@ export default function YandexRouteMap({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-gray-100 shadow-inner ${className}`} style={{ height }}>
+    <div
+      className={`relative overflow-hidden rounded-2xl bg-gray-100 shadow-inner ${className}`}
+      style={{ height }}
+    >
       <div ref={mapContainerRef} className="h-full w-full" />
 
       {isLoading && (
