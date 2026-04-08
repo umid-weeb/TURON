@@ -92,8 +92,7 @@ Focus:
 ## PRODUCT SCOPE
 
 ### CUSTOMER SIDE (MAIN PRIORITY)
-
-- Home page (restaurant intro)
+`- Home page (restaurant intro)
 - Category list
 - Product cards
 - Cart system

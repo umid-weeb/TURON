@@ -1,8 +1,9 @@
 import React from 'react';
-import { ArrowLeft, ChevronDown, Loader2, Navigation, Send, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Navigation, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
+import { OrderChatPanel } from '../../components/chat/OrderChatPanel';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { estimateRouteMetrics, formatEtaMinutes, formatRouteDistance } from '../../features/maps/route';
@@ -14,7 +15,7 @@ import {
 } from '../../features/tracking/customerTracking';
 import { useRouteDetails } from '../../hooks/queries/useMaps';
 import { useOrderDetails, useOrderTrackingStream } from '../../hooks/queries/useOrders';
-import { useSendSupportMessage, useSupportThread } from '../../hooks/queries/useSupport';
+import { useOrderChatUnread } from '../../hooks/queries/useOrderChat';
 
 const TrackingMapPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
@@ -24,18 +25,7 @@ const TrackingMapPage: React.FC = () => {
   const { language, intlLocale } = useCustomerLanguage();
   const [routeInfo, setRouteInfo] = React.useState<{ distance: string; eta: string } | null>(null);
   const [chatOpen, setChatOpen] = React.useState(false);
-  const [messageText, setMessageText] = React.useState('');
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
-
-  const { data: supportThread } = useSupportThread(chatOpen ? orderId : null);
-  const sendMessage = useSendSupportMessage(orderId);
-
-  // Auto-scroll to bottom when new messages arrive
-  React.useEffect(() => {
-    if (chatOpen && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [supportThread?.messages?.length, chatOpen]);
+  const { data: unreadCount = 0 } = useOrderChatUnread(orderId, 'customer');
 
   const restaurantPin = React.useMemo(
     () => ({
@@ -165,13 +155,6 @@ const TrackingMapPage: React.FC = () => {
 
   const canChat = Boolean(trackingMeta.showCourierMarker && !trackingMeta.isDelivered && !trackingMeta.isCancelled);
 
-  function handleSend() {
-    const text = messageText.trim();
-    if (!text) return;
-    setMessageText('');
-    void sendMessage.mutateAsync({ text });
-  }
-
   return (
     <div className="fixed inset-0 bg-slate-950 text-white">
       {/* ─── Full-screen Map ─────────────────────────────────────────── */}
@@ -252,78 +235,14 @@ const TrackingMapPage: React.FC = () => {
 
         <div className="relative px-4 flex flex-col gap-2">
 
-          {/* ─── Chat panel (slides up when open) ─── */}
+          {/* ─── In-app courier↔customer chat overlay ─── */}
           {chatOpen && canChat && (
-            <div className="flex flex-col rounded-2xl border border-white/10 bg-slate-950/92 shadow-2xl backdrop-blur-2xl overflow-hidden">
-              {/* Chat header */}
-              <div className="flex items-center justify-between border-b border-white/8 px-4 py-2.5">
-                <p className="text-[12px] font-black text-white/70">
-                  {language === 'ru' ? 'Сообщения' : 'Xabarlar'}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setChatOpen(false)}
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-white/8 text-white/50"
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </div>
-
-              {/* Messages */}
-              <div className="flex max-h-[220px] min-h-[80px] flex-col gap-1.5 overflow-y-auto px-3 py-2">
-                {!supportThread?.messages?.length ? (
-                  <p className="py-4 text-center text-[11px] text-white/35">
-                    {language === 'ru' ? 'Нет сообщений' : 'Xabarlar yo\'q'}
-                  </p>
-                ) : (
-                  supportThread.messages.map((msg) => {
-                    const isOwn = msg.senderRole === 'CUSTOMER';
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-[75%] rounded-[14px] px-3 py-1.5 ${
-                            isOwn
-                              ? 'rounded-br-[4px] bg-amber-400/90 text-slate-950'
-                              : 'rounded-bl-[4px] bg-white/12 text-white'
-                          }`}
-                        >
-                          {!isOwn && (
-                            <p className="mb-0.5 text-[9px] font-black uppercase tracking-wide text-white/45">
-                              {msg.senderLabel}
-                            </p>
-                          )}
-                          <p className="text-[13px] leading-snug">{msg.text}</p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input */}
-              <div className="flex items-center gap-2 border-t border-white/8 px-3 py-2">
-                <input
-                  type="text"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                  placeholder={language === 'ru' ? 'Написать...' : 'Yozing...'}
-                  className="min-w-0 flex-1 rounded-full bg-white/8 px-4 py-2 text-[13px] text-white placeholder-white/30 outline-none focus:bg-white/12"
-                />
-                <button
-                  type="button"
-                  onClick={handleSend}
-                  disabled={!messageText.trim() || sendMessage.isPending}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400 text-slate-950 disabled:opacity-40"
-                >
-                  <Send size={14} />
-                </button>
-              </div>
-            </div>
+            <OrderChatPanel
+              orderId={orderId}
+              role="customer"
+              theme="dark"
+              onClose={() => setChatOpen(false)}
+            />
           )}
 
           {/* ─── ETA / distance strip ─── */}
@@ -353,12 +272,12 @@ const TrackingMapPage: React.FC = () => {
               </div>
             )}
 
-            {/* Chat toggle button */}
+            {/* Chat toggle button with unread badge */}
             {canChat && (
               <button
                 type="button"
                 onClick={() => setChatOpen((v) => !v)}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all active:scale-95 ${
+                className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all active:scale-95 ${
                   chatOpen
                     ? 'border-amber-400/40 bg-amber-400/20 text-amber-300'
                     : 'border-sky-400/24 bg-sky-400/14 text-sky-300'
@@ -369,6 +288,11 @@ const TrackingMapPage: React.FC = () => {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
+                )}
+                {unreadCount > 0 && !chatOpen && (
+                  <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
                 )}
               </button>
             )}

@@ -334,6 +334,13 @@ export async function startCourierDelivery(
   return runCourierAction(request, reply, { action: 'START_DELIVERY' });
 }
 
+export async function arriveAtDestination(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  return runCourierAction(request, reply, { action: 'ARRIVE_DESTINATION' });
+}
+
 export async function deliverCourierOrder(
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply,

@@ -308,6 +308,10 @@ model Order {
   cancelledByRole    String?                 @map("cancelled_by_role") // 'customer' or 'admin'
   cardLast4          String?                 @map("card_last_4")
 
+  // ── Customer rating after delivery ───────────────────────────────────────
+  customerRating     Int?                    @map("customer_rating")      // 1–5
+  customerRatingNote String?                 @map("customer_rating_note") // optional comment
+
   createdAt          DateTime                @default(now()) @map("created_at")
   updatedAt          DateTime                @updatedAt @map("updated_at")
   

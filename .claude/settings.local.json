@@ -3,7 +3,8 @@
     "allow": [
       "Bash(pnpm --filter @turon/backend build)",
       "Bash(npx tsc:*)",
-      "Bash(DATABASE_URL=\"postgresql://postgres.quhgjrpqjqaoalkthufu:AQ38.h%2Cp%3FsrA%24*G@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=15&connect_timeout=60&sslmode=require\" npx prisma migrate dev --name add_order_chat_messages)"
+      "Bash(DATABASE_URL=\"postgresql://postgres.quhgjrpqjqaoalkthufu:AQ38.h%2Cp%3FsrA%24*G@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=15&connect_timeout=60&sslmode=require\" npx prisma migrate dev --name add_order_chat_messages)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

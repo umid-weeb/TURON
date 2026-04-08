@@ -199,6 +199,13 @@ export function CourierStageButtons({
             <p className={`mt-2.5 text-[13px] font-black leading-snug ${labelCls}`}>
               {button.label}
             </p>
+            {/* "You are here" indicator on current stage */}
+            {isCurrent && !isCompleted && (
+              <div className={`mt-2 flex items-center gap-1.5 ${isDark ? 'text-sky-300/70' : 'text-sky-600/80'}`}>
+                <span className={`h-1.5 w-1.5 shrink-0 rounded-full animate-pulse ${isDark ? 'bg-sky-400' : 'bg-sky-500'}`} />
+                <span className="text-[10px] font-black uppercase tracking-[0.14em]">Siz hozir shu yerda</span>
+              </div>
+            )}
           </>
         );
 
@@ -270,6 +277,18 @@ export function SlideToConfirmAction({
   React.useEffect(() => {
     if (!isDragging && !isLoading && !confirmed) setSliderOffset(0);
   }, [isDragging, isLoading, confirmed]);
+
+  // One-time hint: auto-slide right ~42px then snap back to show the gesture
+  React.useEffect(() => {
+    if (disabled || isLoading || confirmed) return;
+    let t1: number, t2: number;
+    t1 = window.setTimeout(() => {
+      setSliderOffset(42);
+      t2 = window.setTimeout(() => setSliderOffset(0), 450);
+    }, 900);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (disabled || isLoading || confirmed || !trackRef.current) return;
@@ -453,6 +472,29 @@ export const CourierProblemReporter: React.FC<{
         </div>
       </div>
 
+      {/* Quick-chip shortcuts */}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {['Mijoz javob bermayapti', 'Manzil topilmadi', 'Restoran tayyor emas', 'Boshqa muammo'].map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => onChange(chip)}
+            disabled={disabled || isSubmitting}
+            className={`rounded-full px-3 py-1.5 text-[11px] font-black transition-all active:scale-95 disabled:opacity-40 ${
+              value === chip
+                ? isDark
+                  ? 'bg-amber-400 text-slate-950'
+                  : 'bg-amber-400 text-slate-950'
+                : isDark
+                  ? 'border border-white/10 bg-white/[0.06] text-white/60 hover:bg-white/10'
+                  : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
+
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -460,7 +502,7 @@ export const CourierProblemReporter: React.FC<{
         rows={3}
         maxLength={500}
         disabled={disabled || isSubmitting}
-        className={`mt-4 w-full rounded-[20px] border px-4 py-3 text-sm font-semibold outline-none transition focus:border-amber-400 ${textareaClass}`}
+        className={`mt-3 w-full rounded-[20px] border px-4 py-3 text-sm font-semibold outline-none transition focus:border-amber-400 ${textareaClass}`}
       />
 
       <div className="mt-3 flex items-center justify-between gap-3">
@@ -764,6 +806,24 @@ export const DeliveryBottomPanel: React.FC<{
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-400/12 text-rose-200">
                     <MapPin size={18} />
                   </div>
+                </div>
+              </div>
+
+              {/* Map legend — shows courier what each pin means */}
+              <div className="mt-3 flex items-center justify-center gap-4 rounded-[14px] border border-white/6 bg-white/[0.03] px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                  <span className="text-[10px] font-black text-white/50">Restoran</span>
+                </div>
+                <span className="text-white/20">·</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+                  <span className="text-[10px] font-black text-white/50">Siz</span>
+                </div>
+                <span className="text-white/20">·</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.6)]" />
+                  <span className="text-[10px] font-black text-white/50">Mijoz</span>
                 </div>
               </div>
             </div>

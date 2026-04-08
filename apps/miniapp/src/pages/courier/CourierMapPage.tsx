@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Crosshair, ExternalLink, Loader2 } from 'lucide-react';
+import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import {
@@ -99,9 +100,28 @@ function getRemainingRouteMetrics(
   };
 }
 
+// Contextual toast message per stage
+function getStagToastMessage(stage: DeliveryStage): { text: string; type: 'success' | 'info' } {
+  switch (stage) {
+    case DeliveryStage.ARRIVED_AT_RESTAURANT:
+      return { text: 'Restoranda — Taomni oling', type: 'info' };
+    case DeliveryStage.PICKED_UP:
+      return { text: "Olingdi — Mijozga yo'l oling", type: 'success' };
+    case DeliveryStage.DELIVERING:
+      return { text: "Yo'lda — Mijozga yetkazing", type: 'info' };
+    case DeliveryStage.ARRIVED_AT_DESTINATION:
+      return { text: 'Manzilga yetdingiz — Topshiring', type: 'info' };
+    case DeliveryStage.DELIVERED:
+      return { text: 'Buyurtma topshirildi! Ajoyib ish', type: 'success' };
+    default:
+      return { text: 'Bosqich yangilandi', type: 'info' };
+  }
+}
+
 const CourierMapPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { data: order, isLoading, isError, error, refetch } = useCourierOrderDetails(orderId);
   const updateStageMutation = useUpdateCourierOrderStage();
   const reportProblemMutation = useReportCourierProblem();
@@ -109,6 +129,7 @@ const CourierMapPage: React.FC = () => {
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [liveCourierPos, setLiveCourierPos] = useState<{ lat: number; lng: number } | null>(null);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; eta: string } | null>(null);
+  const [followMode, setFollowMode] = useState(true);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft] = useState('');
   const [problemFeedback, setProblemFeedback] = useState<{
@@ -325,10 +346,10 @@ const CourierMapPage: React.FC = () => {
       {
         onSuccess: () => {
           if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred(
-              nextStage === DeliveryStage.DELIVERED ? 'success' : 'success',
-            );
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
           }
+          const { text, type } = getStagToastMessage(nextStage);
+          showToast(text, type);
           // Auto-navigate after delivery — 3s gives time to see success state
           if (nextStage === DeliveryStage.DELIVERED) {
             window.setTimeout(() => navigate('/courier/orders'), 3000);
@@ -384,6 +405,25 @@ const CourierMapPage: React.FC = () => {
 
   const isEtaLive = currentState === 'ACCEPTED' || currentState === 'PICKED_UP' || currentState === 'DELIVERING';
 
+  // Disable follow mode when user manually pans the map
+  const handleMapInteraction = useCallback(() => {
+    setFollowMode(false);
+  }, []);
+
+  // Open the active destination in Yandex Maps (redirects to Yandex Navigator app if installed)
+  const openExternalNavigation = () => {
+    const target = currentTarget;
+    const label = currentState === 'ACCEPTED' || currentState === 'ARRIVED'
+      ? 'Restoran'
+      : order?.customerAddress?.label || 'Mijoz manzili';
+    const url = `https://yandex.uz/maps/?rtext=~${target.lat},${target.lng}&rtt=auto&text=${encodeURIComponent(label)}`;
+    if (window.Telegram?.WebApp?.openLink) {
+      window.Telegram.WebApp.openLink(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
   return (
     <div className="relative h-screen w-full overflow-hidden bg-slate-950 font-sans text-white">
       <div className="absolute inset-0 z-0">
@@ -395,6 +435,8 @@ const CourierMapPage: React.FC = () => {
           routeTo={currentTarget}
           height="100%"
           className="rounded-none border-0 shadow-none"
+          followMode={followMode}
+          onMapInteraction={handleMapInteraction}
           onRouteInfoChange={setRouteInfo}
         />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.1),transparent_25%),linear-gradient(180deg,rgba(2,6,23,0.14)_0%,rgba(2,6,23,0.28)_35%,rgba(2,6,23,0.76)_100%)]" />
@@ -415,7 +457,7 @@ const CourierMapPage: React.FC = () => {
         )}
 
         <div className="flex items-center gap-3">
-          {/* Back → orders list directly */}
+          {/* Back → orders list */}
           <button
             onClick={() => navigate('/courier/orders')}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/72 text-white shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95"
@@ -423,7 +465,7 @@ const CourierMapPage: React.FC = () => {
             <ArrowLeft size={19} />
           </button>
 
-          {/* Compact order info — just the essentials */}
+          {/* Compact order info */}
           <div className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-slate-950/72 px-4 py-3 shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
@@ -437,6 +479,31 @@ const CourierMapPage: React.FC = () => {
               {stageMeta.label}
             </div>
           </div>
+        </div>
+
+        {/* ── Map action row: re-center + external navigator ─────────── */}
+        <div className="mt-3 flex items-center justify-end gap-2">
+          {/* Re-center button — only shown when user has panned away */}
+          {!followMode && liveCourierPos && (
+            <button
+              type="button"
+              onClick={() => setFollowMode(true)}
+              className="flex h-10 items-center gap-2 rounded-full border border-white/10 bg-slate-950/72 px-3.5 text-[11px] font-black text-white shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95 animate-in fade-in duration-200"
+            >
+              <Crosshair size={15} className="text-amber-300" />
+              <span>Mening joylashuvim</span>
+            </button>
+          )}
+
+          {/* Open in Yandex Maps / Navigator */}
+          <button
+            type="button"
+            onClick={openExternalNavigation}
+            className="flex h-10 items-center gap-2 rounded-full border border-white/10 bg-slate-950/72 px-3.5 text-[11px] font-black text-white shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95"
+          >
+            <ExternalLink size={15} className="text-sky-300" />
+            <span>Navigatorda</span>
+          </button>
         </div>
       </div>
 

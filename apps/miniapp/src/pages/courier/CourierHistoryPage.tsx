@@ -4,7 +4,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock3,
-  Loader2,
   MapPin,
   Package,
   Phone,
@@ -12,6 +11,7 @@ import {
   Search,
   XCircle,
 } from 'lucide-react';
+import { CourierHistoryCardSkeleton, StatStripSkeleton } from '../../components/ui/Skeleton';
 import { useCourierHistory } from '../../hooks/queries/useCouriers';
 
 type HistoryFilter = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'CANCELLED';
@@ -86,11 +86,14 @@ const CourierHistoryPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-indigo-500" />
-          <p className="text-[13px] font-bold text-slate-400">Yuklanmoqda...</p>
+      <div className="space-y-3 px-4 py-5">
+        <div className="flex items-center justify-between">
+          <div className="h-7 w-44 animate-pulse rounded-[10px] bg-slate-200" />
+          <div className="h-10 w-10 animate-pulse rounded-[18px] bg-slate-200" />
         </div>
+        <StatStripSkeleton count={3} />
+        <div className="h-12 animate-pulse rounded-[18px] bg-slate-200" />
+        {[0, 1, 2].map((i) => <CourierHistoryCardSkeleton key={i} />)}
       </div>
     );
   }
@@ -187,7 +190,20 @@ const CourierHistoryPage: React.FC = () => {
       </p>
 
       {/* ── History list ────────────────────────────────────────────── */}
-      {filteredHistory.length > 0 ? (
+      {history.length === 0 ? (
+        /* First-time courier — no history at all */
+        <div className="rounded-[26px] border border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
+            <Package size={28} className="text-indigo-300" />
+          </div>
+          <p className="text-[17px] font-black text-slate-800">Tarix hali bo'sh</p>
+          <p className="mt-2 text-[13px] leading-snug text-slate-400">
+            Birinchi yetkazishingizni muvaffaqiyatli tugatganingizdan so'ng bu yerda ko'rinadi.
+            <br />
+            <span className="font-bold text-indigo-500">Omad!</span>
+          </p>
+        </div>
+      ) : filteredHistory.length > 0 ? (
         <div className="space-y-3">
           {filteredHistory.map((entry) => (
             <button

@@ -12,6 +12,7 @@ import {
   handleAssignCourier,
   handleApprovePayment,
   handleRejectPayment,
+  rateOrder,
 } from './orders.controller.js';
 import { getOrderChat, sendOrderChat, getUnreadCount } from '../chat/chat.controller.js';
 import { 
@@ -34,6 +35,9 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   fastify.get('/:id', {
     schema: { params: IdParamSchema }
   }, getOrderDetail);
+
+  // ── Customer rating ───────────────────────────────────────────────────────
+  fastify.patch('/:id/rating', { schema: { params: IdParamSchema } }, rateOrder);
 
   // ── In-app chat (customer side) ───────────────────────────────────────────
   fastify.get('/:id/chat', { schema: { params: IdParamSchema } }, getOrderChat);

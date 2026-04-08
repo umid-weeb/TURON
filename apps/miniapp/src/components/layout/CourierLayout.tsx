@@ -8,6 +8,7 @@ import { useCourierOrders, useCourierStatus, useOrdersRealtimeSync } from '../..
 import { OrderInterruptModal } from '../courier/OrderInterruptModal';
 import { useOrderInterruptStore } from '../../store/useOrderInterruptStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 
 // ─── New-order interrupt detection ──────────────────────────────────────────
 function useCourierNewOrderDetection() {
@@ -148,7 +149,9 @@ const CourierLayout: React.FC = () => {
           paddingBottom: isMapPage ? 0 : 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
         }}
       >
-        <Outlet />
+        <AppErrorBoundary theme="light" homeUrl="/courier">
+          <Outlet />
+        </AppErrorBoundary>
       </main>
 
       {/* ─── Bottom navigation ─────────────────────────────────────── */}

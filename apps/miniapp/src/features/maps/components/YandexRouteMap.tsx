@@ -14,6 +14,8 @@ export default function YandexRouteMap({
   routeTo,
   height = '60vh',
   className = '',
+  followMode = false,
+  onMapInteraction,
   onMapReady,
   onRouteInfoChange,
 }: RouteMapProps) {
@@ -26,11 +28,17 @@ export default function YandexRouteMap({
   const courierPlacemarkRef = useRef<any>(null);
   const routeRequestIdRef = useRef(0);
   const lastRouteInfoRef = useRef<string | null>(null);
+  const followModeRef = useRef(followMode);
   const [isLoading, setIsLoading] = useState(isYandexMapsEnabled());
   const [hasFallback, setHasFallback] = useState(!isYandexMapsEnabled());
+
   const activeRouteFrom = routeFrom ?? pickup;
   const activeRouteTo = routeTo ?? destination;
-  const markerPins = [pickup, destination, courierPos, activeRouteFrom, activeRouteTo];
+
+  // Keep followMode ref in sync so the GPS effect closure always has the latest value
+  useEffect(() => {
+    followModeRef.current = followMode;
+  }, [followMode]);
 
   const emitRouteInfo = (distance: string, eta: string) => {
     const nextKey = `${distance}|${eta}`;
@@ -50,8 +58,14 @@ export default function YandexRouteMap({
     });
   };
 
-  // Build a road-following route using ymaps.route() and style it
-  function buildYmapsRoute(ymaps: any, map: any, from: typeof pickup, to: typeof pickup, requestId: number) {
+  // Build a road-following route and style it
+  function buildYmapsRoute(
+    ymaps: any,
+    map: any,
+    from: typeof pickup,
+    to: typeof pickup,
+    requestId: number,
+  ) {
     return ymaps
       .route([toYandexCoords(from), toYandexCoords(to)], {
         routingMode: 'auto',
@@ -61,18 +75,15 @@ export default function YandexRouteMap({
       .then((route: any) => {
         if (requestId !== routeRequestIdRef.current || !mapRef.current || !ymaps) return;
 
-        // Remove old route
         if (routeRef.current) {
           map.geoObjects.remove(routeRef.current);
           routeRef.current = null;
         }
 
-        // Hide default waypoint markers
         route.getWayPoints().each((wp: any) => {
           wp.options.set({ visible: false });
         });
 
-        // Style route paths
         route.getPaths().each((path: any) => {
           path.options.set({
             strokeColor: '#FFD700',
@@ -84,15 +95,12 @@ export default function YandexRouteMap({
         map.geoObjects.add(route);
         routeRef.current = route;
 
-        // Extract route info
         try {
           const distanceM = route.getLength();
           const durationS = route.getTime();
           if (typeof distanceM === 'number' && typeof durationS === 'number') {
             const distKm = distanceM / 1000;
-            const distStr = distKm < 1
-              ? `${Math.round(distanceM)} m`
-              : `${distKm.toFixed(1)} km`;
+            const distStr = distKm < 1 ? `${Math.round(distanceM)} m` : `${distKm.toFixed(1)} km`;
             const etaMin = Math.ceil(durationS / 60);
             emitRouteInfo(distStr, `${etaMin} daq`);
           }
@@ -100,11 +108,13 @@ export default function YandexRouteMap({
           // ignore info extraction errors
         }
 
-        fitBounds(markerPins);
+        // Only fit bounds on first load (when courier pos not yet established)
+        if (!courierPlacemarkRef.current) {
+          fitBounds([pickup, destination, courierPos]);
+        }
       })
       .catch(() => {
         if (requestId !== routeRequestIdRef.current || !mapRef.current) return;
-        // Fallback: draw straight line
         if (routeRef.current) {
           map.geoObjects.remove(routeRef.current);
           routeRef.current = null;
@@ -117,10 +127,13 @@ export default function YandexRouteMap({
           );
           map.geoObjects.add(routeRef.current);
         }
-        fitBounds(markerPins);
+        if (!courierPlacemarkRef.current) {
+          fitBounds([pickup, destination, courierPos]);
+        }
       });
   }
 
+  // ── Init map once ────────────────────────────────────────────────────────────
   useEffect(() => {
     let isDisposed = false;
 
@@ -145,6 +158,11 @@ export default function YandexRouteMap({
 
         map.behaviors.enable(['scrollZoom', 'dblClickZoom', 'multiTouchZoom', 'drag']);
         map.behaviors.disable(['leftMouseButtonMagnifier']);
+
+        // Notify parent when user manually interacts with the map (disable follow mode)
+        map.events.add(['dragstart', 'multitouchstart'], () => {
+          onMapInteraction?.();
+        });
 
         const pickupPlacemark = new ymaps.Placemark(
           toYandexCoords(pickup),
@@ -190,7 +208,7 @@ export default function YandexRouteMap({
       }
     }
 
-    initMap();
+    void initMap();
 
     return () => {
       isDisposed = true;
@@ -203,8 +221,10 @@ export default function YandexRouteMap({
       destinationPlacemarkRef.current = null;
       courierPlacemarkRef.current = null;
     };
-  }, [onMapReady, onRouteInfoChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onMapReady]);
 
+  // ── Rebuild route ONLY when route endpoints change (not on GPS update) ────────
   useEffect(() => {
     const ymaps = ymapsRef.current;
     const map = mapRef.current;
@@ -212,22 +232,6 @@ export default function YandexRouteMap({
 
     pickupPlacemarkRef.current?.geometry?.setCoordinates?.(toYandexCoords(pickup));
     destinationPlacemarkRef.current?.geometry?.setCoordinates?.(toYandexCoords(destination));
-
-    if (courierPos) {
-      if (!courierPlacemarkRef.current) {
-        courierPlacemarkRef.current = new ymaps.Placemark(
-          toYandexCoords(courierPos),
-          { hintContent: 'Kuryer', balloonContent: 'Kuryerning joriy joylashuvi' },
-          { preset: 'islands#yellowCircleIcon', iconColor: '#FFD700', zIndex: 200 },
-        );
-        map.geoObjects.add(courierPlacemarkRef.current);
-      } else {
-        courierPlacemarkRef.current.geometry?.setCoordinates?.(toYandexCoords(courierPos));
-      }
-    } else if (courierPlacemarkRef.current) {
-      map.geoObjects.remove(courierPlacemarkRef.current);
-      courierPlacemarkRef.current = null;
-    }
 
     const requestId = ++routeRequestIdRef.current;
     void buildYmapsRoute(ymaps, map, activeRouteFrom, activeRouteTo, requestId);
@@ -240,9 +244,38 @@ export default function YandexRouteMap({
     activeRouteFrom.lng,
     activeRouteTo.lat,
     activeRouteTo.lng,
-    courierPos?.lat,
-    courierPos?.lng,
   ]);
+
+  // ── Update courier marker position without rebuilding the route ──────────────
+  useEffect(() => {
+    const ymaps = ymapsRef.current;
+    const map = mapRef.current;
+    if (!ymaps || !map) return;
+
+    if (!courierPos) {
+      if (courierPlacemarkRef.current) {
+        map.geoObjects.remove(courierPlacemarkRef.current);
+        courierPlacemarkRef.current = null;
+      }
+      return;
+    }
+
+    if (!courierPlacemarkRef.current) {
+      courierPlacemarkRef.current = new ymaps.Placemark(
+        toYandexCoords(courierPos),
+        { hintContent: 'Kuryer', balloonContent: 'Kuryerning joriy joylashuvi' },
+        { preset: 'islands#yellowCircleIcon', iconColor: '#FFD700', zIndex: 200 },
+      );
+      map.geoObjects.add(courierPlacemarkRef.current);
+    } else {
+      courierPlacemarkRef.current.geometry?.setCoordinates?.(toYandexCoords(courierPos));
+    }
+
+    // Auto-follow: smoothly pan the map to keep the courier centered
+    if (followModeRef.current) {
+      map.panTo(toYandexCoords(courierPos), { flying: false, duration: 600 });
+    }
+  }, [courierPos?.lat, courierPos?.lng]);
 
   if (hasFallback) {
     const markers = [

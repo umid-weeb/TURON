@@ -1136,3 +1136,38 @@ export async function handleRejectPayment(
 
   return reply.send(serializedOrder);
 }
+
+/**
+ * PATCH /orders/:id/rating
+ * Customer rates a delivered order (1–5 stars + optional note).
+ * Only the order owner can rate, only once, only after DELIVERED status.
+ */
+export async function rateOrder(
+  request: FastifyRequest<{ Params: { id: string }; Body: { rating: number; note?: string } }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+  const { id } = request.params;
+  const { rating, note } = request.body;
+
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return reply.status(400).send({ error: "Baho 1 dan 5 gacha bo'lishi kerak" });
+  }
+
+  const order = await prisma.order.findFirst({ where: { id, userId: requester.id } });
+  if (!order) return reply.status(404).send({ error: 'Buyurtma topilmadi' });
+  if (order.status !== 'DELIVERED') {
+    return reply.status(400).send({ error: 'Faqat yetkazilgan buyurtmani baholash mumkin' });
+  }
+  if ((order as any).customerRating !== null) {
+    return reply.status(409).send({ error: 'Bu buyurtma allaqachon baholangan' });
+  }
+
+  const updated = await prisma.order.update({
+    where: { id },
+    data: { customerRating: rating, customerRatingNote: note?.trim() || null },
+    include: ORDER_INCLUDE as any,
+  });
+
+  return reply.send(updated);
+}

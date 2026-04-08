@@ -231,6 +231,23 @@ const CourierStatusPage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Offline onboarding hint ──────────────────────────────────── */}
+      {!isOnline && (
+        <div className="rounded-[22px] border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white px-4 py-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-indigo-100 text-indigo-600">
+              <Navigation size={17} />
+            </div>
+            <div>
+              <p className="text-[14px] font-black text-slate-900">Ishni boshlash uchun</p>
+              <p className="mt-1 text-[12px] leading-snug text-slate-500">
+                Yuqoridagi <span className="font-black text-slate-700">"Ishlamoqdaman"</span> tugmasini yoqing. Shunda yangi buyurtmalar avtomatik keladi.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Quick nav to orders list ─────────────────────────────────── */}
       <button
         type="button"

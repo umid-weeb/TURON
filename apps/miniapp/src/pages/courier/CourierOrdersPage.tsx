@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Loader2, Map, Navigation, Package, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Map, Navigation, Package, RefreshCw } from 'lucide-react';
 import { CourierOrderCard } from '../../components/courier/CourierComponents';
+import { CourierOrderCardSkeleton } from '../../components/ui/Skeleton';
 import { useCourierOrders } from '../../hooks/queries/useOrders';
 
 type CourierOrdersTab = 'new' | 'active' | 'completed';
@@ -38,11 +39,13 @@ const CourierOrdersPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-indigo-500" />
-          <p className="text-[13px] font-bold text-slate-400">Yuklanmoqda...</p>
+      <div className="space-y-3 px-4 py-5">
+        <div className="flex items-center justify-between">
+          <div className="h-7 w-48 animate-pulse rounded-[10px] bg-slate-200" />
+          <div className="h-10 w-10 animate-pulse rounded-[18px] bg-slate-200" />
         </div>
+        <div className="h-20 animate-pulse rounded-[20px] bg-slate-200" />
+        {[0, 1].map((i) => <CourierOrderCardSkeleton key={i} />)}
       </div>
     );
   }
@@ -176,12 +179,44 @@ const CourierOrdersPage: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="rounded-[26px] border border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-            <Package size={28} className="text-slate-300" />
-          </div>
-          <p className="text-[16px] font-black text-slate-700">Bo'sh</p>
-          <p className="mt-1 text-[13px] text-slate-400">{currentMeta.emptyText}</p>
+        <div className="rounded-[26px] border border-slate-100 bg-white px-6 py-10 text-center shadow-sm">
+          {activeTab === 'new' ? (
+            /* Animated waiting state for new orders tab */
+            <>
+              <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-200 opacity-50" />
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
+                  <Navigation size={26} className="text-indigo-400" />
+                </div>
+              </div>
+              <p className="text-[16px] font-black text-slate-800">Buyurtma kutilmoqda</p>
+              <p className="mt-1.5 text-[13px] leading-snug text-slate-400">
+                Online bo'lsangiz, yangi topshiriqlar avtomatik keladi
+              </p>
+            </>
+          ) : activeTab === 'active' ? (
+            /* Active tab empty */
+            <>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
+                <Navigation size={26} className="text-amber-300" />
+              </div>
+              <p className="text-[16px] font-black text-slate-700">Faol yetkazish yo'q</p>
+              <p className="mt-1 text-[13px] text-slate-400">
+                Yangi buyurtmani qabul qiling va marshrut boshlanadi
+              </p>
+            </>
+          ) : (
+            /* Completed tab empty */
+            <>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
+                <CheckCircle2 size={26} className="text-emerald-300" />
+              </div>
+              <p className="text-[16px] font-black text-slate-700">Hali yakunlanmagan</p>
+              <p className="mt-1 text-[13px] text-slate-400">
+                Birinchi yetkazishni muvaffaqiyatli tugatganingizdan so'ng bu yerda ko'rinadi
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>

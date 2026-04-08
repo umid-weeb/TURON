@@ -79,6 +79,10 @@ export interface RouteMapProps {
   routeTo?: MapPin;
   height?: string;
   className?: string;
+  /** When true the map pans to follow the courier on each GPS update */
+  followMode?: boolean;
+  /** Called when the user starts manually panning/zooming the map */
+  onMapInteraction?: () => void;
   onMapReady?: (map: unknown) => void;
   onRouteInfoChange?: (info: RouteInfo) => void;
 }

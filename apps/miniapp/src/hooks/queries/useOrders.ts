@@ -30,8 +30,9 @@ function resolveCourierStageActionPath(stage: DeliveryStage) {
     case 'PICKED_UP':
       return 'pickup';
     case 'DELIVERING':
-    case 'ARRIVED_AT_DESTINATION':
       return 'start-delivery';
+    case 'ARRIVED_AT_DESTINATION':
+      return 'arrive-destination';
     case 'DELIVERED':
       return 'deliver';
     default:

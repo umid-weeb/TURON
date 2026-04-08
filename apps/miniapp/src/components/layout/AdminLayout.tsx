@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 import {
   LayoutDashboard, 
   ShoppingBag, 
@@ -16,6 +17,49 @@ import { useAdminOrders, useOrdersRealtimeSync } from '../../hooks/queries/useOr
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { OrderStatusEnum, UserRoleEnum } from '@turon/shared';
 
+/** Play a short beep using Web Audio API when a new order arrives */
+function playNewOrderBeep() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.28, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.35);
+    osc.onended = () => ctx.close();
+  } catch {
+    // Web Audio not available — silent fail
+  }
+}
+
+/** Detect new PENDING orders and fire audio + haptic alert */
+function useAdminNewOrderAlert(pendingCount: number) {
+  const prevCountRef = React.useRef<number | null>(null);
+  const [flashActive, setFlashActive] = React.useState(false);
+
+  React.useEffect(() => {
+    if (prevCountRef.current === null) {
+      prevCountRef.current = pendingCount;
+      return;
+    }
+    if (pendingCount > prevCountRef.current) {
+      playNewOrderBeep();
+      setFlashActive(true);
+      window.setTimeout(() => setFlashActive(false), 2000);
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning');
+    }
+    prevCountRef.current = pendingCount;
+  }, [pendingCount]);
+
+  return { flashActive };
+}
+
 const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,6 +68,7 @@ const AdminLayout: React.FC = () => {
   const { connectionState, isConnected } = useOrdersRealtimeSync();
   const orders = adminOrders.length > 0 ? adminOrders : storeOrders;
   const newOrdersCount = orders.filter((order) => order.orderStatus === OrderStatusEnum.PENDING).length;
+  const { flashActive } = useAdminNewOrderAlert(newOrdersCount);
   const syncBadgeClass = isConnected
     ? 'bg-emerald-50 text-emerald-700'
     : connectionState === 'reconnecting' || connectionState === 'connecting'
@@ -101,7 +146,9 @@ const AdminLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 mt-20 px-6 pt-6 overflow-x-hidden">
-        <Outlet />
+        <AppErrorBoundary theme="light" homeUrl="/admin">
+          <Outlet />
+        </AppErrorBoundary>
       </main>
 
       {/* Admin Bottom Navigation */}
@@ -111,10 +158,10 @@ const AdminLayout: React.FC = () => {
           icon={<LayoutDashboard size={24} />} 
           label="Statistika" 
         />
-        <NavItem 
-          path="/admin/orders" 
-          icon={<ShoppingBag size={24} />} 
-          label="Buyurtmalar" 
+        <NavItem
+          path="/admin/orders"
+          icon={<ShoppingBag size={24} className={flashActive ? 'text-rose-500' : ''} />}
+          label="Buyurtmalar"
           badge={newOrdersCount}
         />
         <NavItem 

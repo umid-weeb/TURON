@@ -229,9 +229,9 @@ function OrderInterruptContent({ order }: Props) {
         )}
 
         {deliveryFeeStr && (
-          <div className="flex flex-1 flex-col items-center gap-0.5 rounded-[14px] border border-emerald-500/20 bg-emerald-500/10 py-3">
-            <p className="text-[11px] font-black text-emerald-400/70">Yetkazish</p>
-            <p className="text-[15px] font-black text-emerald-300">{deliveryFeeStr}</p>
+          <div className="flex flex-1 flex-col items-center gap-1 rounded-[14px] border border-emerald-400/30 bg-emerald-500/12 py-3 shadow-[0_0_16px_rgba(52,211,153,0.12)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-400/60">Siz topasiz</p>
+            <p className="text-[18px] font-black leading-none text-emerald-300">{deliveryFeeStr}</p>
           </div>
         )}
       </div>

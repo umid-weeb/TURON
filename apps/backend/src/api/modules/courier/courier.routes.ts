@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import {
   acceptCourierOrder,
+  arriveAtDestination,
   arriveAtRestaurant,
   declineCourierOrder,
   deliverCourierOrder,
@@ -76,6 +77,12 @@ export default async function courierRoutes(fastify: FastifyInstance) {
       params: IdParamSchema,
     }
   }, startCourierDelivery);
+
+  fastify.post('/order/:id/arrive-destination', {
+    schema: {
+      params: IdParamSchema,
+    }
+  }, arriveAtDestination);
 
   fastify.post('/order/:id/deliver', {
     schema: {
