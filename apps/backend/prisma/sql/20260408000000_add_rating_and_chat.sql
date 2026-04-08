@@ -13,9 +13,9 @@ end $$;
 
 -- ─── 3. order_chat_messages table ────────────────────────────────────────────
 create table if not exists "order_chat_messages" (
-  "id"          text                     not null,
-  "order_id"    text                     not null,
-  "sender_id"   text                     not null,
+  "id"          uuid                     not null default gen_random_uuid(),
+  "order_id"    uuid                     not null,
+  "sender_id"   uuid                     not null,
   "sender_role" "chat_sender_role_enum"  not null,
   "content"     text                     not null,
   "is_read"     boolean                  not null default false,
