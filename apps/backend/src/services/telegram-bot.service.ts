@@ -9,6 +9,21 @@ import { SupportService } from './support.service.js';
 const botToken = env.BOT_TOKEN;
 const webAppUrl = env.WEB_APP_URL;
 
+// ─── In-memory role cache (TTL: 5 min) ───────────────────────────────────────
+const roleCache = new Map<string, { role: UserRoleEnum; expiresAt: number }>();
+const ROLE_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function getCachedRole(telegramId: string): UserRoleEnum | null {
+  const entry = roleCache.get(telegramId);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { roleCache.delete(telegramId); return null; }
+  return entry.role;
+}
+
+function setCachedRole(telegramId: string, role: UserRoleEnum) {
+  roleCache.set(telegramId, { role, expiresAt: Date.now() + ROLE_CACHE_TTL_MS });
+}
+
 /**
  * Resolve the stable base URL for the Mini App.
  *
@@ -132,6 +147,18 @@ function getBotState() {
   return globalThis.__turonTelegramBotState;
 }
 
+// ─── Prisma connection warmup ─────────────────────────────────────────────────
+// Runs a cheap query to open the connection pool before the first real request.
+// Without this, the very first /start hits a cold PrismaClient (~1-2s).
+let warmupDone = false;
+async function prismaWarmup(): Promise<void> {
+  if (warmupDone) return;
+  warmupDone = true;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch { /* non-fatal */ }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function resolveAdminChatId(): string | null {
@@ -144,22 +171,21 @@ function resolveAdminChatId(): string | null {
   );
 }
 
-async function getUserRole(telegramId: string, retryCount = 0): Promise<UserRoleEnum> {
-  const MAX_RETRIES = 2;
+async function getUserRole(telegramId: string): Promise<UserRoleEnum> {
+  // Serve from cache — avoids DB round-trip for repeat /start calls
+  const cached = getCachedRole(telegramId);
+  if (cached !== null) return cached;
+
   try {
     const user = await prisma.user.findUnique({
       where: { telegramId: BigInt(telegramId) },
       select: { role: true },
     });
-    if (!user) return UserRoleEnum.CUSTOMER;
-    return (user.role as UserRoleEnum) || UserRoleEnum.CUSTOMER;
-  } catch (error) {
-    if (retryCount < MAX_RETRIES) {
-      console.warn(`[Bot] Retrying getUserRole for ${telegramId} (attempt ${retryCount + 1})...`);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return getUserRole(telegramId, retryCount + 1);
-    }
-    console.error(`[Bot] CRITICAL: Failed to resolve role for ${telegramId} after ${MAX_RETRIES} retries.`, error);
+    const role = (user?.role as UserRoleEnum) || UserRoleEnum.CUSTOMER;
+    setCachedRole(telegramId, role);
+    return role;
+  } catch {
+    // Non-blocking fallback — never delay the user for a role lookup failure
     return UserRoleEnum.CUSTOMER;
   }
 }
@@ -269,6 +295,7 @@ async function sendOrUpdateStartMessage(
   const { text, buttonLabel } = getStartMessageContent(role);
   const keyboard = Markup.inlineKeyboard([[Markup.button.webApp(buttonLabel, launchUrl)]]);
 
+  // Fetch stored message ID while we already have role — no serial wait
   const prevMessageId = await getStoredMessageId(chatId);
 
   if (prevMessageId) {
@@ -280,27 +307,31 @@ async function sendOrUpdateStartMessage(
         text,
         { ...keyboard, parse_mode: undefined },
       );
-      // Successfully edited — no new message, no DB update needed
+      // Successfully edited — done, no DB write needed
       return;
     } catch {
-      // Message was deleted, too old, or not from this bot — fall through to send new
-      await clearStoredMessageId(chatId);
+      // Message deleted / too old — clear async, don't block sending
+      void clearStoredMessageId(chatId);
     }
   }
 
-  // Send a fresh message and persist its ID
+  // Send fresh message — store ID fire-and-forget (non-blocking)
   const sent = await bot.telegram.sendMessage(chatId, text, keyboard);
-  await storeMessageId(chatId, sent.message_id);
+  void storeMessageId(chatId, sent.message_id);
 }
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 function bindHandlers(bot: Telegraf) {
-  // /start — edit existing start message (or send new if none stored)
+  // /start — fetch role + stored message ID in parallel, then send/edit
   bot.start(async (ctx) => {
     const telegramId = ctx.from.id.toString();
     const chatId = ctx.chat.id;
-    const role = await getUserRole(telegramId);
+    // Run DB queries concurrently — saves one full round-trip
+    const [role] = await Promise.all([
+      getUserRole(telegramId),
+      prismaWarmup(),          // keep connection warm while we fetch role
+    ]);
     await sendOrUpdateStartMessage(bot, chatId, role);
   });
 
@@ -354,6 +385,10 @@ export async function launchTelegramBot(context: BotLaunchContext): Promise<Tele
   await state.bot.launch();
   state.launched = true;
   console.log(`[Bot] Turon Bot launched (${context}). Web App URL: ${resolveStableWebAppBaseUrl()}`);
+
+  // Warm up DB connection pool immediately after launch so the first /start
+  // finds an open connection instead of paying the cold-start penalty (~1-2s)
+  void prismaWarmup();
 
   // Set the persistent menu button so users never need to type /start
   void setupMenuButton(state.bot);
