@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardCopy, Crosshair, Loader2, Navigation } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import {
   CourierProblemReporter,
   DeliveryBottomPanel,
-  RouteInfoPanel,
 } from '../../components/courier/CourierComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import {
@@ -119,11 +118,8 @@ const CourierMapPage: React.FC = () => {
   const updateLocationMutation = useUpdateCourierLocation();
 
   // ── UI state — ALL hooks before any conditional return ─────────────────────
-  const [isPanelExpanded, setIsPanelExpanded]   = useState(false);
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
   const [routeInfo, setRouteInfo]               = useState<{ distance: string; eta: string } | null>(null);
-  const [followMode, setFollowMode]             = useState(true);
-  const [navMode, setNavMode]                   = useState(false);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft]         = useState('');
   const [problemFeedback, setProblemFeedback]   = useState<{
@@ -235,9 +231,6 @@ const CourierMapPage: React.FC = () => {
 
   // ── Stable callbacks ────────────────────────────────────────────────────────
 
-  // Disable auto-follow when user manually pans the map
-  const handleMapInteraction = useCallback(() => setFollowMode(false), []);
-
   // Copy destination address to clipboard
   const handleCopyAddress = useCallback(() => {
     const address = order?.customerAddress?.addressText;
@@ -248,17 +241,6 @@ const CourierMapPage: React.FC = () => {
       copiedTimerRef.current = window.setTimeout(() => setCopied(false), 2000);
     });
   }, [order?.customerAddress?.addressText]);
-
-  // Toggle in-app navigation mode (full-screen map + follow + turn instructions)
-  const handleToggleNavMode = useCallback(() => {
-    if (navMode) {
-      setNavMode(false);
-    } else {
-      setNavMode(true);
-      setFollowMode(true);
-      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium');
-    }
-  }, [navMode]);
 
   // ── GPS watch ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -319,8 +301,9 @@ const CourierMapPage: React.FC = () => {
   useEffect(() => {
     if (!approachingCustomer || approachingNotifiedRef.current || !order?.id) return;
     approachingNotifiedRef.current = true;
+    showToast('Mijozga 500m qoldi — xabar yuborildi', 'info');
     void api.post(`/courier/order/${order.id}/approaching`).catch(() => {});
-  }, [approachingCustomer, order?.id]);
+  }, [approachingCustomer, order?.id, showToast]);
 
   useEffect(() => {
     if (currentStage !== DeliveryStage.DELIVERING) {
@@ -446,8 +429,7 @@ const CourierMapPage: React.FC = () => {
           routeTo={currentTarget}
           height="100%"
           className="rounded-none border-0 shadow-none"
-          followMode={followMode || navMode}
-          onMapInteraction={navMode ? undefined : handleMapInteraction}
+          followMode={true}
           onRouteInfoChange={setRouteInfo}
         />
         {/* Gradient overlays for UI legibility */}
@@ -495,82 +477,7 @@ const CourierMapPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Action bar: ETA clock · copy address · re-center · navigator ── */}
-        <div className="mt-2 flex items-center gap-2">
-
-          {/* Wall-clock arrival time — e.g. "15:30 da yetaman" */}
-          {arrivalTime && remainingMetrics.etaMinutes > 0 && (
-            <div className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/72 px-3 shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl">
-              <span className="text-[10px] font-semibold text-white/45">Yetib borish:</span>
-              <span className="text-[12px] font-black text-amber-300">{arrivalTime}</span>
-            </div>
-          )}
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Copy address to clipboard */}
-          {showCopyButton && (
-            <button
-              type="button"
-              onClick={handleCopyAddress}
-              className="flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/72 px-3 text-[11px] font-black text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95"
-            >
-              <ClipboardCopy
-                size={13}
-                className={copied ? 'text-emerald-400' : 'text-white/55'}
-              />
-              <span className={copied ? 'text-emerald-300' : ''}>
-                {copied ? 'Nusxalandi!' : 'Manzil'}
-              </span>
-            </button>
-          )}
-
-          {/* Re-center (when panned away) */}
-          {!followMode && liveCourierPos && (
-            <button
-              type="button"
-              onClick={() => { setFollowMode(true); setNavMode(true); }}
-              title="Mening joylashuvim"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-slate-950/72 text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95 animate-in fade-in duration-200"
-            >
-              <Crosshair size={15} className="text-amber-300" />
-            </button>
-          )}
-
-          {/* Navigator — in-app mode toggle */}
-          <button
-            type="button"
-            onClick={handleToggleNavMode}
-            className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-[11px] font-black text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95 ${
-              navMode
-                ? 'border-amber-400/40 bg-amber-400/20 text-amber-200'
-                : 'border-sky-400/30 bg-slate-950/72'
-            }`}
-          >
-            <Navigation size={13} className={navMode ? 'text-amber-300' : 'text-sky-300'} />
-            <span>{navMode ? 'Xarita' : 'Navigator'}</span>
-          </button>
-        </div>
       </div>
-
-      {/* ── Mid-screen route info — hidden in nav mode ───────────────────── */}
-      {!isPanelExpanded && !navMode && (
-        <div className="animate-in slide-in-from-top duration-500">
-          <RouteInfoPanel
-            title={routeMeta.title}
-            subtitle={routeMeta.description}
-            fromLabel={routeMeta.fromLabel}
-            toLabel={routeMeta.toLabel}
-            stageLabel={stageMeta.label}
-            distance={displayRouteInfo.distance || formatRouteDistance(remainingMetrics.distanceKm)}
-            eta={displayRouteInfo.eta || formatEtaMinutes(remainingMetrics.etaMinutes)}
-            distanceLabel="Qolgan masofa"
-            etaLabel="Qolgan ETA"
-            isEtaLive={isEtaLive}
-          />
-        </div>
-      )}
 
       {/* ── Bottom action panel ──────────────────────────────────────────── */}
       <DeliveryBottomPanel
@@ -600,7 +507,6 @@ const CourierMapPage: React.FC = () => {
             />
           ) : null
         }
-        onExpandedChange={setIsPanelExpanded}
         isUpdating={updateStageMutation.isPending}
         canCall={Boolean(order.customerPhone)}
         routeTitle={routeMeta.title}
@@ -612,6 +518,9 @@ const CourierMapPage: React.FC = () => {
         distanceLabel="Qolgan masofa"
         etaLabel="Qolgan ETA"
         isEtaLive={isEtaLive}
+        arrivalTime={remainingMetrics.etaMinutes > 0 ? arrivalTime : null}
+        onCopyAddress={showCopyButton ? handleCopyAddress : undefined}
+        copySuccess={copied}
       />
     </div>
   );
