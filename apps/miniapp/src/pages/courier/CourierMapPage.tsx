@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, CornerUpLeft, CornerUpRight, Loader2, MoveUp, RefreshCw } from 'lucide-react';
+import type { RouteStep } from '../../features/maps/MapProvider';
 import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
@@ -119,6 +120,8 @@ const CourierMapPage: React.FC = () => {
 
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
+  const [heading, setHeading]                   = useState<number | undefined>(undefined);
+  const [nextStep, setNextStep]                 = useState<RouteStep | null>(null);
   const [routeInfo, setRouteInfo]               = useState<{ distance: string; eta: string } | null>(null);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft]         = useState('');
@@ -245,9 +248,15 @@ const CourierMapPage: React.FC = () => {
   // ── GPS watch ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!order?.id) return;
+    let lastPos: { lat: number; lng: number } | null = null;
     const watchId = watchBrowserGeolocation(
       (location) => {
         setGeolocationError(null);
+        if (lastPos) {
+          const h = getHeadingDegrees(lastPos, location.pin);
+          if (h !== undefined) setHeading(h);
+        }
+        lastPos = location.pin;
         setLiveCourierPos(location.pin);
       },
       (watchError) => setGeolocationError(getUserGeolocationErrorMessage(watchError)),
@@ -430,7 +439,9 @@ const CourierMapPage: React.FC = () => {
           height="100%"
           className="rounded-none border-0 shadow-none"
           followMode={true}
+          heading={heading}
           onRouteInfoChange={setRouteInfo}
+          onNextStepChange={setNextStep}
         />
         {/* Gradient overlays for UI legibility */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.1),transparent_25%),linear-gradient(180deg,rgba(2,6,23,0.14)_0%,rgba(2,6,23,0.28)_35%,rgba(2,6,23,0.76)_100%)]" />
@@ -476,6 +487,27 @@ const CourierMapPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* ── Turn-by-turn instruction (Yandex blue box style) ──────────── */}
+        {nextStep && liveCourierPos && (
+          <div className="mt-3 animate-in slide-in-from-top duration-300">
+            <div className="inline-flex items-center gap-3 rounded-[22px] bg-blue-600 px-4 py-3 shadow-[0_8px_24px_rgba(0,82,204,0.5)]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
+                {(() => {
+                  const t = nextStep.instruction.toLowerCase();
+                  if (t.match(/chap|left|налево/)) return <CornerUpLeft size={20} strokeWidth={2.5} />;
+                  if (t.match(/o'ng|right|направо/)) return <CornerUpRight size={20} strokeWidth={2.5} />;
+                  if (t.match(/qayt|u-turn|разворот/)) return <RefreshCw size={18} strokeWidth={2.5} />;
+                  return <MoveUp size={20} strokeWidth={2.5} />;
+                })()}
+              </div>
+              <div>
+                <p className="text-[22px] font-black leading-none text-white">{nextStep.distanceText}</p>
+                <p className="mt-0.5 max-w-[180px] truncate text-[11px] text-blue-200">{nextStep.instruction}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
 

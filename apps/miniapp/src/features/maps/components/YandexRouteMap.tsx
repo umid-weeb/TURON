@@ -5,6 +5,17 @@ import MockMapComponent from './MockMapComponent';
 import { createBoundsFromPins, isYandexMapsEnabled, loadYandexMaps, toYandexCoords } from '../yandex';
 
 const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_KEY` ni sozlang.';
+const NAV_ZOOM = 17; // Street-level zoom for navigation mode
+
+// ── Courier arrow SVG (pointing north = 0°, Yandex rotates by iconAngle) ─────
+const COURIER_ARROW_SVG = encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44">
+    <circle cx="22" cy="22" r="20" fill="rgba(239,68,68,0.18)"/>
+    <path d="M22 6 L34 36 L22 29 L10 36 Z"
+      fill="#EF4444" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+  </svg>`
+);
+const COURIER_ARROW_URL = `data:image/svg+xml;charset=utf-8,${COURIER_ARROW_SVG}`;
 
 export default function YandexRouteMap({
   pickup,
@@ -15,9 +26,11 @@ export default function YandexRouteMap({
   height = '60vh',
   className = '',
   followMode = false,
+  heading,
   onMapInteraction,
   onMapReady,
   onRouteInfoChange,
+  onNextStepChange,
 }: RouteMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -29,17 +42,20 @@ export default function YandexRouteMap({
   const routeRequestIdRef = useRef(0);
   const lastRouteInfoRef = useRef<string | null>(null);
   const followModeRef = useRef(followMode);
+  const courierPosRef = useRef(courierPos);
+  const hasNavZoomedRef = useRef(false);        // true after first GPS-based nav zoom
+  const isManualModeRef = useRef(false);        // true during user pan/zoom (snap-back)
+  const snapBackTimerRef = useRef<number | null>(null);
+
   const [isLoading, setIsLoading] = useState(isYandexMapsEnabled());
   const [hasFallback, setHasFallback] = useState(!isYandexMapsEnabled());
-  const [nextStep, setNextStep] = useState<RouteStep | null>(null);
 
   const activeRouteFrom = routeFrom ?? pickup;
   const activeRouteTo = routeTo ?? destination;
 
-  // Keep followMode ref in sync so the GPS effect closure always has the latest value
-  useEffect(() => {
-    followModeRef.current = followMode;
-  }, [followMode]);
+  // Keep refs in sync
+  useEffect(() => { followModeRef.current = followMode; }, [followMode]);
+  useEffect(() => { courierPosRef.current = courierPos; }, [courierPos]);
 
   const emitRouteInfo = (distance: string, eta: string) => {
     const nextKey = `${distance}|${eta}`;
@@ -59,7 +75,7 @@ export default function YandexRouteMap({
     });
   };
 
-  // Build a road-following route and style it
+  // ── Route builder ─────────────────────────────────────────────────────────
   function buildYmapsRoute(
     ymaps: any,
     map: any,
@@ -87,9 +103,9 @@ export default function YandexRouteMap({
 
         route.getPaths().each((path: any) => {
           path.options.set({
-            strokeColor: '#FFD700',
-            strokeOpacity: 0.9,
-            strokeWidth: 5,
+            strokeColor: '#22c55e',   // green route — matches Yandex nav style
+            strokeOpacity: 0.95,
+            strokeWidth: 6,
           });
         });
 
@@ -106,7 +122,7 @@ export default function YandexRouteMap({
             emitRouteInfo(distStr, `${etaMin} daq`);
           }
 
-          // Extract first meaningful turn instruction for in-app navigation hint
+          // Extract turn-by-turn steps
           const steps: RouteStep[] = [];
           route.getPaths().each((path: any) => {
             try {
@@ -126,12 +142,12 @@ export default function YandexRouteMap({
               // segment info unavailable
             }
           });
-          setNextStep(steps[0] ?? null);
+          onNextStepChange?.(steps[0] ?? null);
         } catch {
           // ignore info extraction errors
         }
 
-        // Only fit bounds on first load (when courier pos not yet established)
+        // Only fit bounds on very first load (before courier GPS acquired)
         if (!courierPlacemarkRef.current) {
           fitBounds([pickup, destination, courierPos]);
         }
@@ -146,7 +162,7 @@ export default function YandexRouteMap({
           routeRef.current = new ymaps.Polyline(
             [toYandexCoords(from), toYandexCoords(to)],
             {},
-            { strokeColor: '#f59e0b', strokeOpacity: 0.9, strokeWidth: 5 },
+            { strokeColor: '#22c55e', strokeOpacity: 0.9, strokeWidth: 6 },
           );
           map.geoObjects.add(routeRef.current);
         }
@@ -156,7 +172,7 @@ export default function YandexRouteMap({
       });
   }
 
-  // ── Init map once ────────────────────────────────────────────────────────────
+  // ── Init map once ─────────────────────────────────────────────────────────
   useEffect(() => {
     let isDisposed = false;
 
@@ -182,20 +198,34 @@ export default function YandexRouteMap({
         map.behaviors.enable(['scrollZoom', 'dblClickZoom', 'multiTouchZoom', 'drag']);
         map.behaviors.disable(['leftMouseButtonMagnifier']);
 
-        // Notify parent when user manually interacts with the map (disable follow mode)
+        // ── Snap-back: re-center after user pans (3 seconds) ──────────────
         map.events.add(['dragstart', 'multitouchstart'], () => {
+          isManualModeRef.current = true;
+          if (snapBackTimerRef.current) window.clearTimeout(snapBackTimerRef.current);
           onMapInteraction?.();
         });
+        map.events.add(['dragend', 'multitouchend'], () => {
+          if (snapBackTimerRef.current) window.clearTimeout(snapBackTimerRef.current);
+          snapBackTimerRef.current = window.setTimeout(() => {
+            isManualModeRef.current = false;
+            const pos = courierPosRef.current;
+            if (followModeRef.current && pos && mapRef.current) {
+              mapRef.current.panTo(toYandexCoords(pos), { flying: false, duration: 500 });
+            }
+          }, 3000);
+        });
 
+        // Pickup marker (green circle)
         const pickupPlacemark = new ymaps.Placemark(
           toYandexCoords(pickup),
-          { hintContent: 'Restoran', balloonContent: 'Restorandan olib ketish nuqtasi' },
+          { hintContent: 'Restoran' },
           { preset: 'islands#greenCircleIcon', iconColor: '#10B981' },
         );
 
+        // Destination marker (red circle)
         const destinationPlacemark = new ymaps.Placemark(
           toYandexCoords(destination),
-          { hintContent: 'Mijoz', balloonContent: 'Yetkazib berish manzili' },
+          { hintContent: 'Mijoz' },
           { preset: 'islands#redCircleIcon', iconColor: '#EF4444' },
         );
 
@@ -206,11 +236,19 @@ export default function YandexRouteMap({
         pickupPlacemarkRef.current = pickupPlacemark;
         destinationPlacemarkRef.current = destinationPlacemark;
 
+        // Courier arrow marker
         if (courierPos) {
           const courierPlacemark = new ymaps.Placemark(
             toYandexCoords(courierPos),
-            { hintContent: 'Kuryer', balloonContent: 'Kuryerning joriy joylashuvi' },
-            { preset: 'islands#yellowCircleIcon', iconColor: '#FFD700', zIndex: 200 },
+            {},
+            {
+              iconLayout: 'default#image',
+              iconImageHref: COURIER_ARROW_URL,
+              iconImageSize: [44, 44],
+              iconImageOffset: [-22, -22],
+              iconAngle: heading ?? 0,
+              zIndex: 200,
+            },
           );
           map.geoObjects.add(courierPlacemark);
           courierPlacemarkRef.current = courierPlacemark;
@@ -236,6 +274,7 @@ export default function YandexRouteMap({
     return () => {
       isDisposed = true;
       routeRequestIdRef.current += 1;
+      if (snapBackTimerRef.current) window.clearTimeout(snapBackTimerRef.current);
       if (mapRef.current) mapRef.current.destroy();
       mapRef.current = null;
       ymapsRef.current = null;
@@ -247,7 +286,7 @@ export default function YandexRouteMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onMapReady]);
 
-  // ── Rebuild route ONLY when route endpoints change (not on GPS update) ────────
+  // ── Rebuild route when endpoints change ───────────────────────────────────
   useEffect(() => {
     const ymaps = ymapsRef.current;
     const map = mapRef.current;
@@ -259,17 +298,13 @@ export default function YandexRouteMap({
     const requestId = ++routeRequestIdRef.current;
     void buildYmapsRoute(ymaps, map, activeRouteFrom, activeRouteTo, requestId);
   }, [
-    pickup.lat,
-    pickup.lng,
-    destination.lat,
-    destination.lng,
-    activeRouteFrom.lat,
-    activeRouteFrom.lng,
-    activeRouteTo.lat,
-    activeRouteTo.lng,
+    pickup.lat, pickup.lng,
+    destination.lat, destination.lng,
+    activeRouteFrom.lat, activeRouteFrom.lng,
+    activeRouteTo.lat, activeRouteTo.lng,
   ]);
 
-  // ── Update courier marker position without rebuilding the route ──────────────
+  // ── Update courier arrow position + follow ────────────────────────────────
   useEffect(() => {
     const ymaps = ymapsRef.current;
     const map = mapRef.current;
@@ -284,21 +319,42 @@ export default function YandexRouteMap({
     }
 
     if (!courierPlacemarkRef.current) {
+      // Create arrow marker on first GPS fix
       courierPlacemarkRef.current = new ymaps.Placemark(
         toYandexCoords(courierPos),
-        { hintContent: 'Kuryer', balloonContent: 'Kuryerning joriy joylashuvi' },
-        { preset: 'islands#yellowCircleIcon', iconColor: '#FFD700', zIndex: 200 },
+        {},
+        {
+          iconLayout: 'default#image',
+          iconImageHref: COURIER_ARROW_URL,
+          iconImageSize: [44, 44],
+          iconImageOffset: [-22, -22],
+          iconAngle: heading ?? 0,
+          zIndex: 200,
+        },
       );
       map.geoObjects.add(courierPlacemarkRef.current);
     } else {
       courierPlacemarkRef.current.geometry?.setCoordinates?.(toYandexCoords(courierPos));
     }
 
-    // Auto-follow: smoothly pan the map to keep the courier centered
-    if (followModeRef.current) {
-      map.panTo(toYandexCoords(courierPos), { flying: false, duration: 600 });
+    // Follow: pan to courier (skip if user is temporarily panning)
+    if (followModeRef.current && !isManualModeRef.current) {
+      if (!hasNavZoomedRef.current) {
+        // First GPS fix: zoom to street level
+        hasNavZoomedRef.current = true;
+        map.setCenter(toYandexCoords(courierPos), NAV_ZOOM, { duration: 600 });
+      } else {
+        map.panTo(toYandexCoords(courierPos), { flying: false, duration: 600 });
+      }
     }
   }, [courierPos?.lat, courierPos?.lng]);
+
+  // ── Update courier arrow heading (iconAngle) ──────────────────────────────
+  useEffect(() => {
+    if (courierPlacemarkRef.current && heading !== undefined) {
+      courierPlacemarkRef.current.options?.set?.('iconAngle', heading);
+    }
+  }, [heading]);
 
   if (hasFallback) {
     const markers = [
@@ -326,28 +382,6 @@ export default function YandexRouteMap({
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-gray-100 shadow-inner ${className}`} style={{ height }}>
       <div ref={mapContainerRef} className="h-full w-full" />
-
-      {/* ── Next turn instruction overlay ────────────────────────────── */}
-      {nextStep && !isLoading && (
-        <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10">
-          <div className="flex items-center gap-3 rounded-[18px] border border-white/20 bg-slate-950/80 px-4 py-3 backdrop-blur-xl shadow-lg">
-            {/* Arrow icon based on instruction text */}
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400 text-slate-950">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 19V5M5 12l7-7 7 7" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-black text-white leading-tight">
-                {nextStep.instruction}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-white/55">
-                {nextStep.distanceText} keyin
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 backdrop-blur-sm">

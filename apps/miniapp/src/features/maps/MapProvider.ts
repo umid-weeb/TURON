@@ -88,10 +88,14 @@ export interface RouteMapProps {
   className?: string;
   /** When true the map pans to follow the courier on each GPS update */
   followMode?: boolean;
+  /** Courier heading in degrees (0 = north, clockwise). Used to rotate the courier arrow marker. */
+  heading?: number;
   /** Called when the user starts manually panning/zooming the map */
   onMapInteraction?: () => void;
   onMapReady?: (map: unknown) => void;
   onRouteInfoChange?: (info: RouteInfo) => void;
+  /** Called whenever the next turn instruction changes */
+  onNextStepChange?: (step: RouteStep | null) => void;
 }
 
 export interface MapProvider {
