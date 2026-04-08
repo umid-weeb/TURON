@@ -1,12 +1,15 @@
 import React from 'react';
 import {
+  ArrowRight,
   CheckCircle2,
   ChevronRight,
   Loader2,
   MapPin,
   MessageCircle,
+  Navigation,
   Package,
   Phone,
+  Route,
   Store,
   TimerReset,
   TriangleAlert,
