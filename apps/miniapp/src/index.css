@@ -38,10 +38,9 @@
 }
 
 html {
-  height: 100%;
   min-height: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
   background:
     radial-gradient(circle at top left, rgba(251, 191, 36, 0.14), transparent 32%),
     radial-gradient(circle at top right, rgba(249, 115, 22, 0.12), transparent 28%),
@@ -52,10 +51,9 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  height: 100%;
-  min-height: 100svh;
-  overflow: hidden;
-  overscroll-behavior: none;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
   color: var(--app-text);
   background: transparent;
   -webkit-tap-highlight-color: transparent;
@@ -74,26 +72,35 @@ body::before {
 }
 
 #root {
-  height: 100%;
-  min-height: 100svh;
+  min-height: 100dvh;
   position: relative;
   z-index: 1;
-  overflow: hidden;
 }
 
 .tg-app-shell {
   position: relative;
-  height: 100dvh;
-  min-height: 100svh;
+  width: 100%;
+  min-height: 100dvh;
   overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: none;
   -webkit-overflow-scrolling: touch;
 }
 
-@supports not (height: 100dvh) {
+@supports not (min-height: 100dvh) {
+  body,
+  #root,
   .tg-app-shell {
-    height: 100vh;
+    min-height: 100vh;
+  }
+}
+
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+
+  .h-screen {
+    height: 100dvh;
   }
 }
 

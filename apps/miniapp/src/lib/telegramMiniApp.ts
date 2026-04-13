@@ -1,15 +1,19 @@
 type TelegramWebApp = {
   ready?: () => void;
   expand?: () => void;
+  requestFullscreen?: () => void;
   close?: () => void;
   disableVerticalSwipes?: () => void;
   enableClosingConfirmation?: () => void;
-  onEvent?: (eventType: string, eventHandler: () => void) => void;
-  offEvent?: (eventType: string, eventHandler: () => void) => void;
+  onEvent?: (eventType: string, eventHandler: (event?: unknown) => void) => void;
+  offEvent?: (eventType: string, eventHandler: (event?: unknown) => void) => void;
 };
 
 let isInitialized = false;
 let cleanupTouchGuard: (() => void) | null = null;
+
+const FULLSCREEN_RETRY_DELAYS_MS = [0, 80, 240, 700, 1500];
+const PULL_TO_REFRESH_THRESHOLD_PX = 92;
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return window.Telegram?.WebApp;
@@ -23,10 +27,23 @@ function safeCall(action: (() => void) | undefined) {
   }
 }
 
-function getScrollableParent(target: EventTarget | null): HTMLElement | null {
-  if (!(target instanceof Element)) return document.querySelector<HTMLElement>('[data-tg-scroll-root]');
+function getDocumentScrollElement(): HTMLElement {
+  return (document.scrollingElement || document.documentElement) as HTMLElement;
+}
 
+function getFallbackScrollTarget(): HTMLElement {
   const root = document.querySelector<HTMLElement>('[data-tg-scroll-root]');
+
+  if (root && root.scrollHeight > root.clientHeight + 1) {
+    return root;
+  }
+
+  return getDocumentScrollElement();
+}
+
+function getScrollableParent(target: EventTarget | null): HTMLElement {
+  if (!(target instanceof Element)) return getFallbackScrollTarget();
+
   let element: Element | null = target;
 
   while (element && element !== document.body) {
@@ -43,27 +60,27 @@ function getScrollableParent(target: EventTarget | null): HTMLElement | null {
     element = element.parentElement;
   }
 
-  return root;
+  return getFallbackScrollTarget();
 }
 
 function installIosOverscrollGuard() {
   if (cleanupTouchGuard) return cleanupTouchGuard;
 
   let startY = 0;
+  let pullStartedAtTop = false;
+  let pullRefreshTriggered = false;
 
   const onTouchStart = (event: TouchEvent) => {
     startY = event.touches[0]?.clientY ?? 0;
+    const scrollTarget = getScrollableParent(event.target);
+    pullStartedAtTop = scrollTarget.scrollTop <= 0;
+    pullRefreshTriggered = false;
   };
 
   const onTouchMove = (event: TouchEvent) => {
     if (event.touches.length !== 1) return;
 
     const scrollTarget = getScrollableParent(event.target);
-    if (!scrollTarget) {
-      event.preventDefault();
-      return;
-    }
-
     const currentY = event.touches[0]?.clientY ?? startY;
     const deltaY = currentY - startY;
     const isSwipingDown = deltaY > 0;
@@ -72,44 +89,87 @@ function installIosOverscrollGuard() {
     const atBottom =
       Math.ceil(scrollTarget.scrollTop + scrollTarget.clientHeight) >= scrollTarget.scrollHeight;
 
-    // Only block the boundary bounce that can trigger Telegram's close gesture on iOS.
+    if (isSwipingDown && atTop) {
+      // Keep the familiar pull-down refresh behavior without letting iOS/Telegram
+      // convert the same gesture into Mini App minimize/close.
+      if (
+        pullStartedAtTop &&
+        !pullRefreshTriggered &&
+        deltaY >= PULL_TO_REFRESH_THRESHOLD_PX
+      ) {
+        pullRefreshTriggered = true;
+        window.location.reload();
+      }
+
+      event.preventDefault();
+      return;
+    }
+
+    // Only block the bottom boundary bounce that can trigger Telegram's close gesture on iOS.
     // Normal scrolling inside scrollable containers remains untouched.
-    if ((isSwipingDown && atTop) || (isSwipingUp && atBottom)) {
+    if (isSwipingUp && atBottom) {
       event.preventDefault();
     }
   };
 
+  const resetTouchState = () => {
+    startY = 0;
+    pullStartedAtTop = false;
+    pullRefreshTriggered = false;
+  };
+
   document.addEventListener('touchstart', onTouchStart, { passive: true });
   document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend', resetTouchState, { passive: true });
+  document.addEventListener('touchcancel', resetTouchState, { passive: true });
 
   cleanupTouchGuard = () => {
     document.removeEventListener('touchstart', onTouchStart);
     document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', resetTouchState);
+    document.removeEventListener('touchcancel', resetTouchState);
     cleanupTouchGuard = null;
   };
 
   return cleanupTouchGuard;
 }
 
-export function initializeTelegramMiniApp() {
-  if (isInitialized || typeof window === 'undefined') return;
-  isInitialized = true;
-
+export function ensureTelegramMiniAppFullscreen() {
   const webApp = getTelegramWebApp();
   if (!webApp) return;
 
-  const forceFullscreen = () => {
-    safeCall(() => webApp.expand?.());
-    safeCall(() => webApp.disableVerticalSwipes?.());
-  };
-
-  // Signal readiness first, then immediately request the most stable Telegram viewport.
+  // Bot API 8.0+ gives true fullscreen; expand remains the safe fallback for older clients.
   safeCall(() => webApp.ready?.());
-  forceFullscreen();
+  safeCall(() => webApp.requestFullscreen?.());
+  safeCall(() => webApp.expand?.());
+  safeCall(() => webApp.disableVerticalSwipes?.());
+}
+
+function scheduleFullscreenRetries() {
+  FULLSCREEN_RETRY_DELAYS_MS.forEach((delayMs) => {
+    window.setTimeout(ensureTelegramMiniAppFullscreen, delayMs);
+  });
+}
+
+export function initializeTelegramMiniApp() {
+  if (isInitialized || typeof window === 'undefined') return;
+
+  const webApp = getTelegramWebApp();
+  if (!webApp) return;
+  isInitialized = true;
+
+  // Signal readiness first, then repeatedly ask Telegram for a stable fullscreen viewport.
+  // Some iOS/Android clients recalculate the viewport after first paint or after launch source changes.
+  scheduleFullscreenRetries();
   safeCall(() => webApp.enableClosingConfirmation?.());
 
   // Telegram can recalculate the viewport during keyboard/orientation changes.
-  safeCall(() => webApp.onEvent?.('viewportChanged', forceFullscreen));
+  safeCall(() => webApp.onEvent?.('viewportChanged', ensureTelegramMiniAppFullscreen));
+  safeCall(() => webApp.onEvent?.('fullscreenFailed', scheduleFullscreenRetries));
+  window.addEventListener('focus', scheduleFullscreenRetries);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) scheduleFullscreenRetries();
+  });
   installIosOverscrollGuard();
 }
 

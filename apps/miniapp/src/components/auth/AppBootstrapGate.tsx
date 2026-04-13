@@ -4,10 +4,11 @@ import axios from 'axios';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useAuthStore } from '../../store/useAuthStore';
 import { normalizeRole, resolveRoleEntryRedirect } from '../../features/auth/roleRouting';
+import { ensureTelegramMiniAppFullscreen } from '../../lib/telegramMiniApp';
 import { ErrorStateCard, LoadingScreen } from '../ui/FeedbackStates';
 
 export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { tg, initData } = useTelegram();
+  const { initData } = useTelegram();
   const { setAuth, user, isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,8 +61,7 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       setAuth({ ...authUser, role: normalizedRole }, token);
-      tg?.ready?.();
-      tg?.expand?.();
+      ensureTelegramMiniAppFullscreen();
     } catch (err: any) {
       if (signal.aborted || axios.isCancel(err)) return;
 
@@ -76,7 +76,7 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
         setLoading(false);
       }
     }
-  }, [initData, setAuth, tg]);
+  }, [initData, setAuth]);
 
   const retryRef = useRef(retryKey);
   retryRef.current = retryKey;

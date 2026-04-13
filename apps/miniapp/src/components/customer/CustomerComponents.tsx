@@ -799,7 +799,10 @@ export const HeaderBar: React.FC<{ title: string; showBack?: boolean; rightSlot?
   const navigate = useNavigate();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/6 bg-[#060914]/88 backdrop-blur-xl">
+    <header
+      className="sticky top-0 z-40 border-b border-white/6 bg-[#060914]/88 backdrop-blur-xl"
+      style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
+    >
       <div className="mx-auto flex h-[66px] w-full max-w-[430px] items-center justify-between px-4">
         <div className="flex min-w-0 items-center gap-3">
           {showBack ? (

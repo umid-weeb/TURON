@@ -197,14 +197,24 @@ async function getUserRole(telegramId: string): Promise<UserRoleEnum> {
 }
 
 function resolveRoleLaunchUrl(role: UserRoleEnum): string {
-  const baseUrl = resolveStableWebAppBaseUrl();
   const path =
     role === UserRoleEnum.ADMIN
       ? 'admin/dashboard'
       : role === UserRoleEnum.COURIER
         ? 'courier'
         : 'customer';
-  return new URL(path, baseUrl).toString();
+  return resolveMiniAppLaunchUrl(path);
+}
+
+function resolveMiniAppLaunchUrl(path: string): string {
+  const url = new URL(path, resolveStableWebAppBaseUrl());
+
+  // Keep all bot entry points on the same launch contract; the Mini App also
+  // asks Telegram for requestFullscreen() + disabled vertical swipes on boot.
+  url.searchParams.set('tg_fullscreen', '1');
+  url.searchParams.set('tg_swipe', 'disabled');
+
+  return url.toString();
 }
 
 function getStartMessageContent(role: UserRoleEnum) {
@@ -259,8 +269,7 @@ async function handleAdminSupportReply(message: AdminReplyMessage) {
 // Called once on bot launch and can be re-called after domain changes.
 
 async function setupMenuButton(bot: Telegraf) {
-  const baseUrl = resolveStableWebAppBaseUrl();
-  const customerUrl = new URL('customer', baseUrl).toString();
+  const customerUrl = resolveMiniAppLaunchUrl('customer');
 
   try {
     await bot.telegram.setMyCommands([
