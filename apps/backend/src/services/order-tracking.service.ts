@@ -101,23 +101,27 @@ class OrderTrackingService {
 
   async getSnapshot(orderId: string): Promise<OrderTrackingSnapshot | undefined> {
     const cached = this.getCachedSnapshot(orderId);
-
-    if (cached?.isLive) {
-      return cached;
-    }
+    if (cached?.isLive) return cached;
 
     const persisted = await CourierPresenceService.getOrderTrackingSnapshot(orderId);
-
     if (persisted?.courierLocation) {
       this.snapshots.set(orderId, persisted.courierLocation);
       return persisted;
     }
-
-    if (!persisted) {
-      this.snapshots.delete(orderId);
-    }
-
+    if (!persisted) this.snapshots.delete(orderId);
     return persisted;
+  }
+
+  // Batch-prefetch snapshots for multiple orders in a SINGLE DB query.
+  // Call before looping over orders to avoid N individual DB round-trips.
+  async prefetchSnapshots(orderIds: string[]): Promise<void> {
+    if (!orderIds.length) return;
+    const rows = await CourierPresenceService.getOrderTrackingSnapshotBatch(orderIds);
+    for (const [orderId, snapshot] of rows) {
+      if (snapshot.courierLocation) {
+        this.snapshots.set(orderId, snapshot.courierLocation);
+      }
+    }
   }
 
   getCachedSnapshot(orderId: string): OrderTrackingSnapshot | undefined {

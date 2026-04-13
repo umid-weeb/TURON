@@ -1,7 +1,14 @@
 import { Markup, Telegraf } from 'telegraf';
-import { UserRoleEnum } from '@turon/shared';
+import {
+  NotificationTypeEnum,
+  OrderStatusEnum,
+  PaymentMethodEnum,
+  PaymentStatusEnum,
+  UserRoleEnum,
+} from '@turon/shared';
 import { env } from '../config.js';
 import { prisma } from '../lib/prisma.js';
+import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { SupportService } from './support.service.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -320,6 +327,259 @@ async function sendOrUpdateStartMessage(
   void storeMessageId(chatId, sent.message_id);
 }
 
+// ─── Order notification message ID storage ────────────────────────────────────
+
+const ORDER_MSG_PREFIX = '_order_msg_';
+
+async function getOrderMessageId(orderId: string): Promise<number | null> {
+  try {
+    const row = await prisma.restaurantSetting.findUnique({
+      where: { key: `${ORDER_MSG_PREFIX}${orderId}` },
+      select: { value: true },
+    });
+    if (!row) return null;
+    const id = parseInt(row.value, 10);
+    return isNaN(id) ? null : id;
+  } catch {
+    return null;
+  }
+}
+
+async function storeOrderMessageId(orderId: string, messageId: number): Promise<void> {
+  try {
+    const key = `${ORDER_MSG_PREFIX}${orderId}`;
+    await prisma.restaurantSetting.upsert({
+      where: { key },
+      update: { value: String(messageId) },
+      create: { id: `order-msg-${orderId}`, key, value: String(messageId), dataType: 'number' },
+    });
+  } catch { /* non-critical */ }
+}
+
+// ─── Order notification helpers ───────────────────────────────────────────────
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function formatMoney(value: number): string {
+  return Number(value || 0).toLocaleString('uz-UZ');
+}
+
+function buildOrderNotificationText(order: {
+  orderNumber: string | number | bigint;
+  customerName: string;
+  customerPhone?: string | null;
+  customerAddress: string;
+  customerAddressNote?: string | null;
+  paymentMethod: string;
+  items: Array<{ name: string; quantity: number; totalPrice: number }>;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  hasReceipt: boolean;
+}): string {
+  const paymentLabel =
+    order.paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER
+      ? '💳 Karta orqali'
+      : order.paymentMethod === PaymentMethodEnum.EXTERNAL_PAYMENT
+        ? '📱 Click / Payme'
+        : '💵 Naqd pul';
+
+  const itemLines = order.items
+    .map((i) => `  • ${escapeHtml(i.name)} ×${i.quantity} — ${formatMoney(i.totalPrice)} so'm`)
+    .join('\n');
+
+  return [
+    `🆕 <b>Yangi buyurtma #${escapeHtml(order.orderNumber)}</b>`,
+    '',
+    `👤 Mijoz: <b>${escapeHtml(order.customerName)}</b>`,
+    order.customerPhone ? `📞 Telefon: ${escapeHtml(order.customerPhone)}` : null,
+    `📍 Manzil: ${escapeHtml(order.customerAddress)}`,
+    order.customerAddressNote ? `📝 Manzil izohi: ${escapeHtml(order.customerAddressNote)}` : null,
+    `${paymentLabel}${order.hasReceipt ? ' — <b>chek yuborildi</b>' : ''}`,
+    '',
+    '🛒 Taomlar:',
+    itemLines,
+    '',
+    `📦 Taomlar: ${formatMoney(order.subtotal)} so'm`,
+    `🚚 Yetkazish: ${formatMoney(order.deliveryFee)} so'm`,
+    `💰 <b>Jami: ${formatMoney(order.total)} so'm</b>`,
+  ].filter((line) => line !== null).join('\n');
+}
+
+async function resolveTelegramAdminUserId(telegramUserId?: number): Promise<string | null> {
+  if (!telegramUserId) return null;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { telegramId: BigInt(telegramUserId) },
+      select: { id: true, role: true },
+    });
+
+    return user?.role === UserRoleEnum.ADMIN ? user.id : null;
+  } catch {
+    return null;
+  }
+}
+
+function appendTelegramOrderResultLine(messageText: string, resultLine: string) {
+  const trimmed = messageText.trimEnd();
+  const knownResultLines = ['✅ Tasdiqlangan', '❌ Bekor qilingan'];
+  const withoutOldResult = knownResultLines.reduce((text, line) => {
+    return text.endsWith(line) ? text.slice(0, -line.length).trimEnd() : text;
+  }, trimmed);
+
+  return `${withoutOldResult}\n\n${resultLine}`;
+}
+
+async function editTelegramOrderMessage(ctx: any, resultLine: string) {
+  const message = ctx.callbackQuery?.message;
+  const chatId = message?.chat?.id;
+  const messageId = message?.message_id;
+
+  if (!chatId || !messageId) return;
+
+  const editOptions = { reply_markup: { inline_keyboard: [] } };
+  const hasPhotoCaption = Boolean(message.photo && typeof message.caption === 'string');
+  const currentText = hasPhotoCaption ? message.caption : message.text ?? '';
+  const nextText = appendTelegramOrderResultLine(currentText, resultLine);
+
+  if (hasPhotoCaption) {
+    await ctx.telegram.editMessageCaption(chatId, messageId, undefined, nextText, editOptions);
+    return;
+  }
+
+  await ctx.telegram.editMessageText(chatId, messageId, undefined, nextText, editOptions);
+}
+
+async function applyTelegramOrderAction(params: {
+  orderId: string;
+  isApprove: boolean;
+  telegramUserId?: number;
+}) {
+  const adminUserId = await resolveTelegramAdminUserId(params.telegramUserId);
+  const order = await prisma.order.findUnique({
+    where: { id: params.orderId },
+    include: { payment: true },
+  });
+
+  if (!order) {
+    return {
+      answerText: 'Buyurtma topilmadi',
+      resultLine: '❌ Buyurtma topilmadi',
+    };
+  }
+
+  const orderNumber = String(order.orderNumber);
+  const isTerminal =
+    order.status === OrderStatusEnum.CANCELLED ||
+    order.status === OrderStatusEnum.DELIVERED;
+
+  if (isTerminal) {
+    const isCancelled = order.status === OrderStatusEnum.CANCELLED;
+    return {
+      answerText: isCancelled ? 'Buyurtma allaqachon bekor qilingan' : 'Buyurtma yakunlangan',
+      resultLine: isCancelled ? '❌ Bekor qilingan' : '✅ Tasdiqlangan',
+    };
+  }
+
+  const now = new Date();
+
+  if (params.isApprove) {
+    const shouldCompleteManualPayment =
+      order.paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER &&
+      order.paymentStatus === PaymentStatusEnum.PENDING;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status:
+            order.status === OrderStatusEnum.PENDING
+              ? (OrderStatusEnum.PREPARING as any)
+              : order.status,
+          approvedByUserId: adminUserId ?? undefined,
+          approvedAt: now,
+          paymentStatus: shouldCompleteManualPayment
+            ? (PaymentStatusEnum.COMPLETED as any)
+            : undefined,
+        },
+      });
+
+      if (shouldCompleteManualPayment && order.payment) {
+        await tx.payment.update({
+          where: { orderId: order.id },
+          data: {
+            status: PaymentStatusEnum.COMPLETED as any,
+            verifiedByAdminId: adminUserId ?? undefined,
+            verifiedAt: now,
+            rejectionReason: null,
+          },
+        });
+      }
+    });
+
+    await InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.SUCCESS,
+      title: 'Buyurtma tasdiqlandi',
+      message: `#${orderNumber} buyurtma tasdiqlandi`,
+      relatedOrderId: order.id,
+    });
+
+    return {
+      answerText: 'Tasdiqlandi',
+      resultLine: '✅ Tasdiqlangan',
+    };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        status: OrderStatusEnum.CANCELLED as any,
+        cancellationReason: 'Telegram group orqali bekor qilindi',
+        cancelledByRole: 'admin',
+        paymentStatus:
+          order.paymentStatus === PaymentStatusEnum.PENDING
+            ? (PaymentStatusEnum.CANCELLED as any)
+            : undefined,
+      },
+    });
+
+    if (order.payment?.status === PaymentStatusEnum.PENDING) {
+      await tx.payment.update({
+        where: { orderId: order.id },
+        data: {
+          status: PaymentStatusEnum.CANCELLED as any,
+          rejectionReason: 'Telegram group orqali bekor qilindi',
+          verifiedByAdminId: null,
+          verifiedAt: null,
+        },
+      });
+    }
+  });
+
+  await InAppNotificationsService.notifyUser({
+    userId: order.userId,
+    roleTarget: UserRoleEnum.CUSTOMER,
+    type: NotificationTypeEnum.ERROR,
+    title: 'Buyurtma bekor qilindi',
+    message: `#${orderNumber} buyurtma bekor qilindi`,
+    relatedOrderId: order.id,
+  });
+
+  return {
+    answerText: 'Bekor qilindi',
+    resultLine: '❌ Bekor qilingan',
+  };
+}
+
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 function bindHandlers(bot: Telegraf) {
@@ -351,6 +611,10 @@ function bindHandlers(bot: Telegraf) {
     await sendOrUpdateStartMessage(bot, chatId, role);
   });
 
+  bot.command('chatid', async (ctx) => {
+    await ctx.reply(`Chat ID: ${ctx.chat.id}`);
+  });
+
   // Handle admin support replies
   bot.on('message', async (ctx, next) => {
     const message = ctx.message;
@@ -358,6 +622,41 @@ function bindHandlers(bot: Telegraf) {
       await handleAdminSupportReply(message);
     }
     return next();
+  });
+
+  // ── Order approve / reject callback buttons ───────────────────────────────
+  bot.on('callback_query', async (ctx) => {
+    const data = (ctx.callbackQuery as any).data as string | undefined;
+    if (!data) return ctx.answerCbQuery();
+
+    const adminChatId = resolveAdminChatId();
+    const chatId = (ctx.callbackQuery as any).message?.chat?.id;
+
+    // Only process if this callback comes from the configured admin chat
+    if (adminChatId && String(chatId) !== String(adminChatId)) {
+      return ctx.answerCbQuery('Ruxsat yo\'q');
+    }
+
+    if (data.startsWith('order_approve:') || data.startsWith('order_reject:')) {
+      const [action, orderId] = data.split(':');
+      const isApprove = action === 'order_approve';
+
+      try {
+        const result = await applyTelegramOrderAction({
+          orderId,
+          isApprove,
+          telegramUserId: ctx.from?.id,
+        });
+        await editTelegramOrderMessage(ctx, result.resultLine);
+        await ctx.answerCbQuery(result.answerText);
+      } catch (err) {
+        console.error('[Bot] Order callback error:', err);
+        await ctx.answerCbQuery('Xatolik yuz berdi');
+      }
+      return;
+    }
+
+    return ctx.answerCbQuery();
   });
 
   bot.catch((error, ctx) => {
@@ -431,6 +730,85 @@ export async function forwardSupportMessageToAdmin(payload: {
     chatId: String(sentMessage.chat.id),
     messageId: sentMessage.message_id,
   };
+}
+
+export async function sendOrderNotificationToAdmin(payload: {
+  orderId: string;
+  orderNumber: string | number | bigint;
+  customerName: string;
+  customerPhone?: string | null;
+  customerAddress: string;
+  customerAddressNote?: string | null;
+  paymentMethod: string;
+  items: Array<{ name: string; quantity: number; totalPrice: number }>;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  receiptImageBase64?: string;
+}) {
+  const adminChatId = resolveAdminChatId();
+  if (!adminChatId) return; // silently skip if not configured
+
+  const state = getBotState();
+  if (!state.handlersBound) {
+    bindHandlers(state.bot);
+    state.handlersBound = true;
+  }
+
+  const text = buildOrderNotificationText({ ...payload, hasReceipt: Boolean(payload.receiptImageBase64) });
+
+  const keyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('✅ Tasdiqlash', `order_approve:${payload.orderId}`),
+      Markup.button.callback('❌ Bekor qilish', `order_reject:${payload.orderId}`),
+    ],
+  ]);
+
+  try {
+    let sentMessageId: number;
+
+    if (payload.receiptImageBase64) {
+      // Strip "data:image/...;base64," prefix and convert to Buffer
+      const base64Data = payload.receiptImageBase64.replace(/^data:image\/[^;]+;base64,/, '');
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+
+      if (text.length <= 950) {
+        const sent = await state.bot.telegram.sendPhoto(
+          adminChatId,
+          { source: imageBuffer },
+          { caption: text, parse_mode: 'HTML', ...keyboard },
+        );
+        sentMessageId = sent.message_id;
+      } else {
+        const photo = await state.bot.telegram.sendPhoto(
+          adminChatId,
+          { source: imageBuffer },
+          { caption: `#${escapeHtml(payload.orderNumber)} to'lov cheki`, parse_mode: 'HTML' },
+        );
+        const sent = await state.bot.telegram.sendMessage(
+          adminChatId,
+          `${text}\n\n<i>Chek rasmi yuqoridagi xabarda.</i>`,
+          {
+            parse_mode: 'HTML',
+            reply_parameters: { message_id: photo.message_id },
+            ...keyboard,
+          },
+        );
+        sentMessageId = sent.message_id;
+      }
+    } else {
+      const sent = await state.bot.telegram.sendMessage(adminChatId, text, {
+        parse_mode: 'HTML',
+        ...keyboard,
+      });
+      sentMessageId = sent.message_id;
+    }
+
+    // Store message ID so callback can edit/reference it
+    void storeOrderMessageId(payload.orderId, sentMessageId);
+  } catch (err) {
+    console.error('[Bot] sendOrderNotificationToAdmin error:', err);
+  }
 }
 
 export async function stopTelegramBot(signal: string) {

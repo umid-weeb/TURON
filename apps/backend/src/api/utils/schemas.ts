@@ -107,6 +107,8 @@ export const CreateOrderSchema = z.object({
   paymentMethod: z.nativeEnum(PaymentMethodEnum),
   promoCode: z.string().optional(),
   note: z.string().optional(),
+  /** Base64 data URL of the payment receipt image (card payments only) */
+  receiptImageBase64: z.string().optional(),
 });
 
 export const QuoteOrderSchema = CreateOrderSchema.pick({

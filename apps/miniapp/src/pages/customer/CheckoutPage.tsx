@@ -19,7 +19,7 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { items, getSubtotal, getDiscount, appliedPromo, clearCart, setPromo, syncWithProducts } = useCartStore();
-  const { paymentMethod, note, resetCheckout } = useCheckoutStore();
+  const { paymentMethod, note, receiptImage, resetCheckout } = useCheckoutStore();
   const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
   const createOrderMutation = useCreateOrder();
   const autoDetectAddressMutation = useAutoDetectAndSaveAddress();
@@ -79,6 +79,12 @@ const CheckoutPage: React.FC = () => {
       return;
     }
 
+    // Require receipt image when paying by card
+    if (paymentMethod === 'MANUAL_TRANSFER' && !receiptImage) {
+      showToast("Iltimos, to'lov chekini (screenshot) yuklang.", 'warning');
+      return;
+    }
+
     if (isProductsLoading) {
       showToast("Savat yangilanmoqda. Bir ozdan so'ng urinib ko'ring.", 'warning');
       return;
@@ -113,6 +119,7 @@ const CheckoutPage: React.FC = () => {
       paymentMethod,
       promoCode: discount > 0 ? appliedPromo?.code : undefined,
       note: note || selectedAddress.note,
+      receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? receiptImage : undefined,
     };
 
     createOrderMutation.mutate(payload, {
@@ -280,7 +287,8 @@ const CheckoutPage: React.FC = () => {
               createOrderMutation.isPending ||
               isProductsLoading ||
               orderQuoteQuery.isLoading ||
-              !orderQuote
+              !orderQuote ||
+              (paymentMethod === 'MANUAL_TRANSFER' && !receiptImage)
             }
             className="flex h-12 w-full items-center justify-center gap-3 rounded-[6px] bg-white text-sm font-black text-slate-950 shadow-xl transition-transform active:scale-[0.985] disabled:opacity-60"
           >
@@ -292,7 +300,7 @@ const CheckoutPage: React.FC = () => {
             ) : (
               <>
                 <CheckCircle2 size={20} />
-                <span>Tasdiqlash</span>
+                <span>{paymentMethod === 'MANUAL_TRANSFER' ? "To'lov qildim" : 'Tasdiqlash'}</span>
               </>
             )}
           </button>

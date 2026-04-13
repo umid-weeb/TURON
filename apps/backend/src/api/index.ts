@@ -5,6 +5,7 @@ import { launchTelegramBot, stopTelegramBot } from '../services/telegram-bot.ser
 
 const server = fastify({
   logger: true,
+  bodyLimit: 12 * 1024 * 1024,
 });
 
 async function main() {

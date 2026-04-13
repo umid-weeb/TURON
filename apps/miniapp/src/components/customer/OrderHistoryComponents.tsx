@@ -18,19 +18,21 @@ function getBadgeClass(status: OrderStatus) {
 }
 
 function getPaymentPill(method: PaymentMethod, status: PaymentStatus) {
-  if (method !== PaymentMethod.EXTERNAL_PAYMENT) {
+  if (method === PaymentMethod.CASH) {
     return "Naqd";
   }
 
+  const paymentMethodLabel = method === PaymentMethod.MANUAL_TRANSFER ? 'Karta' : 'Click / Payme';
+
   if (status === PaymentStatus.COMPLETED) {
-    return 'Tolangan';
+    return `${paymentMethodLabel} - Tolangan`;
   }
 
   if (status === PaymentStatus.FAILED) {
-    return 'Rad etilgan';
+    return `${paymentMethodLabel} - Rad etilgan`;
   }
 
-  return 'Tekshiruvda';
+  return `${paymentMethodLabel} - Tekshiruvda`;
 }
 
 export const OrderStatusBadge: React.FC<{ status: OrderStatus }> = ({ status }) => {

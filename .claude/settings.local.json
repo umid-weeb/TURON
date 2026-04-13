@@ -5,7 +5,10 @@
       "Bash(npx tsc:*)",
       "Bash(DATABASE_URL=\"postgresql://postgres.quhgjrpqjqaoalkthufu:AQ38.h%2Cp%3FsrA%24*G@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=15&connect_timeout=60&sslmode=require\" npx prisma migrate dev --name add_order_chat_messages)",
       "Bash(xargs ls:*)",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(pnpm --filter @turon/miniapp exec tsc --noEmit)",
+      "Bash(pnpm --filter @turon/backend exec tsc --noEmit)",
+      "Bash(DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5432/placeholder\" npx prisma generate)"
     ]
   }
 }

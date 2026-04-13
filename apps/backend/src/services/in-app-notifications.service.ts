@@ -27,6 +27,28 @@ function serializeNotification(notification: any) {
   };
 }
 
+// ── 5-second in-memory cache for listForUser ─────────────────────────────────
+// Each SSE client calls /notifications/my every ~2 seconds — this eliminates
+// repeated identical DB queries within the same polling window.
+const notifCache = new Map<string, { data: unknown[]; expiresAt: number }>();
+const NOTIF_CACHE_TTL = 5_000; // ms
+
+function getCachedNotifs(userId: string, role: UserRoleEnum) {
+  const entry = notifCache.get(`${userId}:${role}`);
+  if (!entry || Date.now() > entry.expiresAt) return null;
+  return entry.data;
+}
+
+function setCachedNotifs(userId: string, role: UserRoleEnum, data: unknown[]) {
+  notifCache.set(`${userId}:${role}`, { data, expiresAt: Date.now() + NOTIF_CACHE_TTL });
+}
+
+export function invalidateNotifCache(userId: string) {
+  for (const key of notifCache.keys()) {
+    if (key.startsWith(`${userId}:`)) notifCache.delete(key);
+  }
+}
+
 export class InAppNotificationsService {
   static serialize = serializeNotification;
 
@@ -48,6 +70,9 @@ export class InAppNotificationsService {
         relatedOrderId: notification.relatedOrderId ?? null,
       })),
     });
+
+    // Invalidate cache for all affected users
+    for (const n of notifications) invalidateNotifCache(n.userId);
   }
 
   static async notifyAdmins(
@@ -94,18 +119,23 @@ export class InAppNotificationsService {
     role: UserRoleEnum,
     db: DbClient = prisma,
   ) {
+    const cached = getCachedNotifs(userId, role);
+    if (cached) return cached;
+
     const notifications = await db.notification.findMany({
-      where: {
-        userId,
-        roleTarget: role as any,
+      where: { userId, roleTarget: role as any },
+      orderBy: { createdAt: 'desc' },
+      take: 50, // 100 → 50: fewer rows, faster serialization
+      select: {
+        id: true, userId: true, roleTarget: true, type: true,
+        title: true, message: true, relatedOrderId: true,
+        isRead: true, createdAt: true,
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 100,
     });
 
-    return notifications.map(serializeNotification);
+    const result = notifications.map(serializeNotification);
+    setCachedNotifs(userId, role, result);
+    return result;
   }
 
   static async markAsRead(

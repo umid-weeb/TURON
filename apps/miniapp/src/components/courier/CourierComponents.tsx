@@ -198,6 +198,14 @@ export function CourierStageButtons({
             <p className={`mt-2.5 text-[13px] font-black leading-snug ${labelCls}`}>
               {button.label}
             </p>
+            {isCurrent && (
+              <div className="mt-2 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
+                <span className={`text-[9px] font-black uppercase tracking-[0.16em] ${isDark ? 'text-sky-400/70' : 'text-sky-500'}`}>
+                  Siz hozir shu yerda
+                </span>
+              </div>
+            )}
             {/* "You are here" indicator on current stage */}
             {isCurrent && !isCompleted && (
               <div className={`mt-2 flex items-center gap-1.5 ${isDark ? 'text-sky-300/70' : 'text-sky-600/80'}`}>
@@ -270,6 +278,27 @@ export function SlideToConfirmAction({
   React.useEffect(() => {
     setConfirmed(false);
     setSliderOffset(0);
+  }, [label]);
+
+  // Wiggle hint on first render — left-right nudge to teach the gesture
+  React.useEffect(() => {
+    if (disabled || isLoading) return;
+    if (!trackRef.current) return;
+    let cancelled = false;
+    const NUDGE = 28;
+    const steps: Array<[number, number]> = [
+      [80, NUDGE], [160, NUDGE * 1.5], [80, NUDGE], [60, 0],
+    ];
+    let t = window.setTimeout(function run(index = 0) {
+      if (cancelled || confirmed) return;
+      const [delay, pos] = steps[index];
+      setSliderOffset(pos);
+      if (index + 1 < steps.length) {
+        t = window.setTimeout(() => run(index + 1), delay);
+      }
+    }, 900);
+    return () => { cancelled = true; window.clearTimeout(t); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [label]);
 
   // Snap back when not dragging and not confirmed/loading
@@ -843,8 +872,16 @@ export const DeliveryBottomPanel: React.FC<{
                   onClick={() => setIsExpanded((e) => !e)}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <div className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${stageMeta.badgeClassDark}`}>
-                    {stageMeta.label}
+                  <div className="flex items-center gap-1.5">
+                    <div className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${stageMeta.badgeClassDark}`}>
+                      {stageMeta.label}
+                    </div>
+                    {/* Map legend — 3 dots */}
+                    <div className="ml-auto flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400" title="Restoran" />
+                      <span className="h-2 w-2 rounded-full bg-sky-400" title="Siz" />
+                      <span className="h-2 w-2 rounded-full bg-rose-400" title="Mijoz" />
+                    </div>
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
                     <span className="text-[14px] font-black text-white">{eta}</span>

@@ -82,12 +82,30 @@ export class CourierPresenceService {
       where: { orderId },
       orderBy: { updatedAt: 'desc' },
     });
-
-    if (!row) {
-      return undefined;
-    }
-
+    if (!row) return undefined;
     return this.rowToTrackingSnapshot(row);
+  }
+
+  // Batch: fetch snapshots for multiple orderIds in ONE query
+  static async getOrderTrackingSnapshotBatch(
+    orderIds: string[],
+    db: DbClient = prisma,
+  ): Promise<Map<string, OrderTrackingSnapshot>> {
+    if (!orderIds.length) return new Map();
+
+    const rows = await db.courierPresence.findMany({
+      where: { orderId: { in: orderIds } },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    // Keep only the freshest row per orderId
+    const result = new Map<string, OrderTrackingSnapshot>();
+    for (const row of rows) {
+      if (row.orderId && !result.has(row.orderId)) {
+        result.set(row.orderId, this.rowToTrackingSnapshot(row));
+      }
+    }
+    return result;
   }
 
   static async getFreshCourierLocations(

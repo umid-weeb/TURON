@@ -17,7 +17,7 @@ import { useOrderChatUnread } from '../../hooks/queries/useOrderChat';
 function getPaymentLabel(method: PaymentMethod) {
   if (method === PaymentMethod.CASH) return 'Naqd';
   if (method === PaymentMethod.EXTERNAL_PAYMENT) return 'Click / Payme';
-  return "Qo'lda o'tkazma";
+  return 'Karta orqali';
 }
 
 function getPaymentStatusLabel(status: PaymentStatus) {

@@ -11,6 +11,7 @@ import { CourierAssignmentService } from '../../../services/courier-assignment.s
 import { DeliveryQuoteService } from '../../../services/delivery-quote.service.js';
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
+import { sendOrderNotificationToAdmin } from '../../../services/telegram-bot.service.js';
 import { StatusService } from '../../../services/status.service.js';
 import { SpecialEventsService } from '../../../services/special-events.service.js';
 import {
@@ -30,6 +31,26 @@ async function addTracking(order: any) {
     ...serializeOrder(order),
     tracking: await orderTrackingService.getSnapshot(order.id),
   };
+}
+
+// Batch version: resolves all orders + tracking in 1 DB query instead of N
+async function addTrackingBatch(orders: any[]) {
+  if (!orders.length) return [];
+  const serialized = orders.map(serializeOrder);
+  // Collect all IDs not already in memory cache
+  const uncachedIds = serialized
+    .map((o) => o.id)
+    .filter((id) => !orderTrackingService.getCachedSnapshot(id));
+  // Prefetch all uncached snapshots in one query
+  if (uncachedIds.length) {
+    await orderTrackingService.prefetchSnapshots(uncachedIds);
+  }
+  return Promise.all(
+    serialized.map(async (o) => ({
+      ...o,
+      tracking: await orderTrackingService.getSnapshot(o.id),
+    })),
+  );
 }
 
 async function getTrackableOrder(orderId: string) {
@@ -398,7 +419,7 @@ export async function handleCreateOrder(
   reply: FastifyReply,
 ) {
   const user = request.user as any;
-  const { items, deliveryAddressId, paymentMethod, promoCode, note } = request.body as any;
+  const { items, deliveryAddressId, paymentMethod, promoCode, note, receiptImageBase64 } = request.body as any;
   let orderPricing: Awaited<ReturnType<typeof buildOrderPricing>>;
 
   try {
@@ -485,13 +506,36 @@ export async function handleCreateOrder(
     serializedOrder,
   });
   void continueAutoAssignmentAfterOrderCreation(createdOrder.id);
+
+  // Fire-and-forget Telegram notification — never block order creation
+  if (serializedOrder) {
+    void sendOrderNotificationToAdmin({
+      orderId: createdOrder.id,
+      orderNumber: serializedOrder.orderNumber,
+      customerName: serializedOrder.customerName ?? user.fullName ?? 'Mijoz',
+      customerPhone: serializedOrder.customerPhone ?? user.phoneNumber ?? null,
+      customerAddress: serializedOrder.customerAddress?.addressText ?? 'Manzil yo\'q',
+      customerAddressNote: serializedOrder.customerAddress?.note ?? null,
+      paymentMethod,
+      items: (serializedOrder.items ?? []).map((item: any) => ({
+        name: item.name ?? item.itemName ?? 'Taom',
+        quantity: item.quantity,
+        totalPrice: item.totalPrice ?? 0,
+      })),
+      subtotal: Number(serializedOrder.subtotal ?? 0),
+      deliveryFee: Number(serializedOrder.deliveryFee ?? 0),
+      total: Number(serializedOrder.total ?? 0),
+      receiptImageBase64: receiptImageBase64 ?? undefined,
+    });
+  }
+
   return reply.status(201).send(serializedOrder);
 }
 
 export async function getMyOrders(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as any;
   const orders = await listAccessibleOrders(user);
-  return reply.send(await Promise.all(orders.map((order) => addTracking(order))));
+  return reply.send(await addTrackingBatch(orders));
 }
 
 export async function getAllOrders(request: FastifyRequest, reply: FastifyReply) {
@@ -499,8 +543,7 @@ export async function getAllOrders(request: FastifyRequest, reply: FastifyReply)
     include: ORDER_INCLUDE,
     orderBy: { createdAt: 'desc' },
   });
-
-  return reply.send(await Promise.all(orders.map((order) => addTracking(order))));
+  return reply.send(await addTrackingBatch(orders));
 }
 
 export async function getAvailableCouriers(request: FastifyRequest, reply: FastifyReply) {
@@ -595,8 +638,8 @@ export async function streamOrderTracking(
 
 export async function streamOrders(request: FastifyRequest, reply: FastifyReply) {
   const requester = request.user as any;
-  const initialOrders = (await listAccessibleOrders(requester)).map(addTracking);
-  const resolvedInitialOrders = await Promise.all(initialOrders);
+  const rawOrders = await listAccessibleOrders(requester);
+  const resolvedInitialOrders = await addTrackingBatch(rawOrders);
   const accessibleOrderIds = new Set(resolvedInitialOrders.map((order) => order.id));
 
   reply.hijack();
@@ -614,12 +657,13 @@ export async function streamOrders(request: FastifyRequest, reply: FastifyReply)
 
   reply.raw.write('retry: 3000\n\n');
 
+  // tracking already included from addTrackingBatch — no extra DB call
   for (const order of resolvedInitialOrders) {
     sendEvent({
       type: 'snapshot',
       orderId: order.id,
       order,
-      tracking: await orderTrackingService.getSnapshot(order.id),
+      tracking: order.tracking,
     });
   }
 

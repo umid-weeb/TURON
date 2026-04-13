@@ -484,6 +484,7 @@ model Notification {
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   relatedOrder   Order?               @relation(fields: [relatedOrderId], references: [id], onDelete: SetNull)
 
+  @@index([userId, roleTarget, createdAt(sort: Desc)])
   @@index([userId, isRead, createdAt(sort: Desc)])
   @@index([relatedOrderId])
   @@map("notifications")
