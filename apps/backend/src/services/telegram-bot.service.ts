@@ -680,16 +680,22 @@ export async function launchTelegramBot(context: BotLaunchContext): Promise<Tele
     return state.bot;
   }
 
-  await state.bot.launch();
   state.launched = true;
-  console.log(`[Bot] Turon Bot launched (${context}). Web App URL: ${resolveStableWebAppBaseUrl()}`);
+  void state.bot
+    .launch(() => {
+      console.log(`[Bot] Turon Bot launched (${context}). Web App URL: ${resolveStableWebAppBaseUrl()}`);
 
-  // Warm up DB connection pool immediately after launch so the first /start
-  // finds an open connection instead of paying the cold-start penalty (~1-2s)
-  void prismaWarmup();
+      // Warm up DB connection pool immediately after launch so the first /start
+      // finds an open connection instead of paying the cold-start penalty (~1-2s)
+      void prismaWarmup();
 
-  // Set the persistent menu button so users never need to type /start
-  void setupMenuButton(state.bot);
+      // Set the persistent menu button so users never need to type /start
+      void setupMenuButton(state.bot);
+    })
+    .catch((error) => {
+      state.launched = false;
+      console.error(`[Bot] Turon Bot launch failed (${context}):`, error);
+    });
 
   return state.bot;
 }
