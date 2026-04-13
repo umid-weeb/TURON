@@ -7,33 +7,53 @@ import { normalizeRole, resolveRoleEntryRedirect } from '../../features/auth/rol
 import { ensureTelegramMiniAppFullscreen } from '../../lib/telegramMiniApp';
 import { ErrorStateCard, LoadingScreen } from '../ui/FeedbackStates';
 
+const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
+// Hard cap: if still loading after this many ms, show a retry button
+const HARD_TIMEOUT_MS = 10_000;
+// Auth request timeout
+const AUTH_TIMEOUT_MS = 8_000;
+
 export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { initData } = useTelegram();
-  const { setAuth, user, isAuthenticated } = useAuthStore();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [retryKey, setRetryKey] = useState(0);
-
+  const { setAuth, user, isAuthenticated, token, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const bootstrap = useCallback(async (signal: AbortSignal): Promise<void> => {
-    let initDataRetries = 4;
+  // ── Fast path: return user has a cached session ──────────────────────────
+  // Show children immediately; silently refresh token in background.
+  const hasCachedSession = isAuthenticated && !!user && !!token;
 
-    const waitForInitData = (): Promise<string | null> =>
-      new Promise((resolve) => {
-        const check = () => {
+  const [loading, setLoading]   = useState(!hasCachedSession);
+  const [error, setError]       = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  // ── Hard timeout guard ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!loading) return;
+    const t = window.setTimeout(() => {
+      setError("Ulanish vaqti tugadi. Internet aloqasini tekshirib, qayta urining.");
+      setLoading(false);
+    }, HARD_TIMEOUT_MS);
+    return () => window.clearTimeout(t);
+  }, [loading, retryKey]);
+
+  // ── Auth fetch ────────────────────────────────────────────────────────────
+  const doAuth = useCallback(async (signal: AbortSignal): Promise<void> => {
+    // Collect initData – Telegram may not have injected it yet
+    let currentInitData = initData;
+    if (!currentInitData) {
+      currentInitData = await new Promise<string | null>((resolve) => {
+        let tries = 3;
+        const poll = () => {
           if (signal.aborted) return resolve(null);
-          const data = initData;
-          if (data) return resolve(data);
-          if (initDataRetries <= 0) return resolve(null);
-          initDataRetries -= 1;
-          window.setTimeout(check, 500);
+          const d = window.Telegram?.WebApp?.initData;
+          if (d) return resolve(d);
+          if (--tries <= 0) return resolve(null);
+          window.setTimeout(poll, 400);
         };
-        check();
+        poll();
       });
-
-    const currentInitData = initData || (await waitForInitData());
+    }
 
     if (signal.aborted) return;
 
@@ -44,69 +64,69 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
-      const response = await axios.post(
-        `${apiUrl}/auth/telegram`,
+      const { data } = await axios.post(
+        `${API_URL}/auth/telegram`,
         { initData: currentInitData },
-        { timeout: 20000, signal },
+        { timeout: AUTH_TIMEOUT_MS, signal },
       );
 
       if (signal.aborted) return;
 
-      const { user: authUser, token } = response.data;
-      const normalizedRole = normalizeRole(authUser?.role);
+      const normalizedRole = normalizeRole(data.user?.role);
+      if (!normalizedRole) throw new Error("Foydalanuvchi roli qo'llab-quvvatlanmaydi");
 
-      if (!normalizedRole) {
-        throw new Error("Foydalanuvchi roli qo'llab-quvvatlanmaydi");
-      }
-
-      setAuth({ ...authUser, role: normalizedRole }, token);
+      setAuth({ ...data.user, role: normalizedRole }, data.token);
       ensureTelegramMiniAppFullscreen();
     } catch (err: any) {
       if (signal.aborted || axios.isCancel(err)) return;
-
-      const isServiceUnavailable = err.response?.status === 503;
-      const message = isServiceUnavailable
-        ? "Xizmat vaqtincha ishlamayapti. Qayta urinib ko'ring."
-        : err.response?.data?.error || err.message || "Tizimga ulanishda xato yuz berdi.";
-
-      setError(message);
+      const msg =
+        err.response?.status === 503
+          ? "Xizmat vaqtincha ishlamayapti. Qayta urinib ko'ring."
+          : err.response?.data?.error || err.message || "Tizimga ulanishda xato yuz berdi.";
+      setError(msg);
     } finally {
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      if (!signal.aborted) setLoading(false);
     }
   }, [initData, setAuth]);
 
-  const retryRef = useRef(retryKey);
-  retryRef.current = retryKey;
-
+  // ── Bootstrap effect ──────────────────────────────────────────────────────
   useEffect(() => {
+    if (hasCachedSession) {
+      // Background silent refresh — don't block UI
+      const controller = new AbortController();
+      void doAuth(controller.signal).catch(() => {/* silent */});
+      return () => controller.abort();
+    }
+
+    // No cached session — full blocking bootstrap
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    void bootstrap(controller.signal);
+    void doAuth(controller.signal);
     return () => controller.abort();
-  }, [bootstrap, retryKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryKey]);
 
+  // ── Navigation after auth ─────────────────────────────────────────────────
   useEffect(() => {
     if (loading || error || !isAuthenticated || !user) return;
-
     const normalizedRole = normalizeRole(user.role);
     if (!normalizedRole) {
-      setError("Foydalanuvchi roli noto'g'ri yoki qo'llab-quvvatlanmaydi.");
+      setError("Foydalanuvchi roli noto'g'ri.");
       return;
     }
-
-    const redirectPath = resolveRoleEntryRedirect(normalizedRole, location.pathname);
-    if (redirectPath && redirectPath !== location.pathname) {
-      navigate(redirectPath, { replace: true });
+    const redirect = resolveRoleEntryRedirect(normalizedRole, location.pathname);
+    if (redirect && redirect !== location.pathname) {
+      navigate(redirect, { replace: true });
     }
   }, [error, isAuthenticated, loading, location.pathname, navigate, user]);
 
-  if (loading) {
-    return <LoadingScreen message="Ishga tushirilmoqda..." />;
-  }
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  // Fast path — cached session: show app immediately
+  if (hasCachedSession && !error) return <>{children}</>;
+
+  if (loading) return <LoadingScreen />;
 
   if (error) {
     return (
@@ -114,7 +134,11 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
         <ErrorStateCard
           title="Xato"
           message={error}
-          onRetry={() => setRetryKey((k) => k + 1)}
+          onRetry={() => {
+            setError(null);
+            setLoading(true);
+            setRetryKey((k) => k + 1);
+          }}
         />
       </div>
     );
