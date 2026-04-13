@@ -9,6 +9,7 @@ import { OrderInterruptModal } from '../courier/OrderInterruptModal';
 import { useOrderInterruptStore } from '../../store/useOrderInterruptStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { AppErrorBoundary } from '../ui/AppErrorBoundary';
+import { MiniAppCloseButton } from '../telegram/MiniAppCloseButton';
 
 // ─── New-order interrupt detection ──────────────────────────────────────────
 function useCourierNewOrderDetection() {
@@ -108,6 +109,7 @@ const CourierLayout: React.FC = () => {
               <Bell size={19} />
               <NotificationBadge role={UserRoleEnum.COURIER} />
             </button>
+            <MiniAppCloseButton tone="light" />
           </div>
         </header>
       )}

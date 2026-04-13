@@ -16,6 +16,7 @@ import { useOrdersStore } from '../../store/useOrdersStore';
 import { useAdminOrders, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { OrderStatusEnum, UserRoleEnum } from '@turon/shared';
+import { MiniAppCloseButton } from '../telegram/MiniAppCloseButton';
 
 /** Play a short beep using Web Audio API when a new order arrives */
 function playNewOrderBeep() {
@@ -141,6 +142,7 @@ const AdminLayout: React.FC = () => {
            <button className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
              <Search size={20} />
            </button>
+           <MiniAppCloseButton tone="light" />
         </div>
       </header>
 

@@ -38,7 +38,10 @@
 }
 
 html {
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   background:
     radial-gradient(circle at top left, rgba(251, 191, 36, 0.14), transparent 32%),
     radial-gradient(circle at top right, rgba(249, 115, 22, 0.12), transparent 28%),
@@ -49,9 +52,13 @@ html {
 body {
   margin: 0;
   min-width: 320px;
+  height: 100%;
   min-height: 100svh;
+  overflow: hidden;
+  overscroll-behavior: none;
   color: var(--app-text);
   background: transparent;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body::before {
@@ -67,9 +74,27 @@ body::before {
 }
 
 #root {
+  height: 100%;
   min-height: 100svh;
   position: relative;
   z-index: 1;
+  overflow: hidden;
+}
+
+.tg-app-shell {
+  position: relative;
+  height: 100dvh;
+  min-height: 100svh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@supports not (height: 100dvh) {
+  .tg-app-shell {
+    height: 100vh;
+  }
 }
 
 a {
