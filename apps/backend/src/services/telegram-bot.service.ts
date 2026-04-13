@@ -278,17 +278,17 @@ async function setupMenuButton(bot: Telegraf) {
     ]);
 
     // This sets the persistent WebApp button (bottom-left in chat)
-    // Works independently of messages — always shows current URL
-    await (bot.telegram as any).setMenuButton({
-      type: 'web_app',
-      text: 'Ilovani ochish',
-      web_app: { url: customerUrl },
-    });
+    // Uses callApi for compatibility with all Telegraf versions
+    await bot.telegram.callApi('setChatMenuButton' as any, {
+      menu_button: {
+        type: 'web_app',
+        text: 'Ilovani ochish',
+        web_app: { url: customerUrl },
+      },
+    } as any);
 
     console.log(`[Bot] Menu button set → ${customerUrl}`);
   } catch (error) {
-    // setMenuButton may not be available in all Telegraf versions
-    // This is non-critical — bot works without it
     console.warn('[Bot] Could not set menu button (non-critical):', (error as Error).message);
   }
 }
