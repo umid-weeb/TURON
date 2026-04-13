@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { ORDER_TRACKING_FEATURE_ENABLED } from '../../features/tracking/config';
 
 export interface ChatMessage {
   id: string;
@@ -97,7 +98,10 @@ export function useOrderChat(orderId: string, role: 'courier' | 'customer') {
   const disposeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (!orderId || !token) return;
+    if (!ORDER_TRACKING_FEATURE_ENABLED || !orderId || !token) {
+      setConnected(false);
+      return;
+    }
 
     // Use the tracking stream URL — the backend now also emits chat.message on it
     const streamUrl = role === 'courier'

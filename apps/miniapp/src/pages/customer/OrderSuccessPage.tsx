@@ -1,7 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowRight,
   CheckCircle2,
   Clock3,
   CreditCard,
@@ -12,7 +11,7 @@ import {
 } from 'lucide-react';
 import { PaymentMethod, PaymentStatus } from '../../data/types';
 import type { Order } from '../../data/types';
-import { useOrderDetails, useOrderTrackingStream } from '../../hooks/queries/useOrders';
+import { useOrderDetails } from '../../hooks/queries/useOrders';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import { DeliveryHeroCard } from '../../components/customer/DeliveryExperience';
 import { formatEtaMinutes, formatRouteDistance } from '../../features/maps/route';
@@ -28,7 +27,6 @@ const OrderSuccessPage: React.FC = () => {
   const preloadedOrder = location.state?.order as Order | undefined;
   const orderId = preloadedOrder?.id || searchParams.get('orderId') || '';
   const { data: fetchedOrder, isLoading, isError, error, refetch } = useOrderDetails(orderId);
-  const { connectionState, isConnected } = useOrderTrackingStream(orderId, Boolean(orderId));
   const order = fetchedOrder || preloadedOrder;
 
   const trackingMeta = order ? getCustomerTrackingMeta(order, language) : null;
@@ -115,8 +113,8 @@ const OrderSuccessPage: React.FC = () => {
         statusLabel={trackingMeta.stageLabel}
         title={trackingMeta.heroTitle}
         subtitle={trackingMeta.statusLine}
-        connectionState={connectionState}
-        isConnected={isConnected}
+        connectionState="idle"
+        isConnected={false}
         etaValue={remainingEta ? etaCountdownLabel || remainingEta : null}
         etaHint={
           remainingEta
@@ -271,11 +269,11 @@ const OrderSuccessPage: React.FC = () => {
 
       <div className="mt-6 space-y-3">
         <button
-          onClick={() => navigate(`/customer/orders/${order.id}/tracking`)}
+          onClick={() => navigate(`/customer/orders/${order.id}`)}
           className="flex h-[56px] w-full items-center justify-center gap-3 rounded-[16px] bg-white text-base font-black text-slate-950 shadow-[0_8px_24px_rgba(255,255,255,0.12)] transition-all active:scale-[0.98]"
         >
           <ShoppingBag size={20} />
-          <span>{tr('success.trackButton')}</span>
+          <span>Buyurtma tafsilotlari</span>
         </button>
 
         <button
@@ -289,7 +287,6 @@ const OrderSuccessPage: React.FC = () => {
 
       <div className="mt-6 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/24">
         <span>{tr('success.footer')}</span>
-        <ArrowRight size={12} />
       </div>
     </div>
   );

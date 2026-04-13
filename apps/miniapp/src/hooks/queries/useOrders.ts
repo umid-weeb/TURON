@@ -14,6 +14,7 @@ import type {
 } from '../../data/types';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useOrdersStore } from '../../store/useOrdersStore';
+import { ORDER_TRACKING_FEATURE_ENABLED } from '../../features/tracking/config';
 import {
   notifyCourierAssigned,
   notifyOrderCancelled,
@@ -527,15 +528,20 @@ export const useUpdateCourierLocation = () => {
       speedKmh?: number;
       remainingDistanceKm?: number;
       remainingEtaMinutes?: number;
-    }) =>
-      api.patch(`/courier/order/${id}/location`, {
+    }) => {
+      if (!ORDER_TRACKING_FEATURE_ENABLED) {
+        return Promise.resolve({ orderId: id, tracking: undefined });
+      }
+
+      return api.patch(`/courier/order/${id}/location`, {
         latitude,
         longitude,
         heading,
         speedKmh,
         remainingDistanceKm,
         remainingEtaMinutes,
-      }) as Promise<{ orderId: string; tracking?: OrderTrackingState }>,
+      }) as Promise<{ orderId: string; tracking?: OrderTrackingState }>;
+    },
     onSuccess: (result, variables) => {
       if (!result.tracking) {
         return;
@@ -634,11 +640,11 @@ export const useOrdersRealtimeSync = (enabled = true) => {
   const updateOrderTracking = useOrdersStore((state) => state.updateOrderTracking);
   const upsertOrder = useOrdersStore((state) => state.upsertOrder);
   const [connectionState, setConnectionState] = useState<TrackingConnectionState>(
-    enabled ? 'connecting' : 'idle',
+    enabled && ORDER_TRACKING_FEATURE_ENABLED ? 'connecting' : 'idle',
   );
 
   useEffect(() => {
-    if (!enabled || !token) {
+    if (!ORDER_TRACKING_FEATURE_ENABLED || !enabled || !token) {
       setConnectionState('idle');
       return;
     }
@@ -769,11 +775,11 @@ export const useOrderTrackingStream = (orderId: string, enabled = true) => {
   const updateOrderTracking = useOrdersStore((state) => state.updateOrderTracking);
   const upsertOrder = useOrdersStore((state) => state.upsertOrder);
   const [connectionState, setConnectionState] = useState<TrackingConnectionState>(
-    enabled && orderId ? 'connecting' : 'idle',
+    enabled && orderId && ORDER_TRACKING_FEATURE_ENABLED ? 'connecting' : 'idle',
   );
 
   useEffect(() => {
-    if (!enabled || !orderId || !token) {
+    if (!ORDER_TRACKING_FEATURE_ENABLED || !enabled || !orderId || !token) {
       setConnectionState('idle');
       return;
     }
