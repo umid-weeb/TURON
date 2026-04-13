@@ -13,6 +13,46 @@ type CustomerTrackingPhase =
   | 'DELIVERED'
   | 'CANCELLED';
 
+// ── Proximity thresholds (metres) ────────────────────────────────────────────
+const PROXIMITY_VERY_NEAR_M = 50;
+const PROXIMITY_NEAR_M = 500;
+
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Returns estimated remaining metres from courier to customer during delivery,
+ * or `null` if data is unavailable or phase is not yet in delivery.
+ */
+function getDeliveryProximityMeters(order: Order, phase: CustomerTrackingPhase): number | null {
+  if (phase !== 'DELIVERING' && phase !== 'PICKED_UP') return null;
+
+  const loc = order.tracking?.courierLocation;
+  if (!loc) return null;
+
+  // Prefer live route-based remaining distance reported by the courier app
+  if (typeof loc.remainingDistanceKm === 'number' && loc.remainingDistanceKm >= 0) {
+    return loc.remainingDistanceKm * 1000;
+  }
+
+  // Fall back to straight-line haversine distance
+  const destLat = order.destinationLat;
+  const destLng = order.destinationLng;
+  if (typeof destLat === 'number' && typeof destLng === 'number') {
+    return haversineMeters(loc.latitude, loc.longitude, destLat, destLng);
+  }
+
+  return null;
+}
+
 function getCourierFallbackLabel(language: CustomerTrackingLanguage) {
   if (language === 'ru') {
     return 'Курьер';
@@ -86,7 +126,22 @@ export function resolveCustomerTrackingPhase(order: Order): CustomerTrackingPhas
 function getStageLabel(
   phase: CustomerTrackingPhase,
   language: CustomerTrackingLanguage,
+  proximityMeters: number | null,
 ) {
+  // Proximity-aware override for DELIVERING phase
+  if (phase === 'DELIVERING' && proximityMeters !== null) {
+    if (proximityMeters <= PROXIMITY_VERY_NEAR_M) {
+      if (language === 'ru') return 'Курьер прибыл!';
+      if (language === 'uz-cyrl') return 'Курьер келди!';
+      return 'Kuryer keldi!';
+    }
+    if (proximityMeters <= PROXIMITY_NEAR_M) {
+      if (language === 'ru') return 'Почти здесь!';
+      if (language === 'uz-cyrl') return 'Деярли етиб келди!';
+      return 'Deyarli yetdi!';
+    }
+  }
+
   if (language === 'ru') {
     switch (phase) {
       case 'PREPARING':
@@ -94,8 +149,9 @@ function getStageLabel(
       case 'ASSIGNED':
         return 'Принят';
       case 'ACCEPTED':
-      case 'ARRIVED':
         return 'Едет в ресторан';
+      case 'ARRIVED':
+        return 'В ресторане';
       case 'PICKED_UP':
         return 'Еда получена';
       case 'DELIVERING':
@@ -117,8 +173,9 @@ function getStageLabel(
       case 'ASSIGNED':
         return 'Қабул қилинди';
       case 'ACCEPTED':
-      case 'ARRIVED':
         return 'Ресторанга кетмоқда';
+      case 'ARRIVED':
+        return 'Кафеда';
       case 'PICKED_UP':
         return 'Таом олинди';
       case 'DELIVERING':
@@ -139,8 +196,9 @@ function getStageLabel(
     case 'ASSIGNED':
       return 'Qabul qilindi';
     case 'ACCEPTED':
-    case 'ARRIVED':
       return 'Restoranga ketmoqda';
+    case 'ARRIVED':
+      return 'Kafeda';
     case 'PICKED_UP':
       return 'Taom olindi';
     case 'DELIVERING':
@@ -166,8 +224,9 @@ function getHeroTitle(
       case 'ASSIGNED':
         return 'Курьер назначен';
       case 'ACCEPTED':
-      case 'ARRIVED':
         return 'Курьер едет в ресторан';
+      case 'ARRIVED':
+        return 'Курьер в ресторане';
       case 'PICKED_UP':
         return 'Заказ у курьера';
       case 'DELIVERING':
@@ -189,8 +248,9 @@ function getHeroTitle(
       case 'ASSIGNED':
         return 'Курьер бириктирилди';
       case 'ACCEPTED':
-      case 'ARRIVED':
         return 'Курьер ресторанга кетмоқда';
+      case 'ARRIVED':
+        return 'Курьер ресторанда';
       case 'PICKED_UP':
         return 'Таом курьерда';
       case 'DELIVERING':
@@ -211,8 +271,9 @@ function getHeroTitle(
     case 'ASSIGNED':
       return 'Kuryer biriktirildi';
     case 'ACCEPTED':
-    case 'ARRIVED':
       return 'Kuryer restoranga ketmoqda';
+    case 'ARRIVED':
+      return 'Kuryer restoranda';
     case 'PICKED_UP':
       return 'Taom kuryerda';
     case 'DELIVERING':
@@ -231,7 +292,32 @@ function getStatusLine(
   phase: CustomerTrackingPhase,
   language: CustomerTrackingLanguage,
   courierLabel: string,
+  proximityMeters: number | null,
 ) {
+  // ── Proximity-aware overrides for DELIVERING ──────────────────────────────
+  if (phase === 'DELIVERING' && proximityMeters !== null) {
+    const m = Math.round(proximityMeters);
+
+    if (proximityMeters <= PROXIMITY_VERY_NEAR_M) {
+      if (language === 'ru') return `${courierLabel} уже у вашей двери!`;
+      if (language === 'uz-cyrl') return `${courierLabel} eshigingiz oldida!`;
+      return `${courierLabel} eshigingiz oldida!`;
+    }
+
+    if (proximityMeters <= PROXIMITY_NEAR_M) {
+      const display = m >= 100 ? `${Math.round(m / 10) * 10} m` : `${m} m`;
+      if (language === 'ru') return `${courierLabel} почти у вас — осталось ${display}!`;
+      if (language === 'uz-cyrl') return `${courierLabel} deyarli yetib keldi — ${display} qoldi!`;
+      return `${courierLabel} deyarli yetib keldi — ${display} qoldi!`;
+    }
+
+    // More than 500 m but we have live location — show encouraging message
+    if (language === 'ru') return `${courierLabel} уже в пути и скоро будет у вас!`;
+    if (language === 'uz-cyrl') return `${courierLabel} kelmoqda — tez yetib boradi!`;
+    return `${courierLabel} kelmoqda — tez yetib boradi!`;
+  }
+
+  // ── Standard messages ─────────────────────────────────────────────────────
   if (language === 'ru') {
     switch (phase) {
       case 'PREPARING':
@@ -243,7 +329,7 @@ function getStatusLine(
       case 'ARRIVED':
         return `${courierLabel} прибыл в ресторан и забирает заказ.`;
       case 'PICKED_UP':
-        return `${courierLabel} забрал еду и готовится к выезду.`;
+        return `${courierLabel} забрал еду и направляется к вам!`;
       case 'DELIVERING':
         return `${courierLabel} уже в пути к вашему адресу.`;
       case 'DELIVERED':
@@ -267,7 +353,7 @@ function getStatusLine(
       case 'ARRIVED':
         return `${courierLabel} ресторанга етиб борди ва таомни олмоқда.`;
       case 'PICKED_UP':
-        return `${courierLabel} таомни олди. Йўлга чиқишга тайёрланмоқда.`;
+        return `${courierLabel} таомни олди ва сизга қараб кетмоқда!`;
       case 'DELIVERING':
         return `${courierLabel} буюртмангизни олиб келмоқда.`;
       case 'DELIVERED':
@@ -288,9 +374,9 @@ function getStatusLine(
     case 'ACCEPTED':
       return `${courierLabel} buyurtmani qabul qildi va restoranga ketmoqda.`;
     case 'ARRIVED':
-      return `${courierLabel} restoranga yetib bordi va taomni olayapti.`;
+      return `${courierLabel} kafega yetib bordi va taomni olayapti.`;
     case 'PICKED_UP':
-      return `${courierLabel} taomni oldi. Yo'lga chiqishga tayyorlanmoqda.`;
+      return `${courierLabel} taomni oldi va sizga qarab ketmoqda!`;
     case 'DELIVERING':
       return `${courierLabel} buyurtmangizni olib kelyapti.`;
     case 'DELIVERED':
@@ -313,12 +399,16 @@ export function getCustomerTrackingMeta(
   const isCourierEnRouteToCustomer =
     phase === 'PICKED_UP' || phase === 'DELIVERING' || phase === 'DELIVERED';
 
+  const proximityMeters = getDeliveryProximityMeters(order, phase);
+  const isVeryNear = proximityMeters !== null && proximityMeters <= PROXIMITY_VERY_NEAR_M;
+  const isNear = proximityMeters !== null && proximityMeters <= PROXIMITY_NEAR_M;
+
   return {
     phase,
     courierLabel: isCourierAssigned ? courierLabel : null,
-    stageLabel: getStageLabel(phase, language),
+    stageLabel: getStageLabel(phase, language, proximityMeters),
     heroTitle: getHeroTitle(phase, language),
-    statusLine: getStatusLine(phase, language, courierLabel),
+    statusLine: getStatusLine(phase, language, courierLabel, proximityMeters),
     showCourierMarker: isCourierAssigned,
     shouldUseCourierRouteOrigin:
       Boolean(order.tracking?.courierLocation) &&
@@ -328,6 +418,12 @@ export function getCustomerTrackingMeta(
     currentTarget: isCourierEnRouteToCustomer ? 'customer' : 'restaurant',
     isDelivered: phase === 'DELIVERED',
     isCancelled: phase === 'CANCELLED',
+    /** Remaining metres from courier to customer (DELIVERING phase only, null if unavailable) */
+    proximityMeters,
+    /** True when courier is ≤ 500 m away */
+    isNearArrival: isNear,
+    /** True when courier is ≤ 50 m away — trigger haptic/notification */
+    isArrivingNow: isVeryNear,
   };
 }
 

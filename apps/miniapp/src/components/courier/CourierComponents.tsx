@@ -32,6 +32,43 @@ import {
 } from '../../features/courier/deliveryStage';
 // Note: DELIVERY_STAGE_FLOW, getCourierStageProgressIndex, getDeliveryStageIndex, getNextCourierStage used by CourierStageButtons below
 
+// ── Navigation helpers ────────────────────────────────────────────────────────
+
+/**
+ * Opens a navigation app via deep link. If the app is installed the OS handles
+ * it; if the page loses visibility we cancel the web fallback timer.
+ */
+function openNavApp(deepLink: string, webFallback: string) {
+  const t = window.setTimeout(() => {
+    window.open(webFallback, '_blank');
+  }, 1200);
+
+  window.addEventListener(
+    'visibilitychange',
+    function onHide() {
+      window.clearTimeout(t);
+      window.removeEventListener('visibilitychange', onHide);
+    },
+    { once: true },
+  );
+
+  window.location.href = deepLink;
+}
+
+function openYandexNavigator(lat: number, lng: number, label: string) {
+  openNavApp(
+    `yandexnavi://build_route_on_map?lat_to=${lat}&lon_to=${lng}&desc=${encodeURIComponent(label)}`,
+    `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`,
+  );
+}
+
+function open2GIS(lat: number, lng: number) {
+  openNavApp(
+    `dgis://2gis.ru/routeSearch/rsType/car/to/${lng},${lat}`,
+    `https://2gis.uz/tashkent/routeSearch/rsType/car/to/${lng},${lat}`,
+  );
+}
+
 export function getCourierPaymentLabel(paymentMethod: PaymentMethod) {
   switch (paymentMethod) {
     case PaymentMethod.CASH:
@@ -715,6 +752,15 @@ export const DeliveryBottomPanel: React.FC<{
   const isDelivered = currentStage === DeliveryStage.DELIVERED;
   const prevStageRef = React.useRef(currentStage);
 
+  // ── Navigation target ──────────────────────────────────────────────────────
+  const goingToRestaurant =
+    currentStage === DeliveryStage.GOING_TO_RESTAURANT ||
+    currentStage === DeliveryStage.ARRIVED_AT_RESTAURANT;
+  const navLat = goingToRestaurant ? order.pickupLat : order.destinationLat;
+  const navLng = goingToRestaurant ? order.pickupLng : order.destinationLng;
+  const navLabel = goingToRestaurant ? 'Restoran' : 'Mijoz manzili';
+  const hasNavTarget = typeof navLat === 'number' && typeof navLng === 'number';
+
   // Close problem panel on delivery complete
   React.useEffect(() => {
     if (isDelivered) { setIsProblemOpen(false); setIsExpanded(false); }
@@ -790,6 +836,28 @@ export const DeliveryBottomPanel: React.FC<{
             {/* ── Expanded content (slides up above bar) ───────────── */}
             {isExpanded && (
               <div className="mx-4 mb-1 space-y-2 animate-in slide-in-from-bottom duration-200">
+
+                {/* ── Navigation row ──────────────────────────────────── */}
+                {hasNavTarget && !isDelivered && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openYandexNavigator(navLat!, navLng!, navLabel)}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-[18px] border border-amber-400/30 bg-amber-400/15 py-3 text-[12px] font-black text-amber-200 active:scale-[0.97] transition-transform"
+                    >
+                      <Navigation size={15} />
+                      <span>Yandex Navigator</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => open2GIS(navLat!, navLng!)}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-[18px] border border-sky-400/25 bg-sky-400/12 py-3 text-[12px] font-black text-sky-200 active:scale-[0.97] transition-transform"
+                    >
+                      <Route size={15} />
+                      <span>2GIS</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Arrival time + copy address row */}
                 {(arrivalTime || onCopyAddress) && (
@@ -896,6 +964,16 @@ export const DeliveryBottomPanel: React.FC<{
 
                 {/* Quick action buttons */}
                 <div className="flex items-center gap-1.5">
+                  {hasNavTarget && (
+                    <button
+                      type="button"
+                      onClick={() => { openYandexNavigator(navLat!, navLng!, navLabel); setIsExpanded(true); }}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/15 text-amber-200 active:scale-95 transition-transform"
+                      aria-label="Navigatsiya"
+                    >
+                      <Navigation size={16} />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={onCall}

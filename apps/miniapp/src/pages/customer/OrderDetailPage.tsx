@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
 import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
@@ -38,6 +38,18 @@ const OrderDetailPage: React.FC = () => {
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const { data: unreadCount = 0 } = useOrderChatUnread(orderId, 'customer');
+  const prevArrivingNow = React.useRef(false);
+
+  // Haptic notification when courier transitions to ≤ 50 m from customer
+  const _arrivingNow = order ? getCustomerTrackingMeta(order, language).isArrivingNow : false;
+  React.useEffect(() => {
+    if (_arrivingNow && !prevArrivingNow.current) {
+      prevArrivingNow.current = true;
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning');
+    } else if (!_arrivingNow) {
+      prevArrivingNow.current = false;
+    }
+  }, [_arrivingNow]);
 
   if (isLoading) {
     return (
@@ -164,12 +176,30 @@ const OrderDetailPage: React.FC = () => {
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
                 {isConnected ? 'Jonli status' : 'Buyurtma holati'}
               </p>
-              <h2 className="mt-2 text-[1.55rem] font-black leading-[0.98] tracking-[-0.04em] text-white">
+              <h2 className={`mt-2 text-[1.55rem] font-black leading-[0.98] tracking-[-0.04em] ${trackingMeta.isArrivingNow ? 'text-emerald-300' : 'text-white'}`}>
                 {trackingMeta.stageLabel}
               </h2>
               <p className="mt-2 text-sm leading-6 text-white/62">
                 {trackingMeta.statusLine}
               </p>
+              {trackingMeta.isArrivingNow && (
+                <div className="mt-2 flex items-center gap-1.5">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  </span>
+                  <span className="text-[11px] font-black text-emerald-300">Kuryer yetib keldi!</span>
+                </div>
+              )}
+              {!trackingMeta.isArrivingNow && trackingMeta.isNearArrival && (
+                <div className="mt-2 flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+                  </span>
+                  <span className="text-[11px] font-black text-amber-300">Yaqin qoldi</span>
+                </div>
+              )}
             </div>
             <div className="rounded-[12px] border border-white/8 bg-white/[0.06] px-3 py-2.5 text-right">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/36">Jami</p>
@@ -204,7 +234,7 @@ const OrderDetailPage: React.FC = () => {
       </section>
 
       <section className="px-4 pt-5">
-        <div className={`grid gap-3 ${isActiveOrder && order.courierId ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <div className={`grid gap-3 ${isActiveOrder && order.courierId ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <button
             type="button"
             onClick={() => navigate(`/customer/support?orderId=${order.id}`)}
@@ -212,14 +242,6 @@ const OrderDetailPage: React.FC = () => {
           >
             <Headphones size={18} />
             <span className="text-[11px] font-black">Support</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/customer/orders/${order.id}/tracking`)}
-            className="flex flex-col items-center justify-center gap-2 rounded-[12px] border border-white/8 bg-white/[0.05] px-3 py-3.5 text-white"
-          >
-            <MapPinned size={18} />
-            <span className="text-[11px] font-black">Xarita</span>
           </button>
           {isActiveOrder && order.courierId && (
             <button
