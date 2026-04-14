@@ -97,27 +97,17 @@ function installIosOverscrollGuard() {
     const atBottom =
       Math.ceil(scrollTarget.scrollTop + scrollTarget.clientHeight) >= scrollTarget.scrollHeight;
 
-    if (isSwipingDown && atTop) {
-      // Dispatch pull progress so the React indicator can render.
-      if (pullStartedAtTop && !pullRefreshTriggered) {
-        const progress = Math.min(deltaY / PULL_TO_REFRESH_THRESHOLD_PX, 1.15);
-        window.dispatchEvent(new CustomEvent('turon:pull-progress', { detail: { progress } }));
+    if (isSwipingDown && atTop && pullStartedAtTop && !pullRefreshTriggered) {
+      const progress = Math.min(deltaY / PULL_TO_REFRESH_THRESHOLD_PX, 1.15);
+      window.dispatchEvent(new CustomEvent('turon:pull-progress', { detail: { progress } }));
 
-        if (deltaY >= PULL_TO_REFRESH_THRESHOLD_PX) {
-          pullRefreshTriggered = true;
-          window.dispatchEvent(new CustomEvent('turon:pull-refresh'));
-        }
+      if (deltaY >= PULL_TO_REFRESH_THRESHOLD_PX) {
+        pullRefreshTriggered = true;
+        window.dispatchEvent(new CustomEvent('turon:pull-refresh'));
       }
-
-      // Prevent iOS/Telegram from interpreting the gesture as mini-app close.
-      event.preventDefault();
-      return;
     }
 
-    // Only block the bottom boundary bounce that can trigger Telegram's close gesture on iOS.
-    if (isSwipingUp && atBottom) {
-      event.preventDefault();
-    }
+    // No event.preventDefault() — scroll is never blocked.
   };
 
   const resetTouchState = () => {
@@ -130,7 +120,7 @@ function installIosOverscrollGuard() {
   };
 
   document.addEventListener('touchstart', onTouchStart, { passive: true });
-  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchmove', onTouchMove, { passive: true });
   document.addEventListener('touchend', resetTouchState, { passive: true });
   document.addEventListener('touchcancel', resetTouchState, { passive: true });
 

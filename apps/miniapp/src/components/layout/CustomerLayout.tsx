@@ -94,7 +94,7 @@ const CustomerLayout: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,rgba(30,41,59,0.35),transparent_28%),linear-gradient(180deg,#05070d_0%,#0a0f19_55%,#0c111d_100%)] text-white"
+      className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(30,41,59,0.35),transparent_28%),linear-gradient(180deg,#05070d_0%,#0a0f19_55%,#0c111d_100%)] text-white"
       style={layoutVars}
     >
       <div className="mx-auto min-h-screen w-full max-w-[430px]">

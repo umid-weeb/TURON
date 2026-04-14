@@ -39,8 +39,6 @@
 
 html {
   min-height: 100%;
-  overflow-x: hidden;
-  overscroll-behavior-y: none;
   background:
     radial-gradient(circle at top left, rgba(251, 191, 36, 0.14), transparent 32%),
     radial-gradient(circle at top right, rgba(249, 115, 22, 0.12), transparent 28%),
@@ -52,8 +50,6 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100dvh;
-  overflow-x: hidden;
-  overscroll-behavior-y: none;
   color: var(--app-text);
   background: transparent;
   -webkit-tap-highlight-color: transparent;
@@ -81,9 +77,6 @@ body::before {
   position: relative;
   width: 100%;
   min-height: 100dvh;
-  overflow-x: hidden;
-  overscroll-behavior-y: none;
-  -webkit-overflow-scrolling: touch;
 }
 
 @supports not (min-height: 100dvh) {
