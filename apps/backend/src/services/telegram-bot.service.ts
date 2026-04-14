@@ -15,7 +15,7 @@ import { SupportService } from './support.service.js';
 
 const botToken = env.BOT_TOKEN;
 const webAppUrl = env.WEB_APP_URL;
-const MINI_APP_RELEASE = '20260414-shell-boot-fix';
+const MINI_APP_RELEASE = '20260414-menu-home-refresh';
 
 // ─── In-memory role cache (TTL: 5 min) ───────────────────────────────────────
 const roleCache = new Map<string, { role: UserRoleEnum; expiresAt: number }>();

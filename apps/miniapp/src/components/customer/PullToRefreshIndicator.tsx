@@ -24,12 +24,7 @@ export const PullToRefreshIndicator: React.FC = () => {
     setProgress(1);
 
     try {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['menu'] }),
-        queryClient.invalidateQueries({ queryKey: ['my-orders'] }),
-        queryClient.invalidateQueries({ queryKey: ['addresses'] }),
-        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
-      ]);
+      await queryClient.invalidateQueries();
     } finally {
       setPhaseSync('done');
       // Small pause so the user sees the "done" state before hiding.

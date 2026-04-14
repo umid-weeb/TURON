@@ -840,8 +840,14 @@ export const BottomNavbar: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+10px)]">
-      <div className="mx-auto flex h-[62px] w-full max-w-[430px] items-center justify-around rounded-[16px] border border-white/8 bg-[#0f1523]/92 px-1.5 shadow-[0_18px_36px_rgba(2,6,23,0.34)] backdrop-blur-xl">
+    <nav className="fixed inset-x-0 bottom-0 z-50 bg-white/96 shadow-[0_-14px_32px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      <div
+        className="mx-auto flex w-full max-w-[430px] items-center justify-around border-t border-slate-200/80 px-1.5"
+        style={{
+          height: 'calc(70px + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
+      >
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -854,24 +860,24 @@ export const BottomNavbar: React.FC = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={`relative flex flex-col items-center gap-1.5 px-1 transition-all ${
-                isActive ? 'text-white' : 'text-white/38'
+              className={`group relative flex min-w-[58px] flex-col items-center gap-1 px-1 transition-all active:scale-95 ${
+                isActive ? 'text-[#202124]' : 'text-[#8c8c96]'
               }`}
             >
               <div
-                className={`relative flex h-9 w-9 items-center justify-center rounded-[11px] transition-all ${
-                  isActive ? 'bg-white text-slate-950 shadow-[0_10px_20px_rgba(255,255,255,0.08)]' : 'bg-transparent'
+                className={`relative flex h-9 w-9 items-center justify-center rounded-[14px] transition-all duration-200 group-active:-translate-y-0.5 ${
+                  isActive ? 'bg-[#202124] text-white shadow-[0_10px_18px_rgba(15,23,42,0.18)]' : 'bg-transparent'
                 }`}
               >
                 <Icon size={19} strokeWidth={isActive ? 2.6 : 2.2} />
                 {(item.badge || 0) > 0 ? (
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#0f1523] bg-amber-400 text-[10px] font-black text-slate-950">
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-amber-400 text-[10px] font-black text-slate-950 shadow-md">
                     {item.badge}
                   </span>
                 ) : null}
                 {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
               </div>
-              <span className={`text-[8.5px] font-black uppercase tracking-[0.12em] ${isActive ? 'opacity-100' : 'opacity-80'}`}>
+              <span className={`text-[10px] font-semibold leading-none ${isActive ? 'opacity-100' : 'opacity-85'}`}>
                 {item.label}
               </span>
             </NavLink>

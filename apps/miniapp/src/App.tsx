@@ -6,6 +6,7 @@ import { UserRoleEnum } from '@turon/shared';
 // Guards & State Shells
 import { AppBootstrapGate } from './components/auth/AppBootstrapGate';
 import { RoleGuard } from './components/auth/RoleGuard';
+import { PullToRefreshIndicator } from './components/customer/PullToRefreshIndicator';
 import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
 import { NotFoundPage } from './components/ui/FeedbackStates';
 
@@ -70,6 +71,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+      <PullToRefreshIndicator />
       <AppBootstrapGate>
         <AppErrorBoundary theme="dark" homeUrl="/">
         <Routes>
