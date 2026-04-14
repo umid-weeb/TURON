@@ -39,10 +39,8 @@
 
 html {
   min-height: 100%;
-  background:
-    radial-gradient(circle at top left, rgba(251, 191, 36, 0.14), transparent 32%),
-    radial-gradient(circle at top right, rgba(249, 115, 22, 0.12), transparent 28%),
-    linear-gradient(180deg, #fffaf4 0%, #f8efe5 55%, #f4e6d8 100%);
+  /* Desktop background — visible outside the 430 px mobile column */
+  background: #060810;
   color: var(--app-text);
 }
 
@@ -53,24 +51,19 @@ body {
   color: var(--app-text);
   background: transparent;
   -webkit-tap-highlight-color: transparent;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.65), transparent 18%),
-    radial-gradient(circle at 80% 15%, rgba(255, 214, 170, 0.18), transparent 20%),
-    radial-gradient(circle at 50% 100%, rgba(250, 204, 21, 0.08), transparent 30%);
-  z-index: 0;
+  /* Center the mobile column on desktop */
+  display: flex;
+  justify-content: center;
 }
 
 #root {
+  width: 100%;
+  max-width: 430px;
   min-height: 100dvh;
   position: relative;
   z-index: 1;
+  /* Subtle side shadow so the mobile frame stands out on desktop */
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 80px rgba(0,0,0,0.6);
 }
 
 .tg-app-shell {

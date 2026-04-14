@@ -94,43 +94,41 @@ const CustomerLayout: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(30,41,59,0.35),transparent_28%),linear-gradient(180deg,#05070d_0%,#0a0f19_55%,#0c111d_100%)] text-white"
+      className="min-h-screen w-full bg-[radial-gradient(circle_at_top,rgba(30,41,59,0.35),transparent_28%),linear-gradient(180deg,#05070d_0%,#0a0f19_55%,#0c111d_100%)] text-white"
       style={layoutVars}
     >
-      <div className="mx-auto min-h-screen w-full max-w-[430px]">
-        <PullToRefreshIndicator />
+      <PullToRefreshIndicator />
 
-        {!isImmersiveRoute ? (
-          <HeaderBar
-            title={getPageTitle()}
-            showBack={location.pathname !== '/customer'}
-            rightSlot={
-              <div className="flex items-center gap-2">
-                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] ${syncBadgeClass}`}>
-                  <span className={`h-2 w-2 rounded-full ${isConnected ? 'animate-pulse bg-emerald-300' : 'bg-current/50'}`} />
-                  <span>{syncLabel}</span>
-                </div>
-                <MiniAppCloseButton />
+      {!isImmersiveRoute ? (
+        <HeaderBar
+          title={getPageTitle()}
+          showBack={location.pathname !== '/customer'}
+          rightSlot={
+            <div className="flex items-center gap-2">
+              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] ${syncBadgeClass}`}>
+                <span className={`h-2 w-2 rounded-full ${isConnected ? 'animate-pulse bg-emerald-300' : 'bg-current/50'}`} />
+                <span>{syncLabel}</span>
               </div>
-            }
-          />
-        ) : null}
+              <MiniAppCloseButton />
+            </div>
+          }
+        />
+      ) : null}
 
-        <main
-          className={`
-            relative min-h-screen
-            ${!isImmersiveRoute ? 'px-4 pt-4' : ''}
-            ${showFloatingCart ? 'pb-[140px]' : (!hideBottomNav ? 'pb-[88px]' : 'pb-[env(safe-area-inset-bottom,20px)]')}
-          `}
-        >
-          <CustomerErrorBoundary>
-            <Outlet />
-          </CustomerErrorBoundary>
-        </main>
+      <main
+        className={`
+          relative min-h-screen
+          ${!isImmersiveRoute ? 'px-4 pt-4' : ''}
+          ${showFloatingCart ? 'pb-[140px]' : (!hideBottomNav ? 'pb-[88px]' : 'pb-[env(safe-area-inset-bottom,20px)]')}
+        `}
+      >
+        <CustomerErrorBoundary>
+          <Outlet />
+        </CustomerErrorBoundary>
+      </main>
 
-        <FloatingCartBar hidden={!showFloatingCart} />
-        {!hideBottomNav ? <BottomNavbar /> : null}
-      </div>
+      <FloatingCartBar hidden={!showFloatingCart} />
+      {!hideBottomNav ? <BottomNavbar /> : null}
     </div>
   );
 };
