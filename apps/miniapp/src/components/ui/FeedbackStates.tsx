@@ -50,14 +50,13 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
 
       <div
         style={{
-          position: 'fixed',
-          inset: 0,
+          minHeight: '100dvh',
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           background: 'linear-gradient(160deg,#0a0d18 0%,#141830 55%,#0a0d18 100%)',
-          zIndex: 9999,
           overflow: 'hidden',
         }}
       >
