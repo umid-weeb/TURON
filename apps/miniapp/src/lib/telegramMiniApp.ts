@@ -13,7 +13,7 @@ let isInitialized = false;
 let cleanupTouchGuard: (() => void) | null = null;
 
 const FULLSCREEN_RETRY_DELAYS_MS = [0, 80, 240, 700, 1500];
-const PULL_TO_REFRESH_THRESHOLD_PX = 92;
+const PULL_TO_REFRESH_THRESHOLD_PX = 88;
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return window.Telegram?.WebApp;
@@ -67,11 +67,13 @@ function installIosOverscrollGuard() {
   if (cleanupTouchGuard) return cleanupTouchGuard;
 
   let startY = 0;
+  let startX = 0;
   let pullStartedAtTop = false;
   let pullRefreshTriggered = false;
 
   const onTouchStart = (event: TouchEvent) => {
     startY = event.touches[0]?.clientY ?? 0;
+    startX = event.touches[0]?.clientX ?? 0;
     const scrollTarget = getScrollableParent(event.target);
     pullStartedAtTop = scrollTarget.scrollTop <= 0;
     pullRefreshTriggered = false;
@@ -82,7 +84,13 @@ function installIosOverscrollGuard() {
 
     const scrollTarget = getScrollableParent(event.target);
     const currentY = event.touches[0]?.clientY ?? startY;
+    const currentX = event.touches[0]?.clientX ?? startX;
     const deltaY = currentY - startY;
+    const deltaX = currentX - startX;
+
+    // If gesture is primarily horizontal, don't interfere — let native horizontal scroll work.
+    if (Math.abs(deltaX) > Math.abs(deltaY) * 0.75) return;
+
     const isSwipingDown = deltaY > 0;
     const isSwipingUp = deltaY < 0;
     const atTop = scrollTarget.scrollTop <= 0;
@@ -90,23 +98,23 @@ function installIosOverscrollGuard() {
       Math.ceil(scrollTarget.scrollTop + scrollTarget.clientHeight) >= scrollTarget.scrollHeight;
 
     if (isSwipingDown && atTop) {
-      // Keep the familiar pull-down refresh behavior without letting iOS/Telegram
-      // convert the same gesture into Mini App minimize/close.
-      if (
-        pullStartedAtTop &&
-        !pullRefreshTriggered &&
-        deltaY >= PULL_TO_REFRESH_THRESHOLD_PX
-      ) {
-        pullRefreshTriggered = true;
-        window.location.reload();
+      // Dispatch pull progress so the React indicator can render.
+      if (pullStartedAtTop && !pullRefreshTriggered) {
+        const progress = Math.min(deltaY / PULL_TO_REFRESH_THRESHOLD_PX, 1.15);
+        window.dispatchEvent(new CustomEvent('turon:pull-progress', { detail: { progress } }));
+
+        if (deltaY >= PULL_TO_REFRESH_THRESHOLD_PX) {
+          pullRefreshTriggered = true;
+          window.dispatchEvent(new CustomEvent('turon:pull-refresh'));
+        }
       }
 
+      // Prevent iOS/Telegram from interpreting the gesture as mini-app close.
       event.preventDefault();
       return;
     }
 
     // Only block the bottom boundary bounce that can trigger Telegram's close gesture on iOS.
-    // Normal scrolling inside scrollable containers remains untouched.
     if (isSwipingUp && atBottom) {
       event.preventDefault();
     }
@@ -114,8 +122,11 @@ function installIosOverscrollGuard() {
 
   const resetTouchState = () => {
     startY = 0;
+    startX = 0;
     pullStartedAtTop = false;
     pullRefreshTriggered = false;
+    // Let the React indicator know the finger lifted without reaching the threshold.
+    window.dispatchEvent(new CustomEvent('turon:pull-cancel'));
   };
 
   document.addEventListener('touchstart', onTouchStart, { passive: true });

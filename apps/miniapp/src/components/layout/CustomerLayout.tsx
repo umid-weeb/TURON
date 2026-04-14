@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { BottomNavbar, FloatingCartBar, HeaderBar } from '../customer/CustomerComponents';
+import { PullToRefreshIndicator } from '../customer/PullToRefreshIndicator';
 import { CustomerErrorBoundary } from '../ui/CustomerErrorBoundary';
 import { useCartStore } from '../../store/useCartStore';
 import { useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
@@ -97,6 +98,8 @@ const CustomerLayout: React.FC = () => {
       style={layoutVars}
     >
       <div className="mx-auto min-h-screen w-full max-w-[430px]">
+        <PullToRefreshIndicator />
+
         {!isImmersiveRoute ? (
           <HeaderBar
             title={getPageTitle()}
