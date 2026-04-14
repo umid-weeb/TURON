@@ -2,8 +2,8 @@ import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 import {
-  LayoutDashboard, 
-  ShoppingBag, 
+  LayoutDashboard,
+  ShoppingBag,
   Bell,
   Search,
   Truck,
@@ -75,15 +75,15 @@ const AdminLayout: React.FC = () => {
         ? 'Ulanmoqda'
         : 'Offline';
 
-  const NavItem: React.FC<{ 
-    path: string; 
-    icon: React.ReactNode; 
-    label: string; 
+  const NavItem: React.FC<{
+    path: string;
+    icon: React.ReactNode;
+    label: string;
     badge?: number;
   }> = ({ path, icon, label, badge }) => {
     const isActive = location.pathname.startsWith(path);
     return (
-      <button 
+      <button
         onClick={() => navigate(path)}
         className={`relative flex h-14 min-w-[58px] flex-col items-center justify-center gap-1 transition-colors
           ${isActive ? 'text-blue-600' : 'text-slate-500'}
@@ -107,35 +107,35 @@ const AdminLayout: React.FC = () => {
   return (
     <div className="admin-shell min-h-screen bg-[#f4f6fa] flex flex-col font-sans text-slate-950 pb-24">
       {/* Admin Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white px-4 py-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+      <header className="fixed top-0 left-1/2 z-50 w-full max-w-[390px] -translate-x-1/2 bg-white px-4 py-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
         <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-lg font-black text-white">
-            T
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-lg font-black text-white">
+              T
+            </div>
+            <div>
+              <h2 className="text-base font-black leading-none tracking-tight text-slate-950">TURON</h2>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Admin Panel · {syncLabel}</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-black leading-none tracking-tight text-slate-950">TURON</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Admin Panel · {syncLabel}</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Izlash"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-400 active:scale-95"
+            >
+              <Search size={21} />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/notifications')}
+              aria-label="Bildirishnomalar"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 active:scale-95"
+            >
+              <Bell size={20} />
+              <NotificationBadge role={UserRoleEnum.ADMIN} />
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-           <button
-             type="button"
-             aria-label="Izlash"
-             className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-400 active:scale-95"
-           >
-             <Search size={21} />
-           </button>
-           <button 
-             type="button"
-             onClick={() => navigate('/admin/notifications')}
-             aria-label="Bildirishnomalar"
-             className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 active:scale-95"
-           >
-             <Bell size={20} />
-             <NotificationBadge role={UserRoleEnum.ADMIN} />
-           </button>
-        </div>
         </div>
       </header>
 
@@ -147,9 +147,9 @@ const AdminLayout: React.FC = () => {
       </main>
 
       {/* Admin Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[68px] items-center justify-around border-t border-slate-100 bg-white px-4 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] safe-area-inset-bottom">
-        <NavItem 
-          path="/admin/dashboard" 
+      <nav className="fixed bottom-0 left-1/2 z-50 flex h-[68px] w-full max-w-[390px] -translate-x-1/2 items-center justify-around border-t border-slate-100 bg-white px-4 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] safe-area-inset-bottom">
+        <NavItem
+          path="/admin/dashboard"
           icon={<LayoutDashboard size={22} />}
           label="Home"
         />
@@ -159,18 +159,18 @@ const AdminLayout: React.FC = () => {
           label="Buyurtma"
           badge={newOrdersCount}
         />
-        <NavItem 
-          path="/admin/menu" 
+        <NavItem
+          path="/admin/menu"
           icon={<UtensilsCrossed size={22} />}
           label="Menu"
         />
-        <NavItem 
-          path="/admin/couriers" 
+        <NavItem
+          path="/admin/couriers"
           icon={<Truck size={22} />}
           label="Kuryer"
         />
-        <NavItem 
-          path="/admin/promos" 
+        <NavItem
+          path="/admin/promos"
           icon={<Tag size={22} />}
           label="Promo"
         />

@@ -51,37 +51,34 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100dvh;
+  display: flex;
+  justify-content: center;
   color: var(--app-text);
   background: transparent;
   -webkit-tap-highlight-color: transparent;
 }
 
 #root {
-  width: 100%;
+  width: min(100%, 390px);
+  max-width: 390px;
   min-height: 100dvh;
   position: relative;
   z-index: 1;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 0 80px rgba(0, 0, 0, 0.18);
 }
 
 .tg-app-shell {
   position: relative;
-  width: 100%;
+  width: min(100%, 390px);
+  max-width: 390px;
   min-height: 100dvh;
 }
 
 @media (min-width: 768px) and (hover: hover) and (pointer: fine) {
-  body {
-    display: flex;
-    justify-content: center;
-  }
-
-  #root,
-  .tg-app-shell {
-    max-width: 430px;
-  }
-
   #root {
-    overflow: hidden;
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.04),
       0 0 80px rgba(0, 0, 0, 0.6);
@@ -95,8 +92,8 @@ html[data-tg-client="desktop"] body {
 
 html[data-tg-client="desktop"] #root,
 html[data-tg-client="desktop"] .tg-app-shell {
-  width: min(100%, 480px);
-  max-width: 480px;
+  width: min(100%, 390px);
+  max-width: 390px;
 }
 
 html[data-tg-client="desktop"] #root {

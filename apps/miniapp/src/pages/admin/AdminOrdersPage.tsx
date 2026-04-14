@@ -20,6 +20,7 @@ const FILTERS: Array<{ value: OrderFilter; label: string }> = [
   { value: OrderStatus.PREPARING, label: 'Preparing' },
   { value: OrderStatus.DELIVERING, label: 'On the way' },
   { value: OrderStatus.DELIVERED, label: 'Completed' },
+  { value: OrderStatus.CANCELLED, label: 'Cancelled' },
 ];
 
 const STATUS_META: Record<OrderStatus, { label: string; className: string }> = {
@@ -247,7 +248,7 @@ const AdminOrdersPage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-6">
-      <section className="rounded-[20px] border border-slate-200 bg-transparent px-4 py-3">
+      <section className="rounded-[20px] border border-slate-200 bg-[#f8fafc] px-4 py-3">
         <label className="flex items-center gap-3">
           <Search size={19} className="text-slate-400" />
           <input
