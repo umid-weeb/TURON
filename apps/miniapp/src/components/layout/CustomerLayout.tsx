@@ -99,33 +99,35 @@ const CustomerLayout: React.FC = () => {
     >
       <PullToRefreshIndicator />
 
-      {!isImmersiveRoute ? (
-        <HeaderBar
-          title={getPageTitle()}
-          showBack={location.pathname !== '/customer'}
-          rightSlot={
-            <div className="flex items-center gap-2">
-              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] ${syncBadgeClass}`}>
-                <span className={`h-2 w-2 rounded-full ${isConnected ? 'animate-pulse bg-emerald-300' : 'bg-current/50'}`} />
-                <span>{syncLabel}</span>
+      <div className="mx-auto w-full max-w-[430px]">
+        {!isImmersiveRoute ? (
+          <HeaderBar
+            title={getPageTitle()}
+            showBack={location.pathname !== '/customer'}
+            rightSlot={
+              <div className="flex items-center gap-2">
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] ${syncBadgeClass}`}>
+                  <span className={`h-2 w-2 rounded-full ${isConnected ? 'animate-pulse bg-emerald-300' : 'bg-current/50'}`} />
+                  <span>{syncLabel}</span>
+                </div>
+                <MiniAppCloseButton />
               </div>
-              <MiniAppCloseButton />
-            </div>
-          }
-        />
-      ) : null}
+            }
+          />
+        ) : null}
 
-      <main
-        className={`
-          relative min-h-screen
-          ${!isImmersiveRoute ? 'px-4 pt-4' : ''}
-          ${showFloatingCart ? 'pb-[140px]' : (!hideBottomNav ? 'pb-[88px]' : 'pb-[env(safe-area-inset-bottom,20px)]')}
-        `}
-      >
-        <CustomerErrorBoundary>
-          <Outlet />
-        </CustomerErrorBoundary>
-      </main>
+        <main
+          className={`
+            relative min-h-screen
+            ${!isImmersiveRoute ? 'px-4 pt-4' : ''}
+            ${showFloatingCart ? 'pb-[140px]' : (!hideBottomNav ? 'pb-[88px]' : 'pb-[env(safe-area-inset-bottom,20px)]')}
+          `}
+        >
+          <CustomerErrorBoundary>
+            <Outlet />
+          </CustomerErrorBoundary>
+        </main>
+      </div>
 
       <FloatingCartBar hidden={!showFloatingCart} />
       {!hideBottomNav ? <BottomNavbar /> : null}
