@@ -143,7 +143,7 @@ const HomePage: React.FC = () => {
         </div>
       </header>
 
-      <section className="px-4 pb-4" style={{ paddingTop: 'calc(env(safe-area-inset-top,0px) + 72px)' }}>
+      <section className="px-4 pb-4">
         <button
           type="button"
           onClick={() => navigate('/customer/addresses')}

@@ -159,8 +159,6 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (!ready) return <LoadingScreen />;
-
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center p-6">
@@ -176,6 +174,8 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
       </div>
     );
   }
+
+  if (!ready) return <LoadingScreen />;
 
   return <>{children}</>;
 };

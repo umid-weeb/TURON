@@ -9,6 +9,8 @@ export const PullToRefreshIndicator: React.FC = () => {
   const [progress, setProgress] = useState(0); // 0–1.15
   const refreshingRef = useRef(false);
   const phaseRef = useRef<Phase>('idle');
+  const rafRef = useRef<number | null>(null);
+  const pendingProgressRef = useRef(0);
 
   const setPhaseSync = (p: Phase) => {
     phaseRef.current = p;
@@ -22,7 +24,12 @@ export const PullToRefreshIndicator: React.FC = () => {
     setProgress(1);
 
     try {
-      await queryClient.invalidateQueries();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['menu'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['addresses'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+      ]);
     } finally {
       setPhaseSync('done');
       // Small pause so the user sees the "done" state before hiding.
@@ -37,9 +44,16 @@ export const PullToRefreshIndicator: React.FC = () => {
   useEffect(() => {
     const onProgress = (e: Event) => {
       if (refreshingRef.current) return;
-      const p = (e as CustomEvent<{ progress: number }>).detail.progress;
-      setProgress(p);
-      setPhaseSync(p > 0.05 ? 'pulling' : 'idle');
+      pendingProgressRef.current = (e as CustomEvent<{ progress: number }>).detail.progress;
+
+      if (rafRef.current !== null) return;
+
+      rafRef.current = window.requestAnimationFrame(() => {
+        rafRef.current = null;
+        const p = pendingProgressRef.current;
+        setProgress(p);
+        setPhaseSync(p > 0.05 ? 'pulling' : 'idle');
+      });
     };
 
     const onRefresh = () => {
@@ -58,6 +72,11 @@ export const PullToRefreshIndicator: React.FC = () => {
     window.addEventListener('turon:pull-cancel', onCancel);
 
     return () => {
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+
       window.removeEventListener('turon:pull-progress', onProgress);
       window.removeEventListener('turon:pull-refresh', onRefresh);
       window.removeEventListener('turon:pull-cancel', onCancel);
