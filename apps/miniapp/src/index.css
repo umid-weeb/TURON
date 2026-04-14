@@ -84,6 +84,24 @@ body {
   }
 }
 
+html[data-tg-client="desktop"] body {
+  display: flex;
+  justify-content: center;
+}
+
+html[data-tg-client="desktop"] #root,
+html[data-tg-client="desktop"] .tg-app-shell {
+  width: min(100%, 480px);
+  max-width: 480px;
+}
+
+html[data-tg-client="desktop"] #root {
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 0 80px rgba(0, 0, 0, 0.6);
+}
+
 @supports not (min-height: 100dvh) {
   body,
   #root,

@@ -2,6 +2,7 @@ type TelegramWebApp = {
   ready?: () => void;
   expand?: () => void;
   requestFullscreen?: () => void;
+  exitFullscreen?: () => void;
   close?: () => void;
   disableVerticalSwipes?: () => void;
   enableClosingConfirmation?: () => void;
@@ -40,6 +41,10 @@ function isMobileTelegramClient(webApp: TelegramWebApp) {
   }
 
   return window.matchMedia?.('(hover: none) and (pointer: coarse)').matches ?? false;
+}
+
+function syncTelegramClientMode(webApp: TelegramWebApp) {
+  document.documentElement.dataset.tgClient = isMobileTelegramClient(webApp) ? 'mobile' : 'desktop';
 }
 
 function getDocumentScrollElement(): HTMLElement {
@@ -166,12 +171,15 @@ export function ensureTelegramMiniAppFullscreen() {
   if (!webApp) return;
 
   safeCall(() => webApp.ready?.());
+  syncTelegramClientMode(webApp);
 
   // True fullscreen is good on phones, but on Telegram Desktop it turns the app
   // into a huge notebook-size page. Desktop should stay in a mobile-style panel.
   if (isMobileTelegramClient(webApp)) {
     safeCall(() => webApp.requestFullscreen?.());
     safeCall(() => webApp.expand?.());
+  } else {
+    safeCall(() => webApp.exitFullscreen?.());
   }
 
   safeCall(() => webApp.disableVerticalSwipes?.());
