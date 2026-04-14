@@ -11,7 +11,7 @@ import { ErrorStateCard, LoadingScreen } from '../ui/FeedbackStates';
 const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
 const MIN_SPLASH_MS = 2_500;
 /** Hard limit before we abort the TCP connection for new users */
-const NEW_USER_HARD_TIMEOUT_MS = 15_000;
+const NEW_USER_HARD_TIMEOUT_MS = 12_000;
 
 async function fetchPublicJson<T>(url: string): Promise<T> {
   const { data } = await axios.get<T>(url, { timeout: 10_000 });
@@ -34,10 +34,9 @@ async function resolveInitData(
   initData: string | undefined,
   signal: AbortSignal,
 ): Promise<string | null> {
-  // Already have initData — return immediately
   if (initData) return initData;
 
-  // Poll window.Telegram.WebApp.initData up to 5 seconds (20 × 250 ms)
+  // Poll window.Telegram.WebApp.initData for up to 5 seconds (20 × 250 ms)
   return new Promise<string | null>((resolve) => {
     let tries = 20;
 
@@ -46,20 +45,16 @@ async function resolveInitData(
         resolve(null);
         return;
       }
-
       const freshInitData = window.Telegram?.WebApp?.initData;
-
       if (freshInitData) {
         resolve(freshInitData);
         return;
       }
-
       tries -= 1;
       if (tries <= 0) {
         resolve(null);
         return;
       }
-
       window.setTimeout(poll, 250);
     };
 
@@ -69,7 +64,6 @@ async function resolveInitData(
 
 function isAbortLikeError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
-  // Covers browser AbortError, manual 'aborted', and axios CanceledError
   return (
     err.name === 'AbortError' ||
     err.name === 'CanceledError' ||
@@ -80,23 +74,49 @@ function isAbortLikeError(err: unknown): boolean {
 
 function wait(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new Error('aborted'));
-      return;
-    }
-
+    if (signal.aborted) { reject(new Error('aborted')); return; }
     let timer: number | undefined;
     const onAbort = () => {
       if (timer !== undefined) window.clearTimeout(timer);
       reject(new Error('aborted'));
     };
-
     timer = window.setTimeout(() => {
       signal.removeEventListener('abort', onAbort);
       resolve();
     }, ms);
-
     signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Wait until the zustand persist store has hydrated from localStorage.
+ * In most environments hydration is synchronous, but on some iOS WebViews
+ * it can be deferred — we give it up to 300 ms before giving up.
+ */
+function waitForStoreHydration(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    // zustand/persist exposes _hasHydrated via the store's persist API
+    const api = (useAuthStore as any).persist;
+
+    if (!api || api.hasHydrated?.()) {
+      resolve();
+      return;
+    }
+
+    let resolved = false;
+
+    const unsub = api.onFinishHydration?.(() => {
+      if (!resolved) { resolved = true; resolve(); }
+    });
+
+    // Hard fallback: if persist API is unavailable or never fires, give up after 300 ms
+    window.setTimeout(() => {
+      if (!resolved) { resolved = true; resolve(); }
+    }, 300);
+
+    signal.addEventListener('abort', () => {
+      if (!resolved) { resolved = true; unsub?.(); resolve(); }
+    }, { once: true });
   });
 }
 
@@ -121,7 +141,6 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
     const controller = new AbortController();
     const { signal } = controller;
 
-    hadCachedAuthRef.current = hasCachedAuth();
     setReady(false);
     setError(null);
     ensureTelegramMiniAppFullscreen();
@@ -141,22 +160,19 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
     ]);
 
     /**
-     * Background auth refresh — never blocks the UI, never sets error state.
-     * Used for returning users who already have a cached session.
+     * Silently refresh auth in the background — never blocks the UI, never sets error.
      */
     const refreshInBackground = () => {
       void (async () => {
         try {
           const id = await resolveInitData(initData, signal);
           if (!id || signal.aborted) return;
-
           const result = await doAuthRequest(id, signal);
           if (signal.aborted) return;
-
           const role = normalizeRole(result.user?.role);
           if (role) setAuth({ ...result.user, role }, result.token);
         } catch {
-          // Silent fail — cached session remains valid for the duration of this visit
+          // Silent fail — cached session remains valid for this visit
         }
       })();
     };
@@ -164,22 +180,18 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
     /**
      * Blocking auth for first-time users.
      *
-     * Creates a dedicated AbortController so we can force-cancel the TCP
-     * connection on timeout (axios's built-in timeout only starts after the
-     * connection is established, so a hanging TCP SYN can freeze the app
-     * well past the configured timeout).
-     *
-     * Throws a human-readable Error on failure so the caller can show it.
+     * Uses a dedicated AbortController so the TCP connection is force-cancelled
+     * when the hard timeout fires — axios's built-in timeout only starts after
+     * the connection is established, so a hanging TCP SYN would otherwise block
+     * indefinitely.
      */
     const authenticateBlocking = async (): Promise<void> => {
       const authCtl = new AbortController();
       const authSignal = authCtl.signal;
 
-      // If the component unmounts, also abort the in-flight request
       const onComponentAbort = () => authCtl.abort();
       signal.addEventListener('abort', onComponentAbort, { once: true });
 
-      // Track whether *our* timer caused the abort (vs component unmount)
       let timedOutByUs = false;
       const hardTimer = window.setTimeout(() => {
         timedOutByUs = true;
@@ -189,7 +201,7 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         const id = await resolveInitData(initData, authSignal);
 
-        if (signal.aborted) return; // component unmounted — no error
+        if (signal.aborted) return;
 
         if (!id) {
           throw new Error('Telegram muhiti topilmadi. Bot orqali kiring.');
@@ -197,21 +209,20 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
 
         const result = await doAuthRequest(id, authSignal);
 
-        if (signal.aborted) return; // component unmounted — no error
+        if (signal.aborted) return;
 
         const role = normalizeRole(result.user?.role);
         if (!role) throw new Error("Foydalanuvchi roli qo'llab-quvvatlanmaydi");
 
         setAuth({ ...result.user, role }, result.token);
       } catch (err) {
-        if (signal.aborted) return; // component unmounted — swallow silently
+        if (signal.aborted) return;
 
-        // Our timer fired → translate the CanceledError to a user-visible message
         if (timedOutByUs && isAbortLikeError(err)) {
           throw new Error("Ulanish vaqti tugadi. Internetni tekshirib, qayta urining.");
         }
 
-        throw err; // Network / server / role error — let the caller show it
+        throw err;
       } finally {
         window.clearTimeout(hardTimer);
         signal.removeEventListener('abort', onComponentAbort);
@@ -220,12 +231,20 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // ── Main bootstrap ────────────────────────────────────────────────────────
     const bootstrap = async () => {
-      if (hasCachedAuth() || hadCachedAuthRef.current) {
-        // Returning user: show app after splash, silently refresh auth
+      // Wait for zustand to hydrate so hasCachedAuth() reads the real stored value
+      await waitForStoreHydration(signal);
+
+      if (signal.aborted) return;
+
+      // Set the ref AFTER hydration so it reflects actual persisted state
+      hadCachedAuthRef.current = hasCachedAuth();
+
+      if (hadCachedAuthRef.current) {
+        // ── Returning user: show app after splash, silently refresh auth ─────
         refreshInBackground();
         await wait(MIN_SPLASH_MS, signal);
       } else {
-        // First-time user: must authenticate before showing app
+        // ── First-time user: must authenticate before showing app ─────────────
         await Promise.all([
           authenticateBlocking(),
           wait(MIN_SPLASH_MS, signal),
@@ -268,7 +287,18 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center p-6">
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          background: 'linear-gradient(160deg,#0a0d18 0%,#141830 55%,#0a0d18 100%)',
+          zIndex: 9999,
+        }}
+      >
         <ErrorStateCard
           title="Xato"
           message={error}

@@ -7,8 +7,29 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <title>miniapp</title>
+    <title>Turon Kafesi</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!--
+      Expand + go fullscreen as early as possible — before any JS bundle loads.
+      This prevents Telegram's "card/panel" mode from ever showing the side gaps.
+    -->
+    <script>
+      (function () {
+        var tg = window.Telegram && window.Telegram.WebApp;
+        if (!tg) return;
+        try { tg.ready(); } catch (e) {}
+        try { tg.expand(); } catch (e) {}
+        try { if (tg.requestFullscreen) tg.requestFullscreen(); } catch (e) {}
+        try { if (tg.disableVerticalSwipes) tg.disableVerticalSwipes(); } catch (e) {}
+      })();
+    </script>
+    <!--
+      Match the loading screen background so there is NEVER a white flash
+      between HTML parse and React's first paint.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; background: #0a0d18; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

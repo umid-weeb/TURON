@@ -49,8 +49,17 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
       `}</style>
 
       <div
-        className="flex min-h-screen flex-col items-center justify-center"
-        style={{ background: 'linear-gradient(160deg,#0f172a 0%,#1c1a3a 60%,#0f172a 100%)' }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(160deg,#0a0d18 0%,#141830 55%,#0a0d18 100%)',
+          zIndex: 9999,
+          overflow: 'hidden',
+        }}
       >
         {/* Glow behind burger */}
         <div style={{
