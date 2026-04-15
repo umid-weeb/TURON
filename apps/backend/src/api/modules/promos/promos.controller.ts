@@ -81,6 +81,36 @@ export async function handleCreatePromo(
   return reply.status(201).send(serializedPromo);
 }
 
+export async function handleDeletePromo(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  const admin = request.user as any;
+
+  const promo = await prisma.promoCode.findUnique({
+    where: { id: request.params.id },
+  });
+
+  if (!promo) {
+    return reply.status(404).send({ error: 'Promokod topilmadi' });
+  }
+
+  await prisma.promoCode.delete({
+    where: { id: request.params.id },
+  });
+
+  await AuditService.record({
+    userId: admin.id,
+    actorRole: admin.role,
+    action: 'DELETE_PROMO',
+    entity: 'PromoCode',
+    entityId: promo.id,
+    oldValue: serializePromoForAdmin(promo),
+  });
+
+  return reply.status(204).send();
+}
+
 export async function handleUpdatePromo(
   request: FastifyRequest<{ Params: { id: string }; Body: any }>,
   reply: FastifyReply,

@@ -1,9 +1,10 @@
 import { FastifyInstance } from 'fastify';
-import { 
-  validatePromoCode, 
-  handleCreatePromo, 
+import {
+  validatePromoCode,
+  handleCreatePromo,
   getAllPromos,
   handleUpdatePromo,
+  handleDeletePromo,
 } from './promos.controller.js';
 import { 
   IdParamSchema,
@@ -18,12 +19,13 @@ export default async function promoRoutes(fastify: FastifyInstance) {
     schema: { body: ValidatePromoSchema }
   }, validatePromoCode);
 
-  // Admin management
+  // Admin management (JWT-verified + ADMIN role required)
   fastify.register(async (admin) => {
+    admin.addHook('preHandler', admin.authenticate);
     admin.addHook('preHandler', admin.authorize([UserRoleEnum.ADMIN]));
 
     admin.get('/', getAllPromos);
-    
+
     admin.post('/', {
       schema: { body: PromoCodeSchema }
     }, handleCreatePromo);
@@ -34,5 +36,9 @@ export default async function promoRoutes(fastify: FastifyInstance) {
         body: PromoCodeSchema,
       }
     }, handleUpdatePromo);
+
+    admin.delete('/:id', {
+      schema: { params: IdParamSchema }
+    }, handleDeletePromo);
   });
 }

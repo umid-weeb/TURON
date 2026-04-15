@@ -50,6 +50,8 @@ export const usePromoStore = create<PromoState>()(
                 usageLimit: 0,
                 timesUsed: 12,
                 isActive: true,
+                isFirstOrderOnly: false,
+                targetUserId: null,
                 createdAt: now,
                 updatedAt: now,
               },
@@ -64,6 +66,8 @@ export const usePromoStore = create<PromoState>()(
                 usageLimit: 50,
                 timesUsed: 50,
                 isActive: true,
+                isFirstOrderOnly: false,
+                targetUserId: null,
                 createdAt: now,
                 updatedAt: now,
               }

@@ -13,6 +13,8 @@ function normalizePromo(promo: AdminPromo): AdminPromo {
     description: promo.description || '',
     usageLimit: promo.usageLimit ?? 0,
     timesUsed: promo.timesUsed ?? 0,
+    isFirstOrderOnly: promo.isFirstOrderOnly ?? false,
+    targetUserId: promo.targetUserId ?? null,
   };
 }
 
@@ -92,6 +94,19 @@ export const useUpdateAdminPromo = () => {
     onSuccess: (updatedPromo) => {
       queryClient.setQueryData<AdminPromo[]>(promoKeys.admin, (currentPromos) =>
         mergePromo(currentPromos, updatedPromo),
+      );
+    },
+  });
+};
+
+export const useDeleteAdminPromo = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => api.delete(`/promos/${id}`),
+    onSuccess: (_, deletedId) => {
+      queryClient.setQueryData<AdminPromo[]>(promoKeys.admin, (currentPromos) =>
+        currentPromos?.filter((p) => p.id !== deletedId) ?? [],
       );
     },
   });

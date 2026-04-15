@@ -32,12 +32,10 @@ export interface AdminPromo {
 }
 
 export interface PromoValidationResult {
-  success: boolean;
-  reason?: 'INVALID_CODE' | 'INACTIVE' | 'EXPIRED' | 'NOT_STARTED' | 'LIMIT_REACHED' | 'MIN_ORDER_NOT_MET' | 'UNKNOWN';
+  isValid: boolean;
   message: string;
   discountAmount: number;
-  normalizedCode: string;
-  promo?: AdminPromo;
+  promo?: Pick<AdminPromo, 'id' | 'code' | 'title' | 'discountType' | 'discountValue' | 'minOrderValue'>;
 }
 
 export interface PromoFormData {

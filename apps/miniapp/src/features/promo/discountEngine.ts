@@ -27,67 +27,35 @@ export function getPromoStatus(promo: AdminPromo): PromoStatusEnum {
 export function validatePromo(promo: AdminPromo | undefined, subtotal: number): PromoValidationResult {
   if (!promo) {
     return {
-      success: false,
-      reason: 'INVALID_CODE',
+      isValid: false,
       message: 'Ushbu promokod mavjud emas',
       discountAmount: 0,
-      normalizedCode: '',
     };
   }
 
   const status = getPromoStatus(promo);
 
   if (status === PromoStatusEnum.INACTIVE) {
-    return {
-      success: false,
-      reason: 'INACTIVE',
-      message: 'Ushbu promokod faol emas',
-      discountAmount: 0,
-      normalizedCode: promo.code,
-      promo,
-    };
+    return { isValid: false, message: 'Ushbu promokod faol emas', discountAmount: 0, promo };
   }
 
   if (status === PromoStatusEnum.EXPIRED) {
-    return {
-      success: false,
-      reason: 'EXPIRED',
-      message: 'Promokodning muddati tugagan',
-      discountAmount: 0,
-      normalizedCode: promo.code,
-      promo,
-    };
+    return { isValid: false, message: 'Promokodning muddati tugagan', discountAmount: 0, promo };
   }
 
   if (status === PromoStatusEnum.SCHEDULED) {
-    return {
-      success: false,
-      reason: 'NOT_STARTED',
-      message: 'Ushbu promokod hali ishga tushmagan',
-      discountAmount: 0,
-      normalizedCode: promo.code,
-      promo,
-    };
+    return { isValid: false, message: 'Ushbu promokod hali ishga tushmagan', discountAmount: 0, promo };
   }
 
   if (status === PromoStatusEnum.LIMIT_REACHED) {
-    return {
-      success: false,
-      reason: 'LIMIT_REACHED',
-      message: 'Promokoddan foydalanish limiti tugagan',
-      discountAmount: 0,
-      normalizedCode: promo.code,
-      promo,
-    };
+    return { isValid: false, message: 'Promokoddan foydalanish limiti tugagan', discountAmount: 0, promo };
   }
 
   if (subtotal < promo.minOrderValue) {
     return {
-      success: false,
-      reason: 'MIN_ORDER_NOT_MET',
+      isValid: false,
       message: `Promokod ishlashi uchun minimal buyurtma summasi ${promo.minOrderValue.toLocaleString()} so'm bo'lishi kerak`,
       discountAmount: 0,
-      normalizedCode: promo.code,
       promo,
     };
   }
@@ -105,10 +73,9 @@ export function validatePromo(promo: AdminPromo | undefined, subtotal: number): 
   discountAmount = Math.min(subtotal, discountAmount);
 
   return {
-    success: true,
-    message: 'Promokod muvaffaqiyatli qo\'llanildi!',
+    isValid: true,
+    message: "Promokod muvaffaqiyatli qo'llanildi!",
     discountAmount,
-    normalizedCode: promo.code,
     promo,
   };
 }
