@@ -836,11 +836,6 @@ export const BottomNavbar: React.FC = () => {
     { icon: User, label: 'Profil', path: '/customer/profile', isNotification: true },
   ];
 
-  const isHomeActive = (path: string) =>
-    location.pathname === path ||
-    (path === '/customer' &&
-      (location.pathname.startsWith('/customer/category') ||
-        location.pathname.startsWith('/customer/product')));
 
   return (
     <nav
@@ -858,23 +853,14 @@ export const BottomNavbar: React.FC = () => {
         <div className="flex flex-1 items-end justify-around pb-1">
           {leftItems.map((item) => {
             const Icon = item.icon;
-            const isActive = isHomeActive(item.path);
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
                 className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
               >
-                <Icon
-                  size={22}
-                  strokeWidth={isActive ? 2.5 : 1.8}
-                  className={isActive ? 'text-white' : 'text-red-300/70'}
-                />
-                <span
-                  className={`text-[10px] font-bold leading-none tracking-tight ${
-                    isActive ? 'text-white' : 'text-red-300/70'
-                  }`}
-                >
+                <Icon size={22} strokeWidth={2} className="text-white" />
+                <span className="text-[10px] font-bold leading-none tracking-tight text-white">
                   {item.label}
                 </span>
               </NavLink>
@@ -909,7 +895,6 @@ export const BottomNavbar: React.FC = () => {
         <div className="flex flex-1 items-end justify-around pb-1">
           {rightItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
             return (
               <NavLink
                 key={item.path}
@@ -917,18 +902,10 @@ export const BottomNavbar: React.FC = () => {
                 className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
               >
                 <div className="relative">
-                  <Icon
-                    size={22}
-                    strokeWidth={isActive ? 2.5 : 1.8}
-                    className={isActive ? 'text-white' : 'text-red-300/70'}
-                  />
+                  <Icon size={22} strokeWidth={2} className="text-white" />
                   {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
                 </div>
-                <span
-                  className={`text-[10px] font-bold leading-none tracking-tight ${
-                    isActive ? 'text-white' : 'text-red-300/70'
-                  }`}
-                >
+                <span className="text-[10px] font-bold leading-none tracking-tight text-white">
                   {item.label}
                 </span>
               </NavLink>
