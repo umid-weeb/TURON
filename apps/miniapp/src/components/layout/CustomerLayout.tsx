@@ -27,25 +27,25 @@ const AppHeader: React.FC = () => (
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      background: `linear-gradient(135deg, #9B0000 0%, ${RED} 60%, #E53535 100%)`,
+      background: `linear-gradient(135deg, #8B0000 0%, #C62020 55%, #E83535 100%)`,
       display: 'flex',
-      alignItems: 'flex-end',  // logo sits at bottom of the bar
+      alignItems: 'flex-end',
       justifyContent: 'center',
-      /* Content area height: 68px; adds Telegram safe-area on top */
-      paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 8px)) + 8px)',
-      paddingBottom: 12,
-      minHeight: 'calc(76px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
-      boxShadow: '0 2px 16px rgba(150,0,0,0.3)',
+      paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 8px)) + 10px)',
+      paddingBottom: 14,
+      minHeight: 'calc(90px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
+      boxShadow: '0 4px 20px rgba(150,0,0,0.4)',
     }}
   >
     <img
       src="/turon-logo.png"
       alt="Turon Kafesi"
       style={{
-        height: 54,          // bigger & clearly visible
-        maxWidth: '62vw',
+        height: 78,
+        maxWidth: '72vw',
         objectFit: 'contain',
-        filter: 'brightness(0) invert(1)',
+        filter:
+          'brightness(0) invert(1) drop-shadow(0 0 12px rgba(255,200,200,0.55)) drop-shadow(0 2px 6px rgba(0,0,0,0.35))',
         userSelect: 'none',
         pointerEvents: 'none',
       }}
