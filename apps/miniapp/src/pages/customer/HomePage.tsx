@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ProductAvailabilityEnum } from '@turon/shared';
 import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
-import { getProductImageUrl, getProductPosterUrl } from '../../features/menu/placeholders';
+import { getProductImageUrl, getProductPosterUrl, getCategoryImageUrl, getCategoryPosterUrl } from '../../features/menu/placeholders';
 import {
   getCustomerCategoryLabel,
   getProductPromotion,
@@ -102,9 +102,8 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
           navigate(`/customer/product/${product.id}`);
         }
       }}
-      className={`group relative min-h-[266px] overflow-hidden rounded-[18px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.035] transition duration-200 active:scale-[0.985] ${
-        available ? '' : 'opacity-60 grayscale'
-      }`}
+      className={`group relative min-h-[266px] overflow-hidden rounded-[18px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.035] transition duration-200 active:scale-[0.985] ${available ? '' : 'opacity-60 grayscale'
+        }`}
     >
       <div className="relative h-[142px] overflow-hidden bg-slate-100 min-[390px]:h-[152px]">
         <img
@@ -150,9 +149,8 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
             type="button"
             onClick={handleAdd}
             disabled={!available}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[0_12px_20px_rgba(15,23,42,0.22)] transition active:scale-90 ${
-              available ? 'bg-[#202124] text-white' : 'bg-slate-200 text-slate-400'
-            }`}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[0_12px_20px_rgba(15,23,42,0.22)] transition active:scale-90 ${available ? 'bg-[#202124] text-white' : 'bg-slate-200 text-slate-400'
+              }`}
             aria-label="Savatga qo'shish"
           >
             <Plus size={22} strokeWidth={2.7} />
@@ -222,15 +220,52 @@ const HomePage: React.FC = () => {
           />
         </label>
 
-        <div className="scrollbar-hide -mx-4 mt-5 flex gap-3 overflow-x-auto px-4 pb-2">
+        {/* Kategoriyalar Section */}
+        <section className="mt-6">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">Bo'limlar</p>
+              <h2 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#202020]">Kategoriyalar</h2>
+            </div>
+            <a href="#" className="text-[12px] font-black uppercase tracking-[0.14em] text-[#f59e0b] hover:underline">
+              Hammasini ko'rish
+            </a>
+          </div>
+
+          <div className="scrollbar-hide -mx-4 mt-2 flex gap-3 overflow-x-auto px-4 pb-1">
+            {sortedCategories.map((category) => {
+              const categoryLabel = formatText(getCustomerCategoryLabel(category.name));
+              return (
+                <a
+                  key={category.id}
+                  href={`/customer/category/${category.id}`}
+                  className="group flex shrink-0 flex-col items-center gap-2 text-center"
+                >
+                  <div className="relative h-20 w-20 overflow-hidden rounded-[16px] bg-slate-200 shadow-sm ring-1 ring-slate-900/[0.035]">
+                    <img
+                      src={getCategoryImageUrl(category)}
+                      alt={categoryLabel}
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = getCategoryPosterUrl(category);
+                      }}
+                    />
+                  </div>
+                  <p className="max-w-[80px] text-[11px] font-semibold text-slate-700">{categoryLabel}</p>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Filter Buttons Section */}
+        <div className="scrollbar-hide -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-2">
           <button
-            type="button"
             onClick={() => setActiveCategoryId('all')}
-            className={`flex h-[40px] shrink-0 items-center gap-2 rounded-full px-4 text-[15px] font-black shadow-sm transition active:scale-95 ${
-              activeCategoryId === 'all'
-                ? 'bg-[#202124] text-white'
-                : 'border border-slate-200 bg-white text-slate-500'
-            }`}
+            className={`flex h-[40px] shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-black shadow-sm transition active:scale-95 ${activeCategoryId === 'all'
+              ? 'bg-[#202124] text-white'
+              : 'border border-slate-200 bg-white text-slate-500'
+              }`}
           >
             <Utensils size={17} />
             Hammasi
@@ -242,11 +277,10 @@ const HomePage: React.FC = () => {
                 key={category.id}
                 type="button"
                 onClick={() => setActiveCategoryId(category.id)}
-                className={`h-[40px] shrink-0 rounded-full px-4 text-[15px] font-black shadow-sm transition active:scale-95 ${
-                  isActive
-                    ? 'bg-[#202124] text-white'
-                    : `border border-slate-200 bg-gradient-to-br ${getCategoryTone(category)}`
-                }`}
+                className={`h-[40px] shrink-0 rounded-full px-4 text-[13px] font-black shadow-sm transition active:scale-95 ${isActive
+                  ? 'bg-[#202124] text-white'
+                  : `border border-slate-200 bg-gradient-to-br ${getCategoryTone(category)}`
+                  }`}
               >
                 {formatText(getCustomerCategoryLabel(category.name))}
               </button>
