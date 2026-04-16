@@ -13,7 +13,6 @@ import {
 } from '../../features/menu/customerCatalog';
 import type { MenuCategory, MenuProduct } from '../../features/menu/types';
 import { useCategories, useProducts } from '../../hooks/queries/useMenu';
-import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
 
 const normalize = (value: string) =>
@@ -21,12 +20,31 @@ const normalize = (value: string) =>
     .toLowerCase()
     .trim()
     .replace(/[\u00B4`']/g, '')
+    .replace(/o['\u2018\u2019\u02BC]/gi, 'o')
+    .replace(/g['\u2018\u2019\u02BC]/gi, 'g')
     .replace(/\s+/g, ' ');
+
+/** Simple subsequence fuzzy match — "gmb" matches "gamburger" */
+const isFuzzyMatch = (haystack: string, query: string): boolean => {
+  let hi = 0;
+  for (let qi = 0; qi < query.length; qi++) {
+    const found = haystack.indexOf(query[qi], hi);
+    if (found === -1) return false;
+    hi = found + 1;
+  }
+  return true;
+};
 
 const productMatchesSearch = (product: MenuProduct, query: string) => {
   if (!query) return true;
-  const haystack = normalize(`${product.name} ${product.description} ${product.weight ?? ''} ${product.weightText ?? ''}`);
-  return haystack.includes(query);
+  const haystack = normalize(
+    `${product.name} ${product.description ?? ''} ${product.weight ?? ''} ${product.weightText ?? ''}`
+  );
+  // 1. Exact substring
+  if (haystack.includes(query)) return true;
+  // 2. Fuzzy subsequence (works for partial / mis-ordered chars)
+  if (query.length >= 2 && isFuzzyMatch(haystack, query)) return true;
+  return false;
 };
 
 const productIsAvailable = (product: MenuProduct) =>
@@ -163,16 +181,10 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
 
 const HomePage: React.FC = () => {
   const { formatText } = useCustomerLanguage();
-  const user = useAuthStore((state) => state.user);
   const { data: categories = [], isLoading: isCategoriesLoading } = useCategories();
   const { data: products = [], isLoading: isProductsLoading } = useProducts();
   const [activeCategoryId, setActiveCategoryId] = React.useState('all');
   const [searchQuery, setSearchQuery] = React.useState('');
-  const firstName = React.useMemo(() => {
-    const fallback = 'Mijoz';
-    const rawName = user?.fullName?.trim() || fallback;
-    return rawName.split(/\s+/)[0] || fallback;
-  }, [user?.fullName]);
 
   const sortedCategories = React.useMemo(() => sortCustomerCategories(categories), [categories]);
   const normalizedSearch = React.useMemo(() => normalize(searchQuery), [searchQuery]);
@@ -192,47 +204,59 @@ const HomePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
-      <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/95 px-4 backdrop-blur-xl">
-        <div className="mx-auto flex h-[50px] max-w-[430px] items-center justify-center">
-          <h1 className="text-[18px] font-black tracking-[-0.02em]">Menyu</h1>
-        </div>
-      </header>
+    <div style={{ minHeight: '100vh', background: 'var(--app-bg)', color: 'var(--app-text)' }}>
 
-      <main className="mx-auto max-w-[430px] px-4 pb-6 pt-4">
-        <section className="mb-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
-          <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">
-            Salom, {formatText(firstName)}
-          </p>
-          <h2 className="mt-2 text-[22px] font-black leading-[1.08] tracking-[-0.05em] text-[#202020]">
-            Bugun nima ovqat buyurtma qilamiz?
-          </h2>
-        </section>
-
-        <label className="flex h-[48px] w-full items-center gap-3 rounded-[16px] bg-[#f0f0f3] px-4 text-[#9a9aa3] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
-          <Search size={20} strokeWidth={2.2} />
+      {/* ── Sticky search bar ─────────────────────────────────────── */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 30,
+        background: 'var(--app-card)',
+        borderBottom: '1px solid var(--app-line)',
+        padding: '10px 16px',
+      }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          height: 46,
+          background: 'var(--app-input-bg, #F0F0F3)',
+          borderRadius: 14,
+          padding: '0 14px',
+          cursor: 'text',
+        }}>
+          <Search size={19} strokeWidth={2.2} style={{ color: 'var(--app-muted)', flexShrink: 0 }} />
           <input
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Taom qidirish..."
-            className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-[#202020] outline-none placeholder:text-[#9a9aa3]"
+            style={{
+              flex: 1, minWidth: 0, height: '100%',
+              background: 'transparent', border: 'none', outline: 'none',
+              fontSize: 15, fontWeight: 600,
+              color: 'var(--app-text)',
+            }}
             autoComplete="off"
           />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--app-muted)', padding: 0, display: 'flex' }}
+            >✕</button>
+          ) : null}
         </label>
+      </div>
 
-        {/* Kategoriyalar Section */}
-        <section className="mt-6">
-          <div className="mb-3 flex items-center justify-between">
+      <main style={{ padding: '0 16px 24px' }}>
+
+        {/* Kategoriyalar */}
+        <section style={{ marginTop: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">Bo'limlar</p>
-              <h2 className="mt-1 text-[20px] font-black tracking-[-0.03em] text-[#202020]">Kategoriyalar</h2>
+              <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--app-muted)' }}>Bo'limlar</p>
+              <h2 style={{ marginTop: 4, fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em', color: 'var(--app-text)' }}>Kategoriyalar</h2>
             </div>
-            <a href="#" className="text-[12px] font-black uppercase tracking-[0.14em] text-[#f59e0b] hover:underline">
-              Hammasini ko'rish
-            </a>
           </div>
 
-          <div className="scrollbar-hide -mx-4 mt-2 flex gap-3 overflow-x-auto px-4 pb-1">
+          <div className="scrollbar-hide" style={{ display: 'flex', gap: 12, overflowX: 'auto', marginInline: -16, paddingInline: 16, paddingBottom: 4 }}>
             {sortedCategories.map((category) => {
               const categoryLabel = formatText(getCustomerCategoryLabel(category.name));
               return (
@@ -258,16 +282,20 @@ const HomePage: React.FC = () => {
           </div>
         </section>
 
-        {/* Filter Buttons Section */}
-        <div className="scrollbar-hide -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-2">
+        {/* Category filter pills */}
+        <div className="scrollbar-hide" style={{ display: 'flex', gap: 8, overflowX: 'auto', marginInline: -16, paddingInline: 16, paddingBottom: 8, marginTop: 16 }}>
           <button
             onClick={() => setActiveCategoryId('all')}
-            className={`flex h-[40px] shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-black shadow-sm transition active:scale-95 ${activeCategoryId === 'all'
-              ? 'bg-[#202124] text-white'
-              : 'border border-slate-200 bg-white text-slate-500'
-              }`}
+            style={{
+              height: 38, flexShrink: 0, borderRadius: 999, padding: '0 16px',
+              fontSize: 13, fontWeight: 800, border: 'none', cursor: 'pointer',
+              background: activeCategoryId === 'all' ? '#C62020' : 'var(--app-card)',
+              color: activeCategoryId === 'all' ? 'white' : 'var(--app-text)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
           >
-            <Utensils size={17} />
+            <Utensils size={16} />
             Hammasi
           </button>
           {sortedCategories.map((category) => {
@@ -277,10 +305,13 @@ const HomePage: React.FC = () => {
                 key={category.id}
                 type="button"
                 onClick={() => setActiveCategoryId(category.id)}
-                className={`h-[40px] shrink-0 rounded-full px-4 text-[13px] font-black shadow-sm transition active:scale-95 ${isActive
-                  ? 'bg-[#202124] text-white'
-                  : `border border-slate-200 bg-gradient-to-br ${getCategoryTone(category)}`
-                  }`}
+                style={{
+                  height: 38, flexShrink: 0, borderRadius: 999, padding: '0 16px',
+                  fontSize: 13, fontWeight: 800, border: 'none', cursor: 'pointer',
+                  background: isActive ? '#C62020' : 'var(--app-card)',
+                  color: isActive ? 'white' : 'var(--app-text)',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                }}
               >
                 {formatText(getCustomerCategoryLabel(category.name))}
               </button>
@@ -288,16 +319,23 @@ const HomePage: React.FC = () => {
           })}
         </div>
 
+        {/* Search result hint */}
+        {searchQuery ? (
+          <p style={{ marginTop: 12, fontSize: 13, color: 'var(--app-muted)', fontWeight: 600 }}>
+            &ldquo;{searchQuery}&rdquo; uchun {filteredProducts.length} ta natija
+          </p>
+        ) : null}
+
         {filteredProducts.length ? (
-          <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 max-[340px]:gap-x-3">
+          <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {filteredProducts.map((product) => (
               <MenuProductCard key={product.id} product={product} />
             ))}
           </div>
         ) : (
-          <div className="mt-10 rounded-[18px] bg-white px-5 py-10 text-center shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-            <p className="text-[17px] font-black text-slate-900">Taom topilmadi</p>
-            <p className="mt-2 text-[13px] font-medium leading-5 text-slate-500">
+          <div style={{ marginTop: 40, borderRadius: 18, background: 'var(--app-card)', padding: '40px 20px', textAlign: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+            <p style={{ fontSize: 17, fontWeight: 900, color: 'var(--app-text)' }}>Taom topilmadi</p>
+            <p style={{ marginTop: 8, fontSize: 13, fontWeight: 500, color: 'var(--app-muted)', lineHeight: 1.5 }}>
               Boshqa kategoriya tanlang yoki qidiruvdan foydalaning.
             </p>
           </div>
