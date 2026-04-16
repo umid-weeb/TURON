@@ -321,7 +321,7 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
             </button>
             <div className="flex-1 text-center">
               <p className="text-[11px] text-slate-400">
-                {(tilt ?? 50) < 20 ? 'Ustun ko'rish' : (tilt ?? 50) > 40 ? 'Yon ko'rish' : 'Oʻrtacha'}
+                {(tilt ?? 50) < 20 ? 'Ustun ko\'rish' : (tilt ?? 50) > 40 ? 'Yon ko\'rish' : 'O\'rtacha'}
               </p>
             </div>
             <button
