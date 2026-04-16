@@ -14,11 +14,14 @@
 :root {
   --font-sans: "Manrope", "Segoe UI", sans-serif;
   --font-display: "Fraunces", Georgia, serif;
-  --app-bg: #f7efe4;
-  --app-surface: rgba(255, 252, 247, 0.86);
-  --app-line: rgba(148, 101, 60, 0.12);
-  --app-text: #1f2937;
-  --app-muted: #7c6f64;
+  --app-bg: #F9FAFB;
+  --app-surface: #FFFFFF;
+  --app-line: #F3F4F6;
+  --app-text: #111827;
+  --app-muted: #6B7280;
+  --app-card: #FFFFFF;
+  --app-section-label: #9CA3AF;
+  --app-icon-bg: #FEE2E2;
   color: var(--app-text);
   background: var(--app-bg);
   font-family: var(--font-sans);
@@ -26,6 +29,26 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Dark mode global ─── */
+body.dark {
+  --app-bg: #111827;
+  --app-surface: #1F2937;
+  --app-line: #374151;
+  --app-text: #F9FAFB;
+  --app-muted: #9CA3AF;
+  --app-card: #1F2937;
+  --app-section-label: #6B7280;
+  --app-icon-bg: #3D1515;
+  background: var(--app-bg) !important;
+  color: var(--app-text);
+}
+
+body.dark #root,
+body.dark .tg-app-shell {
+  background: var(--app-bg);
+  color: var(--app-text);
 }
 
 * {

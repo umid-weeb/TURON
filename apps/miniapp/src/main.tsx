@@ -5,6 +5,11 @@ import { ToastProvider } from './components/ui/Toast.tsx'
 import { initializeTelegramMiniApp } from './lib/telegramMiniApp.ts'
 import './index.css'
 
+// Initialize dark mode before first render
+if (localStorage.getItem('turon-dark') === '1') {
+  document.body.classList.add('dark');
+}
+
 initializeTelegramMiniApp()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

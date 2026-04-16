@@ -3,44 +3,42 @@ import { ChevronRight, Globe2, Moon, Bell, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
+import { useTelegram } from '../../hooks/useTelegram';
 
 const RED = '#C62020';
 
-/* ── Reusable toggle switch ──────────────────────────────────────────────── */
+/* ─── Dark mode initializer (run on app start too) ─────────────────────── */
+export function initDarkMode() {
+  const dark = localStorage.getItem('turon-dark') === '1';
+  document.body.classList.toggle('dark', dark);
+}
+
+/* ─── Toggle switch ─────────────────────────────────────────────────────── */
 const Toggle: React.FC<{ on: boolean; onChange: () => void }> = ({ on, onChange }) => (
   <button
     type="button"
-    onClick={onChange}
+    onClick={(e) => { e.stopPropagation(); onChange(); }}
     style={{
-      width: 48,
-      height: 26,
-      borderRadius: 13,
+      width: 50, height: 28, borderRadius: 14,
       background: on ? RED : '#D1D5DB',
-      border: 'none',
-      cursor: 'pointer',
-      position: 'relative',
-      transition: 'background 0.25s',
-      flexShrink: 0,
+      border: 'none', cursor: 'pointer', position: 'relative',
+      transition: 'background 0.25s', flexShrink: 0,
     }}
+    aria-label="toggle"
   >
-    <span
-      style={{
-        position: 'absolute',
-        top: 3,
-        left: on ? 25 : 3,
-        width: 20,
-        height: 20,
-        borderRadius: '50%',
-        background: 'white',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
-        transition: 'left 0.25s',
-      }}
-    />
+    <span style={{
+      position: 'absolute', top: 4,
+      left: on ? 26 : 4,
+      width: 20, height: 20, borderRadius: '50%',
+      background: 'white',
+      boxShadow: '0 1px 6px rgba(0,0,0,0.22)',
+      transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+    }} />
   </button>
 );
 
-/* ── Row: clickable item ─────────────────────────────────────────────────── */
-const RowItem: React.FC<{
+/* ─── Section row ────────────────────────────────────────────────────────── */
+const Row: React.FC<{
   icon: React.ReactNode;
   label: string;
   value?: string;
@@ -52,59 +50,70 @@ const RowItem: React.FC<{
     type="button"
     onClick={onClick}
     style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      width: '100%',
-      background: 'white',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      width: '100%', background: 'var(--app-card)',
       border: 'none',
-      borderBottom: last ? 'none' : '1px solid #F3F4F6',
-      padding: '14px 16px',
+      borderBottom: last ? 'none' : '1px solid var(--app-line)',
+      padding: '15px 20px',
       cursor: onClick ? 'pointer' : 'default',
       textAlign: 'left',
     }}
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
       <div style={{
-        width: 38, height: 38, borderRadius: 10,
-        background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 40, height: 40, borderRadius: 12,
+        background: 'var(--app-icon-bg)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
       }}>
         {icon}
       </div>
-      <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{label}</span>
+      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--app-text)' }}>{label}</span>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {value && (
-        <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{value}</span>
+        <span style={{ fontSize: 13, color: 'var(--app-muted)', fontWeight: 500 }}>{value}</span>
       )}
-      {right ?? (onClick ? <ChevronRight size={18} color="#D1D5DB" /> : null)}
+      {right ?? (onClick ? <ChevronRight size={18} color="var(--app-muted)" /> : null)}
     </div>
   </button>
 );
 
-/* ── Section card wrapper ────────────────────────────────────────────────── */
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div style={{ marginTop: 24, paddingInline: 16 }}>
-    <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8, paddingLeft: 4 }}>
+/* ─── Section card ───────────────────────────────────────────────────────── */
+const Section: React.FC<{ title: string; children: React.ReactNode; delay?: number }> = ({
+  title, children, delay = 0,
+}) => (
+  <div
+    className="animate-in slide-in-from-left"
+    style={{ animationDelay: `${delay}ms`, paddingInline: 0, marginTop: 28 }}
+  >
+    <p style={{
+      fontSize: 11, fontWeight: 700, color: 'var(--app-section-label)',
+      textTransform: 'uppercase', letterSpacing: '0.1em',
+      marginBottom: 8, paddingInline: 20,
+    }}>
       {title}
     </p>
-    <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+    <div style={{
+      overflow: 'hidden',
+      boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+    }}>
       {children}
     </div>
   </div>
 );
 
-/* ── Main page ───────────────────────────────────────────────────────────── */
+/* ─── Profile Page ───────────────────────────────────────────────────────── */
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { tg, user: tgUser } = useTelegram();
   const { language, setLanguage } = useCustomerLanguage();
 
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('turon-dark') === '1');
   const [notifOn, setNotifOn] = useState(() => localStorage.getItem('turon-notif') !== '0');
 
-  // Apply dark mode to body
+  // Apply dark mode globally
   useEffect(() => {
     document.body.classList.toggle('dark', darkMode);
     localStorage.setItem('turon-dark', darkMode ? '1' : '0');
@@ -114,75 +123,106 @@ const ProfilePage: React.FC = () => {
     localStorage.setItem('turon-notif', notifOn ? '1' : '0');
   }, [notifOn]);
 
-  const initials = user?.fullName
-    ? user.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-    : 'TK';
+  // Telegram profile photo
+  const photoUrl = tgUser?.photo_url || null;
+  const fullName = user?.fullName || tgUser?.first_name
+    ? `${tgUser?.first_name ?? ''} ${tgUser?.last_name ?? ''}`.trim()
+    : 'Turon Mijozi';
+  const displayName = user?.fullName || fullName;
+  const username = tgUser?.username ? `@${tgUser.username}` : (user?.phoneNumber || '');
 
-  const langLabel = language === 'ru' ? 'Русский' : language === 'uz-cyrl' ? 'Ўзбекча' : "O'zbekcha";
+  const initials = displayName
+    .split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'TK';
+
+  const langLabel =
+    language === 'ru' ? 'Русский' : language === 'uz-cyrl' ? 'Ўзбекча' : "O'zbekcha";
 
   const cycleLanguage = () => {
     const langs: Array<'uz-latn' | 'uz-cyrl' | 'ru'> = ['uz-latn', 'uz-cyrl', 'ru'];
-    const next = (langs.indexOf(language as any) + 1) % langs.length;
+    const next = (langs.indexOf(language as 'uz-latn' | 'uz-cyrl' | 'ru') + 1) % langs.length;
     setLanguage(langs[next]);
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', paddingBottom: 100 }}>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--app-bg)',
+      paddingBottom: 100,
+      color: 'var(--app-text)',
+    }}>
 
-      {/* ── Red gradient header ── */}
-      <div style={{
-        background: `linear-gradient(160deg, ${RED} 0%, #9B0000 100%)`,
-        paddingTop: 'env(safe-area-inset-top, 16px)',
-        paddingBottom: 72,
-        textAlign: 'center',
-        position: 'relative',
-      }}>
-        <h1 style={{ fontSize: 18, fontWeight: 800, color: 'white', margin: '16px 0 0' }}>
+      {/* ── Red gradient header — slides in from top ── */}
+      <div
+        className="animate-in slide-in-from-top"
+        style={{
+          background: `linear-gradient(160deg, ${RED} 0%, #7B0000 100%)`,
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 16px)',
+          paddingBottom: 80,
+          textAlign: 'center',
+        }}
+      >
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: 'white', margin: '14px 0 0' }}>
           Profil
         </h1>
       </div>
 
-      {/* ── Avatar card (overlaps header) ── */}
-      <div style={{
-        marginTop: -60,
-        marginInline: 20,
-        background: 'white',
-        borderRadius: 20,
-        padding: '24px 20px 20px',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.1)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 6,
-      }}>
-        {/* Avatar */}
+      {/* ── Avatar card — overlaps header, slides from left ── */}
+      <div
+        className="animate-in slide-in-from-left"
+        style={{
+          animationDelay: '80ms',
+          marginTop: -64,
+          marginInline: 16,
+          background: 'var(--app-card)',
+          borderRadius: 20,
+          padding: '28px 20px 22px',
+          boxShadow: '0 4px 28px rgba(0,0,0,0.10)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        {/* Avatar: Telegram photo or initials */}
         <div style={{
-          width: 80, height: 80, borderRadius: '50%',
-          background: `linear-gradient(135deg, ${RED}, #9B0000)`,
+          width: 84, height: 84, borderRadius: '50%',
+          boxShadow: `0 4px 18px rgba(198,32,32,0.3)`,
+          border: `3px solid ${RED}`,
+          overflow: 'hidden',
+          marginBottom: 6,
+          flexShrink: 0,
+          background: `linear-gradient(135deg, ${RED}, #7B0000)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: `0 4px 16px rgba(198,32,32,0.35)`,
-          border: '3px solid white',
-          marginBottom: 4,
         }}>
-          <span style={{ fontSize: 26, fontWeight: 900, color: 'white' }}>{initials}</span>
+          {photoUrl ? (
+            <img
+              src={photoUrl}
+              alt={displayName}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span style={{ fontSize: 28, fontWeight: 900, color: 'white' }}>{initials}</span>
+          )}
         </div>
 
-        <h2 style={{ fontSize: 17, fontWeight: 800, color: '#111827', margin: 0 }}>
-          {user?.fullName || 'Turon Mijozi'}
+        <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--app-text)', margin: 0 }}>
+          {displayName}
         </h2>
-        <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
-          {user?.phoneNumber || ''}
-        </p>
+        {username && (
+          <p style={{ fontSize: 13, color: 'var(--app-muted)', margin: 0 }}>
+            {username}
+          </p>
+        )}
       </div>
 
-      {/* ── Section 1: Asosiy ── */}
-      <Section title="Asosiy">
-        <RowItem
+      {/* ── Section: Asosiy ── */}
+      <Section title="Asosiy" delay={150}>
+        <Row
           icon={<ClipboardList size={19} color={RED} />}
           label="Buyurtmalar tarixi"
           onClick={() => navigate('/customer/orders')}
         />
-        <RowItem
+        <Row
           icon={<Globe2 size={19} color={RED} />}
           label="Tilni o'zgartirish"
           value={langLabel}
@@ -191,21 +231,20 @@ const ProfilePage: React.FC = () => {
         />
       </Section>
 
-      {/* ── Section 2: Sozlamalar ── */}
-      <Section title="Sozlamalar">
-        <RowItem
+      {/* ── Section: Sozlamalar ── */}
+      <Section title="Sozlamalar" delay={250}>
+        <Row
           icon={<Moon size={19} color={RED} />}
           label="Dark Mode"
           right={<Toggle on={darkMode} onChange={() => setDarkMode((v) => !v)} />}
         />
-        <RowItem
+        <Row
           icon={<Bell size={19} color={RED} />}
           label="Bildirishnomalar"
           right={<Toggle on={notifOn} onChange={() => setNotifOn((v) => !v)} />}
           last
         />
       </Section>
-
     </div>
   );
 };
