@@ -1,18 +1,20 @@
-import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import { BottomNavbar, FloatingCartBar, HeaderBar } from '../customer/CustomerComponents';
+import React, { useEffect } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { BottomNavbar, FloatingCartBar } from '../customer/CustomerComponents';
 import { CustomerErrorBoundary } from '../ui/CustomerErrorBoundary';
 import { useCartStore } from '../../store/useCartStore';
-import { useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
-import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 
+// Pages that manage their own header + full-width layout (no HeaderBar, no padding)
 const IMMERSIVE_CUSTOMER_PATHS = [
   /^\/customer$/,
   /^\/customer\/search$/,
   /^\/customer\/favorites$/,
+  /^\/customer\/menu$/,
+  /^\/customer\/profile$/,
   /^\/customer\/category\/[^/]+$/,
   /^\/customer\/cart$/,
   /^\/customer\/checkout$/,
+  /^\/customer\/orders$/,
   /^\/customer\/orders\/[^/]+$/,
   /^\/customer\/address\/map$/,
   /^\/customer\/orders\/[^/]+\/tracking$/,
@@ -36,79 +38,71 @@ const NO_FLOATING_CART_PATHS = [
   /^\/customer\/addresses/,
   /^\/customer\/address\//,
   /^\/customer\/orders\/[^/]+$/,
+  /^\/customer\/profile$/,
+  /^\/customer\/menu$/,
 ];
+
+const HOME_PATH = '/customer';
 
 const CustomerLayout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { items } = useCartStore();
-  const { connectionState, isConnected } = useOrdersRealtimeSync();
-  const { tr } = useCustomerLanguage();
+
   const layoutVars: React.CSSProperties & Record<string, string> = {
     '--customer-nav-height': '88px',
     '--customer-nav-bottom-gap': 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
     '--customer-nav-top-edge': 'calc(env(safe-area-inset-bottom, 0px) + 98px)',
-    '--customer-floating-cart-offset':
-      'calc(env(safe-area-inset-bottom, 0px) + 102px)',
-    '--customer-sticky-panel-clearance':
-      'calc(env(safe-area-inset-bottom, 0px) + 182px)',
-    '--customer-floating-content-clearance':
-      'calc(env(safe-area-inset-bottom, 0px) + 160px)',
+    '--customer-floating-cart-offset': 'calc(env(safe-area-inset-bottom, 0px) + 102px)',
+    '--customer-sticky-panel-clearance': 'calc(env(safe-area-inset-bottom, 0px) + 182px)',
+    '--customer-floating-content-clearance': 'calc(env(safe-area-inset-bottom, 0px) + 160px)',
   };
 
-  const isImmersiveRoute = IMMERSIVE_CUSTOMER_PATHS.some((pattern) => pattern.test(location.pathname));
-  const hideBottomNav = HIDE_BOTTOM_NAV_PATHS.some((pattern) => pattern.test(location.pathname));
+  const isImmersiveRoute = IMMERSIVE_CUSTOMER_PATHS.some((p) => p.test(location.pathname));
+  const hideBottomNav = HIDE_BOTTOM_NAV_PATHS.some((p) => p.test(location.pathname));
   const showFloatingCart =
     items.length > 0 &&
-    !NO_FLOATING_CART_PATHS.some((pattern) => pattern.test(location.pathname));
+    !NO_FLOATING_CART_PATHS.some((p) => p.test(location.pathname));
 
-  const syncBadgeClass = isConnected
-    ? 'border-emerald-300/18 bg-emerald-400/10 text-emerald-200'
-    : connectionState === 'reconnecting' || connectionState === 'connecting'
-      ? 'border-amber-300/18 bg-amber-400/10 text-amber-200'
-      : 'border-white/8 bg-white/[0.06] text-white/48';
+  const isHome = location.pathname === HOME_PATH;
 
-  const syncLabel = isConnected
-    ? tr('sync.live')
-    : connectionState === 'reconnecting'
-      ? tr('sync.reconnecting')
-      : connectionState === 'connecting'
-        ? tr('sync.connecting')
-        : tr('sync.idle');
+  // ── Telegram BackButton: show on sub-pages, hide on home ──────────────────
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (!tg?.BackButton) return;
 
-  const getPageTitle = () => {
-    const path = location.pathname;
-
-    if (path === '/customer/orders') return tr('title.orders');
-    if (path.includes('/customer/addresses')) return tr('title.addresses');
-    if (path.includes('/customer/address/new')) return tr('title.newAddress');
-    if (path.includes('/customer/address/map')) return tr('title.map');
-    if (path === '/customer/profile') return tr('title.profile');
-    if (path === '/customer/order-success') return tr('title.confirmation');
-    if (path.includes('/customer/notifications')) return tr('title.notifications');
-    if (path.includes('/customer/support')) return tr('title.support');
-    if (path.includes('/customer/product')) return tr('title.product');
-    return tr('brand');
-  };
+    if (!isHome) {
+      tg.BackButton.show();
+      const handler = () => navigate(-1);
+      tg.BackButton.onClick(handler);
+      return () => {
+        tg.BackButton.offClick(handler);
+      };
+    } else {
+      tg.BackButton.hide();
+    }
+  }, [location.pathname, isHome, navigate]);
 
   return (
     <div
-      className="min-h-screen w-full bg-[radial-gradient(circle_at_top,rgba(30,41,59,0.35),transparent_28%),linear-gradient(180deg,#05070d_0%,#0a0f19_55%,#0c111d_100%)] text-white"
-      style={layoutVars}
+      className="min-h-screen w-full text-white"
+      style={{
+        ...layoutVars,
+        background: 'var(--app-bg)',
+        color: 'var(--app-text)',
+      }}
     >
       <div className="mx-auto w-full max-w-[430px]">
-        {!isImmersiveRoute ? (
-          <HeaderBar
-            title={getPageTitle()}
-            showBack={location.pathname !== '/customer'}
-          />
-        ) : null}
-
         <main
-          className={`
-            relative min-h-screen
-            ${!isImmersiveRoute ? 'px-4 pt-4' : ''}
-            ${showFloatingCart ? 'pb-[140px]' : (!hideBottomNav ? 'pb-[88px]' : 'pb-[env(safe-area-inset-bottom,20px)]')}
-          `}
+          style={{
+            position: 'relative',
+            minHeight: '100vh',
+            paddingBottom: showFloatingCart
+              ? '140px'
+              : !hideBottomNav
+                ? '88px'
+                : 'env(safe-area-inset-bottom, 20px)',
+          }}
         >
           <CustomerErrorBoundary>
             <Outlet />

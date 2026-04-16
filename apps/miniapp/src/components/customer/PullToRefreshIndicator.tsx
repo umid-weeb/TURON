@@ -19,6 +19,17 @@ export const PullToRefreshIndicator: React.FC = () => {
     refreshingRef.current = true;
     setPhaseSync('refreshing');
     setProgress(1);
+
+    // Haptic feedback — like native iOS pull-to-refresh
+    try {
+      const tg = window.Telegram?.WebApp;
+      if (tg?.HapticFeedback?.impactOccurred) {
+        tg.HapticFeedback.impactOccurred('medium');
+      } else if (navigator.vibrate) {
+        navigator.vibrate([30, 20, 60]);
+      }
+    } catch { /* best-effort */ }
+
     try {
       await queryClient.invalidateQueries();
     } finally {
