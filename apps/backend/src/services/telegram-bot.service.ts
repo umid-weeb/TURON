@@ -991,37 +991,84 @@ const BROADCAST_SETTING_KEY = '_bot_last_broadcast';
 const BROADCAST_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 const BROADCAST_HOUR_UTC = 15; // 20:00 Uzbekistan (UTC+5)
 
-// 8 varied, engaging messages — rotate to avoid boredom
-const BROADCAST_MESSAGES = [
-  // 1 – evening craving
-  `🔥 <b>Kechqurun ovqat masalasi hal!</b>\n\nTuron kafening issiq taomlaridan buyurtma bering — 30 daqiqada eshigingizda.\n\n😋 Lagman, kabob, palov... qaysi birini tanlaysiz?`,
+async function getPopularMenuItemNames(): Promise<string[]> {
+  try {
+    const items = await prisma.menuItem.findMany({
+      where: { isActive: true, availabilityStatus: 'AVAILABLE' as any, isPopular: true },
+      select: { nameUz: true },
+      orderBy: { sortOrder: 'asc' },
+      take: 4,
+    });
+    return items.map((i) => i.nameUz).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
 
-  // 2 – speed angle
-  `⚡ <b>2 daqiqada buyurtma — 30 minutda uyda!</b>\n\nOshxona bilan ovora bo'lmasangiz ham bo'ladi 😄\n\nTuron kafe har kuni siz uchun tayyor!`,
+// One DB call for ALL customers — no per-user queries in the loop
+async function buildFavoriteItemMap(userIds: string[]): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map();
+  try {
+    const threeMonthsAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const rows = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          userId: { in: userIds },
+          status: 'DELIVERED' as any,
+          createdAt: { gte: threeMonthsAgo },
+        },
+      },
+      select: {
+        itemName: true,
+        quantity: true,
+        order: { select: { userId: true } },
+      },
+    });
 
-  // 3 – quality hook
-  `👨‍🍳 <b>Oshpaz yangi pishirgan — kuryer yo'lda!</b>\n\nFaqat yangi mahsulotlar, har kuni yangi ta'm.\n\nBugun Turon kafening menyusidan tanlang 🍽️`,
+    // Aggregate: userId → itemName → total quantity ordered
+    const agg = new Map<string, Map<string, number>>();
+    for (const row of rows) {
+      const uid = row.order.userId;
+      if (!agg.has(uid)) agg.set(uid, new Map());
+      const m = agg.get(uid)!;
+      m.set(row.itemName, (m.get(row.itemName) ?? 0) + row.quantity);
+    }
 
-  // 4 – emoji-rich food list
-  `🥩 Kabob &nbsp;|&nbsp; 🍜 Lagman &nbsp;|&nbsp; 🍛 Palov\n\n<b>Qaysi birini buyurtma qilasiz?</b>\n\nTuron kafe — Toshkent lazzati uyingizda! 🏠`,
+    // Pick the top item per user
+    const result = new Map<string, string>();
+    for (const [userId, itemMap] of agg) {
+      let bestItem = '';
+      let bestQty = 0;
+      for (const [name, qty] of itemMap) {
+        if (qty > bestQty) { bestQty = qty; bestItem = name; }
+      }
+      if (bestItem) result.set(userId, bestItem);
+    }
+    return result;
+  } catch {
+    return new Map();
+  }
+}
 
-  // 5 – social warmth
-  `🌆 <b>Kechki ovqat vaqti keldi!</b>\n\nOila bilan, do'stlar bilan — Turon kafe barcha uchun.\n\nBuyurtma bering, biz yetkazamiz 🚗`,
+function buildBroadcastText(favItem: string | null, popularItems: string[]): string {
+  if (favItem) {
+    // Rotate between 3 natural variants so repeat users see different phrasing
+    const variant = Math.floor(Date.now() / BROADCAST_INTERVAL_MS) % 3;
+    if (variant === 0) {
+      return `${escapeHtml(favItem)} — bugun ham yangi pishirildi 🔥\n\nIssiq holda eshigingizga yetkazib beramiz.`;
+    }
+    if (variant === 1) {
+      return `Sizning sevimlingiz — ${escapeHtml(favItem)} 😋\n\nBugun ham tayyor. Issiq, yangi pishirilgan.`;
+    }
+    return `${escapeHtml(favItem)} yegulik payt keldi 🍽️\n\nIssiq holda eshigingizga yetkazamiz.`;
+  }
 
-  // 6 – fun & punchy
-  `😋 <b>Qorin och bo'lishi kerak...</b>\n\nBitta buyurtma — va muammo hal! Tez, oson, mazali.\n\nTuron kafe siz bilan 🤝`,
+  if (popularItems.length > 0) {
+    const list = popularItems.slice(0, 3).map(escapeHtml).join(', ');
+    return `Bugun menyuda: ${list} va boshqalar 🍽️\n\nHammasi yangi pishirilgan, issiq.`;
+  }
 
-  // 7 – FOMO/popularity
-  `🏆 <b>Bugun yuzlab oila Turon kafe tanladi!</b>\n\nSiz ham qo'shiling — buyurtma berishga atigi 2 daqiqa ketadi 😊\n\nHar kuni yangi taomlar!`,
-
-  // 8 – weekend vibe
-  `🎉 <b>Dam olish kuni + mazali taom = mukammal kech!</b>\n\nTuron kafening to'liq menyusini ko'ring va sevimlingizni buyurtma qiling 🍽️`,
-];
-
-function pickBroadcastMessage(): string {
-  // Rotate deterministically so consecutive runs give different messages
-  const dayIndex = Math.floor(Date.now() / BROADCAST_INTERVAL_MS);
-  return BROADCAST_MESSAGES[dayIndex % BROADCAST_MESSAGES.length];
+  return `Bugun Turon kafesidan buyurtma qilasizmi? 🍽️\n\nIssiq taomlar tayyor, 30 daqiqada eshigingizda.`;
 }
 
 function calcNextBroadcastMs(lastTimestamp: number): number {
@@ -1042,10 +1089,16 @@ function calcNextBroadcastMs(lastTimestamp: number): number {
 async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
   const customers = await prisma.user.findMany({
     where: { role: UserRoleEnum.CUSTOMER as any, isActive: true },
-    select: { telegramId: true },
+    select: { id: true, telegramId: true },
   });
 
-  const text = pickBroadcastMessage();
+  // Prefetch personalisation data in two parallel queries — no per-user DB calls in the loop
+  const userIds = customers.map((c) => c.id);
+  const [favoriteItems, popularItems] = await Promise.all([
+    buildFavoriteItemMap(userIds),
+    getPopularMenuItemNames(),
+  ]);
+
   const launchUrl = resolveMiniAppLaunchUrl('customer');
   const keyboard = Markup.inlineKeyboard([[Markup.button.webApp('🛒 Buyurtma qilish', launchUrl)]]);
 
@@ -1059,6 +1112,9 @@ async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
     try {
       // Delete ALL previously stored bot messages so the chat stays clean
       await deleteAllStoredMessages(bot, chatId);
+
+      const favItem = favoriteItems.get(customer.id) ?? null;
+      const text = buildBroadcastText(favItem, popularItems);
 
       const sentMsg = await bot.telegram.sendMessage(chatId, text, {
         parse_mode: 'HTML',
