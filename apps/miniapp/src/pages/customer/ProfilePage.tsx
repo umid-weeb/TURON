@@ -1,149 +1,119 @@
 import React from 'react';
-import { ChevronRight, Globe2, MapPinned, MessageCircle, Package2, Phone } from 'lucide-react';
+import { ChevronRight, Globe2, MapPinned, HelpCircle, Info, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useAddresses } from '../../hooks/queries/useAddresses';
-import { useMyOrders } from '../../hooks/queries/useOrders';
 import { useAuthStore } from '../../store/useAuthStore';
 import { customerLanguageOptions, useCustomerLanguage } from '../../features/i18n/customerLocale';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, updateUser } = useAuthStore();
-  const { tg, requestPhoneContact } = useTelegram();
+  const { user, logout } = useAuthStore();
+  const { tg } = useTelegram();
   const { data: addresses = [] } = useAddresses();
-  const { data: orders = [] } = useMyOrders();
-  const { language, setLanguage, tr, formatText } = useCustomerLanguage();
+  const { language, setLanguage, tr } = useCustomerLanguage();
 
-  const handleSyncPhone = () => {
-    requestPhoneContact((shared, contact) => {
-      if (shared && contact?.phone_number) {
-        updateUser({ phoneNumber: contact.phone_number });
-        if (tg?.HapticFeedback) {
-          tg.HapticFeedback.notificationOccurred('success');
-        }
-      }
-    });
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
-  const actions = [
+  // Get initials from user name
+  const initials = user?.fullName
+    ? user.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'MM';
+
+  // Language label
+  const languageLabel = language === 'ru' ? 'Русский' : language === 'uz-cyrl' ? 'Ўзбекча' : "O'zbekcha";
+
+  const menuItems = [
     {
-      label: tr('profile.addresses'),
-      description:
-        language === 'ru'
-          ? `${addresses.length} сохраненных адресов`
-          : language === 'uz-cyrl'
-            ? `${addresses.length} та сақланган манзил`
-            : `${addresses.length} ta saqlangan manzil`,
       icon: MapPinned,
+      label: tr('profile.addresses') || 'Manzillarim',
       onClick: () => navigate('/customer/addresses'),
     },
     {
-      label: tr('profile.orders'),
-      description:
-        language === 'ru'
-          ? `${orders.length} заказов в истории`
-          : language === 'uz-cyrl'
-            ? `${orders.length} та буюртма тарихи`
-            : `${orders.length} ta buyurtma tarixi`,
-      icon: Package2,
-      onClick: () => navigate('/customer/orders'),
+      icon: Globe2,
+      label: tr('profile.language') || 'Tilni o\'zgartirish',
+      value: languageLabel,
+      onClick: () => {
+        // Toggle language selection
+        const nextLang = language === 'uz' ? 'ru' : 'uz';
+        setLanguage(nextLang);
+      },
     },
     {
-      label: tr('profile.notifications'),
-      description:
-        language === 'ru'
-          ? 'Статусы и системные сообщения'
-          : language === 'uz-cyrl'
-            ? 'Статус ва тизим хабарлари'
-            : 'Status va tizim xabarlari',
-      icon: MessageCircle,
-      onClick: () => navigate('/customer/notifications'),
-    },
-    {
-      label: tr('profile.support'),
-      description:
-        language === 'ru'
-          ? 'Связь с оператором через Telegram'
-          : language === 'uz-cyrl'
-            ? 'Оператор билан Telegram орқали боғланиш'
-            : "Operator bilan Telegram orqali bog'lanish",
-      icon: MessageCircle,
+      icon: HelpCircle,
+      label: tr('profile.support') || 'Yordam',
       onClick: () => navigate('/customer/support'),
+    },
+    {
+      icon: Info,
+      label: 'Ilova haqida',
+      onClick: () => navigate('/customer/about'),
     },
   ];
 
   return (
-    <div className="space-y-6 pb-28 animate-in fade-in duration-500">
-      <section className="glass-panel rounded-[34px] p-5 shadow-[0_18px_42px_rgba(148,101,60,0.12)]">
-        <p className="text-[11px] font-black uppercase tracking-[0.26em] text-slate-400">{tr('profile.badge')}</p>
-        <h2 className="mt-2 text-[2rem] font-black leading-none tracking-tight text-slate-900">
-          {formatText(user?.fullName || 'Turon mijozi')}
-        </h2>
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-3 rounded-[22px] bg-white/90 px-4 py-4 shadow-sm transition-all active:scale-[0.99]" onClick={!user?.phoneNumber ? handleSyncPhone : undefined}>
-            <div className={`flex h-11 w-11 items-center justify-center rounded-[18px] ${!user?.phoneNumber ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
-              <Phone size={18} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">{tr('profile.phone')}</p>
-              <p className={`text-sm font-bold ${!user?.phoneNumber ? 'text-amber-600' : 'text-slate-900'}`}>
-                {user?.phoneNumber || (language === 'ru' ? 'Синхронизация с Telegram' : language === 'uz-cyrl' ? 'Telegram билан уланиш' : 'Telegramdan olish')}
-              </p>
-            </div>
-            {!user?.phoneNumber && <ChevronRight size={16} className="text-amber-400" />}
+    <div className="min-h-screen bg-white pb-24">
+      {/* Header */}
+      <div className="border-b border-gray-200 px-4 py-4">
+        <h1 className="text-center text-lg font-black text-slate-900">Profil</h1>
+      </div>
+
+      {/* Profile Card */}
+      <div className="mx-4 mt-4 rounded-2xl bg-gradient-to-br from-gray-50 to-white p-6 shadow-sm border border-gray-100">
+        <div className="flex flex-col items-center text-center">
+          {/* Avatar */}
+          <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-amber-50 shadow-sm">
+            <span className="text-2xl font-black text-amber-700">{initials}</span>
           </div>
 
-          <div className="flex items-start gap-3 rounded-[22px] bg-white/90 px-4 py-4 shadow-sm">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-slate-100 text-slate-500">
-              <Globe2 size={18} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">{tr('profile.language')}</p>
-              
-              <div className="mt-3 flex flex-wrap gap-2">
-                {customerLanguageOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setLanguage(option.value)}
-                    className={`h-10 flex-1 min-w-[80px] rounded-full px-3 text-[11px] font-black tracking-wider transition-all active:scale-[0.95] ${
-                      language === option.value
-                        ? 'bg-slate-900 text-white shadow-xl shadow-slate-200'
-                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                    }`}
-                  >
-                    {tr(option.labelKey)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* Name */}
+          <h2 className="text-lg font-black tracking-tight text-slate-900">
+            {user?.fullName || 'Turon mijozi'}
+          </h2>
+
+          {/* Phone */}
+          <p className="mt-1 text-sm text-slate-500">{user?.phoneNumber || '+998 90 000 00 00'}</p>
         </div>
-      </section>
+      </div>
 
-      <section className="space-y-3">
-        {actions.map((action) => {
-          const Icon = action.icon;
-
+      {/* Menu Items */}
+      <div className="mt-6 space-y-3 px-4">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
           return (
             <button
-              key={action.label}
-              onClick={action.onClick}
-              className="glass-panel flex w-full items-center gap-4 rounded-[30px] p-4 text-left shadow-[0_18px_42px_rgba(148,101,60,0.12)] transition-transform active:scale-[0.985]"
+              key={item.label}
+              onClick={item.onClick}
+              className="flex w-full items-center justify-between rounded-xl bg-white p-4 shadow-sm border border-gray-100 transition-colors hover:bg-gray-50 active:bg-gray-100"
             >
-              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[22px] bg-white/90 text-slate-700 shadow-sm">
-                <Icon size={22} />
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                  <Icon size={20} className="text-slate-600" />
+                </div>
+                <span className="font-semibold text-slate-900">{item.label}</span>
               </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-base font-black tracking-tight text-slate-900">{action.label}</h3>
-                <p className="mt-1 text-sm text-slate-500">{action.description}</p>
+              <div className="flex items-center gap-2">
+                {item.value && <span className="text-sm text-slate-500">{item.value}</span>}
+                <ChevronRight size={18} className="text-slate-300" />
               </div>
-              <ChevronRight size={18} className="text-slate-300" />
             </button>
           );
         })}
-      </section>
+      </div>
+
+      {/* Logout Button */}
+      <div className="mx-4 mt-8">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 py-4 font-black text-white transition-colors hover:bg-red-600 active:bg-red-700 shadow-sm"
+        >
+          <LogOut size={18} />
+          <span>Tizimdan chiqish</span>
+        </button>
+      </div>
     </div>
   );
 };
