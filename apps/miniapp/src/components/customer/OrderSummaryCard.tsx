@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, Route, ShoppingBag, Tag, Truck } from 'lucide-react';
+import { CreditCard, Route, ShoppingBag, Tag, Truck, Loader2 } from 'lucide-react';
 import { PaymentMethod, type OrderQuote } from '../../data/types';
 import { useCartStore } from '../../store/useCartStore';
 import { useCheckoutStore } from '../../store/useCheckoutStore';
@@ -76,7 +76,12 @@ const OrderSummaryCard: React.FC<{
             <Truck size={14} className="text-white/40" />
             <span>Yetkazish</span>
           </div>
-          <span className="font-black text-white">{deliveryFeeLabel}</span>
+          <div className="flex items-center gap-2">
+            {isQuoteLoading && <Loader2 size={14} className="animate-spin text-amber-400" />}
+            <span className={`font-black ${isQuoteLoading ? 'text-amber-400' : 'text-white'}`}>
+              {deliveryFeeLabel}
+            </span>
+          </div>
         </div>
 
         {discount > 0 ? (
