@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, ChevronUp, Eye, Navigation } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, Navigation } from 'lucide-react';
 import type { RouteStep } from '../../features/maps/MapProvider';
 
 export interface RouteAlternative {
@@ -20,15 +20,8 @@ interface CourierNavigationPanelProps {
   currentStep?: NavigationStep | null;
   allSteps?: NavigationStep[];
   currentStepIndex?: number;
-  heading?: number;
-  onHeadingChange?: (heading: number) => void;
-  tilt?: number;
-  onTiltChange?: (tilt: number) => void;
-  followMode?: boolean;
-  onFollowModeToggle?: (enabled: boolean) => void;
   distance?: string;
   eta?: string;
-  isEtaLive?: boolean;
 }
 
 function getDirectionGlyph(action?: NavigationStep['action']) {
@@ -50,19 +43,12 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
   currentStep,
   allSteps = [],
   currentStepIndex = 0,
-  heading = 0,
-  onHeadingChange,
-  tilt = 50,
-  onTiltChange,
-  followMode = true,
-  onFollowModeToggle,
   distance,
   eta,
 }) => {
   const [showRoutes, setShowRoutes] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [hintShown, setHintShown] = useState(false);
-  const headingInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (selectedRouteId && routes.length > 0) {
@@ -80,17 +66,10 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
     }
   }, [routes.length, hintShown]);
 
-  const handleHeadingChange = (value: string) => {
-    onHeadingChange?.(Number.parseFloat(value));
-  };
+  if (!currentStep && routes.length <= 1) {
+    return null;
+  }
 
-  const handleTiltChange = (delta: number) => {
-    const nextTilt = Math.max(0, Math.min(60, tilt + delta));
-    onTiltChange?.(nextTilt);
-  };
-
-  const rotateLeft = () => onHeadingChange?.((heading - 15 + 360) % 360);
-  const rotateRight = () => onHeadingChange?.((heading + 15) % 360);
   const hasMoreSteps = currentStepIndex + 1 < allSteps.length;
   const directionGlyph = getDirectionGlyph(currentStep?.action);
 
@@ -258,96 +237,6 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
           ) : null}
         </div>
       ) : null}
-
-      <div className="space-y-3 rounded-[16px] border border-slate-100 bg-white/95 p-3 shadow-lg backdrop-blur">
-        <button
-          type="button"
-          onClick={() => onFollowModeToggle?.(!followMode)}
-          className={`w-full rounded-[12px] px-3 py-2.5 text-[13px] font-semibold transition-all active:scale-95 ${
-            followMode
-              ? 'bg-indigo-600 text-white'
-              : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <Eye size={16} />
-            <span>{followMode ? "Avtomatik ko'rsatish" : "Erkin ko'rsatish"}</span>
-          </div>
-        </button>
-
-        <div className="space-y-2">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Yo'nalish: {Math.round(heading)} deg
-          </label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={rotateLeft}
-              className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:scale-95"
-              title="Chapga aylantirish"
-            >
-              <span>{'<'}</span>
-            </button>
-            <input
-              ref={headingInputRef}
-              type="range"
-              min="0"
-              max="359"
-              value={Math.round(heading)}
-              onChange={(event) => handleHeadingChange(event.target.value)}
-              disabled={followMode}
-              className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-indigo-600 disabled:opacity-50"
-              style={{
-                background: `linear-gradient(to right, rgb(129, 140, 248) 0%, rgb(129, 140, 248) ${Math.round(
-                  (heading / 360) * 100,
-                )}%, rgb(226, 232, 240) ${Math.round((heading / 360) * 100)}%, rgb(226, 232, 240) 100%)`,
-              }}
-            />
-            <button
-              type="button"
-              onClick={rotateRight}
-              className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:scale-95"
-              title="O'ngga aylantirish"
-            >
-              <span>{'>'}</span>
-            </button>
-          </div>
-          {followMode ? (
-            <p className="text-center text-[11px] text-slate-400">
-              Yo'nalishni qo'lda boshqarish uchun erkin ko'rsatishga o'ting
-            </p>
-          ) : null}
-        </div>
-
-        <div className="space-y-2">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Perspektiva: {Math.round(tilt)} deg
-          </label>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleTiltChange(-5)}
-              className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:scale-95"
-              title="Yuqoridan ko'rish"
-            >
-              <ChevronUp size={18} />
-            </button>
-            <div className="flex-1 text-center">
-              <p className="text-[11px] text-slate-400">
-                {tilt < 20 ? "Ustdan ko'rish" : tilt > 40 ? "Yon ko'rish" : "O'rtacha"}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleTiltChange(5)}
-              className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:scale-95"
-              title="Yon tomondan ko'rish"
-            >
-              <ChevronDown size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

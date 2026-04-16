@@ -523,30 +523,25 @@ const CourierMapPage: React.FC = () => {
       </div>
 
       {/* ── Bottom action panel ──────────────────────────────────────────── */}
-      <div
-        className="pointer-events-none absolute left-0 top-0 z-30 w-full px-4"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}
-      >
-        <div className="pointer-events-auto max-w-[22rem]">
-          <CourierNavigationPanel
-            routes={routes}
-            selectedRouteId={selectedRouteId}
-            onSelectRoute={setSelectedRouteId}
-            currentStep={activeStep}
-            allSteps={routeSteps}
-            currentStepIndex={0}
-            heading={heading}
-            onHeadingChange={setHeading}
-            tilt={tilt}
-            onTiltChange={setTilt}
-            followMode={followMode}
-            onFollowModeToggle={setFollowMode}
-            distance={displayRouteInfo.distance}
-            eta={displayRouteInfo.eta}
-            isEtaLive={isEtaLive}
-          />
+      {activeStep || routes.length > 1 ? (
+        <div
+          className="pointer-events-none absolute left-0 top-0 z-30 w-full px-4"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}
+        >
+          <div className="pointer-events-auto max-w-[22rem]">
+            <CourierNavigationPanel
+              routes={routes}
+              selectedRouteId={selectedRouteId}
+              onSelectRoute={setSelectedRouteId}
+              currentStep={activeStep}
+              allSteps={routeSteps}
+              currentStepIndex={0}
+              distance={displayRouteInfo.distance}
+              eta={displayRouteInfo.eta}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <DeliveryBottomPanel
         order={order}
