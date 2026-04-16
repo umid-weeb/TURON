@@ -57,7 +57,7 @@ body.dark .tg-app-shell {
 
 html {
   min-height: 100%;
-  background: #0a0d18;
+  background: var(--app-bg);
   color: var(--app-text);
   overscroll-behavior: none;
 }
@@ -101,37 +101,32 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* On large screens (desktop browser, not Telegram), keep phone-like frame */
 @media (min-width: 768px) and (hover: hover) and (pointer: fine) {
   #root,
   .tg-app-shell {
-    width: min(100%, 430px);
-    max-width: 430px;
-  }
-
-  #root {
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.04),
-      0 0 80px rgba(0, 0, 0, 0.6);
+    width: 100%;
+    max-width: 100%;
   }
 }
 
 html[data-tg-client="desktop"] body {
   display: flex;
   justify-content: center;
+  background: var(--app-bg);
 }
 
 html[data-tg-client="desktop"] #root,
 html[data-tg-client="desktop"] .tg-app-shell {
-  width: min(100%, 430px);
-  max-width: 430px;
+  width: 100%;
+  max-width: 100%;
 }
 
 html[data-tg-client="desktop"] #root {
   overflow: hidden;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 0 80px rgba(0, 0, 0, 0.6);
+  box-shadow: none;
 }
+
 
 @supports not (min-height: 100dvh) {
   body,

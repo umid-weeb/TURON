@@ -134,7 +134,7 @@ const CustomerLayout: React.FC = () => {
         color: 'var(--app-text)',
       }}
     >
-      <div className="mx-auto w-full max-w-[430px]">
+      <div className="w-full">
         {/* Universal red header with logo */}
         {showHeader && (
           <AppHeader showBack={!isHome && location.pathname !== HOME_PATH} />
