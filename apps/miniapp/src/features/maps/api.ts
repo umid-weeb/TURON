@@ -1,11 +1,19 @@
 import { api } from '../../lib/api';
 import type { AddressCandidate, MapPin, RouteInfo } from './MapProvider';
+import { mapYandexActionToDirection } from './navigation';
 import { createRouteInfoFromMeters, createZeroRouteInfo } from './route';
 
 interface YandexRouteApiResponse {
   distanceMeters: number;
   etaSeconds: number;
   polyline?: Array<{ lat: number; lng: number }>;
+  steps?: Array<{
+    instruction: string;
+    distanceMeters: number;
+    etaSeconds?: number;
+    action?: string;
+    street?: string;
+  }>;
   source?: string;
 }
 
@@ -110,6 +118,16 @@ export async function fetchRouteDetails(
       lng: point.lng,
     })),
     source: response.source || 'yandex-router',
+    steps: (response.steps || []).map((step) => ({
+      instruction: step.instruction,
+      distanceMeters: step.distanceMeters,
+      distanceText:
+        step.distanceMeters < 1000
+          ? `${Math.round(step.distanceMeters)} m`
+          : `${(step.distanceMeters / 1000).toFixed(1)} km`,
+      action: mapYandexActionToDirection(step.action),
+      street: step.street,
+    })),
   });
 }
 

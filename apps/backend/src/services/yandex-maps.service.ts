@@ -19,6 +19,15 @@ interface YandexRouteDetails {
   distanceMeters: number;
   etaSeconds: number;
   polyline: CoordinatePoint[];
+  steps: YandexRouteStep[];
+}
+
+interface YandexRouteStep {
+  instruction: string;
+  distanceMeters: number;
+  etaSeconds: number;
+  action?: string;
+  street?: string;
 }
 
 interface YandexMatrixCell {
@@ -241,6 +250,103 @@ function calculateRouteTotals(route: any) {
   );
 }
 
+function extractStepStreet(step: any) {
+  const street = step?.street;
+
+  if (typeof street === 'string' && street.trim()) {
+    return street.trim();
+  }
+
+  if (typeof street?.name === 'string' && street.name.trim()) {
+    return street.name.trim();
+  }
+
+  if (typeof step?.streetName === 'string' && step.streetName.trim()) {
+    return step.streetName.trim();
+  }
+
+  if (typeof step?.annotation?.street === 'string' && step.annotation.street.trim()) {
+    return step.annotation.street.trim();
+  }
+
+  return undefined;
+}
+
+function extractStepAction(step: any) {
+  const candidates = [
+    step?.action,
+    step?.maneuver?.action,
+    step?.turn,
+    step?.annotation?.action,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return undefined;
+}
+
+function extractStepInstruction(step: any, index: number) {
+  const candidates = [
+    step?.instruction,
+    step?.instruction?.text,
+    step?.annotation?.text,
+    step?.description,
+    step?.description?.text,
+    step?.summary?.text,
+    step?.text,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  const action = extractStepAction(step);
+  const street = extractStepStreet(step);
+  const fallback = [action, street].filter(Boolean).join(' ');
+
+  return fallback || `Bosqich ${index + 1}`;
+}
+
+function extractRouteSteps(route: any): YandexRouteStep[] {
+  const legs = Array.isArray(route?.legs) ? route.legs : [];
+  const steps: YandexRouteStep[] = [];
+
+  for (const leg of legs) {
+    const legSteps = Array.isArray(leg?.steps) ? leg.steps : [];
+
+    legSteps.forEach((step: any, index: number) => {
+      const distanceMeters = Math.max(
+        0,
+        Math.round(
+          Number(step?.annotation?.distance?.value ?? step?.distance?.value ?? step?.distance ?? 0),
+        ),
+      );
+      const etaSeconds = Math.max(
+        0,
+        Math.round(
+          Number(step?.annotation?.duration?.value ?? step?.duration?.value ?? step?.duration ?? 0),
+        ),
+      );
+
+      steps.push({
+        instruction: extractStepInstruction(step, index),
+        distanceMeters,
+        etaSeconds,
+        action: extractStepAction(step),
+        street: extractStepStreet(step),
+      });
+    });
+  }
+
+  return steps;
+}
+
 export class YandexMapsService {
   static isGeosuggestConfigured() {
     return GEOSUGGEST_API_KEY.length > 0;
@@ -392,11 +498,13 @@ export class YandexMapsService {
 
     const totals = calculateRouteTotals(route);
     const polyline = flattenRoutePolyline(route);
+    const steps = extractRouteSteps(route);
 
     return {
       distanceMeters: Math.max(0, Math.round(totals.distanceMeters)),
       etaSeconds: Math.max(0, Math.round(totals.etaSeconds)),
       polyline,
+      steps,
     };
   }
 

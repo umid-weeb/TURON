@@ -5,6 +5,7 @@ import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import CourierNavigationPanel, { type RouteAlternative } from '../../components/courier/CourierNavigationPanel';
+import type { RouteInfo, RouteStep } from '../../features/maps/MapProvider';
 import {
   CourierProblemReporter,
   DeliveryBottomPanel,
@@ -121,9 +122,11 @@ const CourierMapPage: React.FC = () => {
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading]                   = useState<number | undefined>(undefined);
-  const [tilt, setTilt]                         = useState<number>(50); // 0-60 degrees
-  const [followMode, setFollowMode]             = useState(true);
-  const [routeInfo, setRouteInfo]               = useState<{ distance: string; eta: string } | null>(null);
+  const [tilt, setTilt]                         = useState<number>(40); // 0-60 degrees, closer view
+  const [followMode, setFollowMode]             = useState(false); // Disabled for gesture control
+  const [routeInfo, setRouteInfo]               = useState<RouteInfo | null>(null);
+  const [currentStep, setCurrentStep]           = useState<RouteStep | null>(null);
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft]         = useState('');
   const [problemFeedback, setProblemFeedback]   = useState<{
@@ -131,7 +134,6 @@ const CourierMapPage: React.FC = () => {
     tone: 'success' | 'error' | 'neutral';
   } | null>(null);
   const [copied, setCopied]                     = useState(false);
-  const [routes, setRoutes]                     = useState<RouteAlternative[]>([]);
   const [selectedRouteId, setSelectedRouteId]   = useState<string | undefined>(undefined);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
@@ -139,6 +141,10 @@ const CourierMapPage: React.FC = () => {
   const previousCourierPosRef   = useRef<{ lat: number; lng: number } | null>(null);
   const approachingNotifiedRef  = useRef(false);
   const copiedTimerRef          = useRef<number | null>(null);
+  const touchPointsRef          = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const lastHeadingRef          = useRef<number>(0);
+  const autoResetTimerRef       = useRef<number | null>(null);
+  const mapContainerRef         = useRef<HTMLDivElement | null>(null);
 
   // ── Derived positions (memoised) ───────────────────────────────────────────
   const restaurantPos = useMemo(
@@ -196,6 +202,24 @@ const CourierMapPage: React.FC = () => {
 
   const metricsRouteInfo = useMemo(() => createRouteInfo(remainingMetrics), [remainingMetrics]);
   const displayRouteInfo = routeInfo ?? metricsRouteInfo;
+  const routeSteps = routeInfo?.steps ?? [];
+  const activeStep = currentStep ?? routeSteps[0] ?? null;
+  const routes = useMemo<RouteAlternative[]>(() => {
+    if (!displayRouteInfo.distance || !displayRouteInfo.eta) {
+      return [];
+    }
+
+    return [
+      {
+        id: 'primary',
+        distance: displayRouteInfo.distance,
+        eta: displayRouteInfo.eta,
+        instruction: routeSteps[0]?.instruction || routeMeta.title,
+        routeIndex: 0,
+        isRecommended: true,
+      },
+    ];
+  }, [displayRouteInfo.distance, displayRouteInfo.eta, routeMeta.title, routeSteps]);
 
   const isEtaLive =
     currentState === 'ACCEPTED' || currentState === 'PICKED_UP' || currentState === 'DELIVERING';
@@ -270,22 +294,25 @@ const CourierMapPage: React.FC = () => {
 
   // ── Auto-fetch and select routes ────────────────────────────────────────────
   useEffect(() => {
-    if (!liveCourierPos || !order?.id) return;
-    const from = liveCourierPos;
-    const to = currentState === 'ACCEPTED' || currentState === 'ARRIVED' ? restaurantPos : customerPos;
+    if (routes.length === 0) {
+      if (selectedRouteId) {
+        setSelectedRouteId(undefined);
     
-    // Create mock routes - in production, fetch from Yandex API
-    const mockRoutes = [
+      }
+      return;
+      /*
       { id: '1', distance: displayRouteInfo.distance || '5 km', eta: displayRouteInfo.eta || '12 min', instruction: 'Tez marshrutи', routeIndex: 0, isRecommended: true },
-      { id: '2', distance: '5.5 km', eta: '14 min', instruction: 'Yo\'llar kamroq', routeIndex: 1 },
-      { id: '3', distance: '4.8 km', eta: '13 min', instruction: 'Minimal masofa', routeIndex: 2 },
-    ].filter(r => r.id === (selectedRouteId || '1')); // Auto-filter to selected or default first
-    
-    setRoutes(mockRoutes);
-    if (!selectedRouteId && mockRoutes.length > 0) {
-      setSelectedRouteId(mockRoutes[0].id);
+      */
     }
-  }, [order?.id, currentState, liveCourierPos]);
+    if (!selectedRouteId) {
+      setSelectedRouteId(routes[0].id);
+      return;
+    
+    }
+    if (!routes.some((route) => route.id === selectedRouteId)) {
+      setSelectedRouteId(routes[0].id);
+    }
+  }, [routes, selectedRouteId]);
 
   // ── Location heartbeat to server ───────────────────────────────────────────
   useEffect(() => {
@@ -450,8 +477,12 @@ const CourierMapPage: React.FC = () => {
   return (
     <div className="relative h-screen w-full overflow-hidden bg-slate-950 font-sans text-white">
 
-      {/* ── Full-screen map ─────────────────────────────────────────────── */}
-      <div className="absolute inset-0 z-0">
+      {/* ── Full-screen map (gesture-enabled) ────────────────────────────── */}
+      <div
+        ref={mapContainerRef}
+        className="absolute inset-0 z-0"
+        style={{ touchAction: 'none' }}
+      >
         <CourierMapView
           pickup={restaurantPos}
           destination={customerPos}
@@ -464,36 +495,17 @@ const CourierMapPage: React.FC = () => {
           heading={heading}
           tilt={tilt}
           onRouteInfoChange={setRouteInfo}
+          onNextStepChange={setCurrentStep}
+          onMapInteraction={() => {
+            setIsUserInteracting(true);
+            setFollowMode(false);
+          }}
           onHeadingChange={setHeading}
           onTiltChange={setTilt}
           onFollowModeChange={setFollowMode}
         />
         {/* Subtle bottom gradient for panel legibility */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-slate-950/70 to-transparent" />
-      </div>
-
-      {/* ── Floating navigation panel (top, after back button) ────────────── */}
-      <div
-        className="absolute left-0 right-0 top-0 z-30 px-4 overflow-y-auto"
-        style={{
-          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)',
-          maxHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - 60px - 120px)',
-        }}
-      >
-        <CourierNavigationPanel
-          routes={routes}
-          selectedRouteId={selectedRouteId}
-          onSelectRoute={setSelectedRouteId}
-          heading={heading ?? 0}
-          onHeadingChange={setHeading}
-          tilt={tilt}
-          onTiltChange={setTilt}
-          followMode={followMode}
-          onFollowModeToggle={setFollowMode}
-          distance={displayRouteInfo.distance || formatRouteDistance(remainingMetrics.distanceKm)}
-          eta={displayRouteInfo.eta || formatEtaMinutes(remainingMetrics.etaMinutes)}
-          isEtaLive={isEtaLive}
-        />
       </div>
 
       {/* ── Floating back button (top-left only) ────────────────────────── */}
@@ -511,6 +523,31 @@ const CourierMapPage: React.FC = () => {
       </div>
 
       {/* ── Bottom action panel ──────────────────────────────────────────── */}
+      <div
+        className="pointer-events-none absolute left-0 top-0 z-30 w-full px-4"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}
+      >
+        <div className="pointer-events-auto max-w-[22rem]">
+          <CourierNavigationPanel
+            routes={routes}
+            selectedRouteId={selectedRouteId}
+            onSelectRoute={setSelectedRouteId}
+            currentStep={activeStep}
+            allSteps={routeSteps}
+            currentStepIndex={0}
+            heading={heading}
+            onHeadingChange={setHeading}
+            tilt={tilt}
+            onTiltChange={setTilt}
+            followMode={followMode}
+            onFollowModeToggle={setFollowMode}
+            distance={displayRouteInfo.distance}
+            eta={displayRouteInfo.eta}
+            isEtaLive={isEtaLive}
+          />
+        </div>
+      </div>
+
       <DeliveryBottomPanel
         order={order}
         currentStage={currentStage}

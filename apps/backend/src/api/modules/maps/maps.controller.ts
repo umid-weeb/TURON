@@ -113,6 +113,13 @@ export async function handleGetRouteDetails(
       distanceMeters: route.distanceMeters,
       etaSeconds: route.etaSeconds,
       polyline: route.polyline.map(serializePoint),
+      steps: route.steps.map((step) => ({
+        instruction: step.instruction,
+        distanceMeters: step.distanceMeters,
+        etaSeconds: step.etaSeconds,
+        action: step.action,
+        street: step.street,
+      })),
       source: 'yandex-router',
     });
   } catch (error) {

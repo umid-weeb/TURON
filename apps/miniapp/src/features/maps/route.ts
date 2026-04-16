@@ -1,4 +1,4 @@
-import type { MapPin, RouteInfo } from './MapProvider';
+import type { MapPin, RouteInfo, RouteStep } from './MapProvider';
 
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
@@ -11,6 +11,7 @@ export interface RouteMetrics {
   etaSeconds?: number;
   polyline?: MapPin[];
   source?: string;
+  steps?: RouteStep[];
 }
 
 interface EstimateRouteOptions {
@@ -93,6 +94,7 @@ export function createRouteInfo(metrics: RouteMetrics): RouteInfo {
     etaSeconds,
     polyline: metrics.polyline,
     source: metrics.source,
+    steps: metrics.steps,
   };
 }
 
@@ -111,6 +113,7 @@ export function createRouteInfoFromMeters(
   options: {
     polyline?: MapPin[];
     source?: string;
+    steps?: RouteStep[];
   } = {},
 ): RouteInfo {
   return createRouteInfo({
@@ -120,6 +123,7 @@ export function createRouteInfoFromMeters(
     etaSeconds,
     polyline: options.polyline,
     source: options.source,
+    steps: options.steps,
   });
 }
 

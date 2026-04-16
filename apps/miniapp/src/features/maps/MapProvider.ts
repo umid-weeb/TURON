@@ -54,6 +54,8 @@ export interface RouteStep {
   instruction: string;
   distanceText: string;
   distanceMeters: number;
+  action?: 'left' | 'right' | 'straight';
+  street?: string;
 }
 
 export interface RouteInfo {

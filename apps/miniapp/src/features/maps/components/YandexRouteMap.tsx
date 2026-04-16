@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { RouteMapProps } from '../MapProvider';
+import type { RouteInfo, RouteMapProps } from '../MapProvider';
+import { fetchRouteDetails } from '../api';
+import { estimateRouteInfo } from '../route';
 import { isYandexMaps3Enabled, loadYandexMaps3, toLngLat } from '../yandex3';
 import MockMapComponent from './MockMapComponent';
 
@@ -95,11 +97,16 @@ export default function YandexRouteMap({
   useEffect(() => { tiltRef.current       = tilt ?? DEFAULT_NAV_TILT; }, [tilt]);
 
   // ── Emit route info ──────────────────────────────────────────────────────
-  const emitRouteInfo = (dist: string, eta: string) => {
-    const key = `${dist}|${eta}`;
+  const emitRouteInfo = (info: RouteInfo) => {
+    const key = [
+      info.distance,
+      info.eta,
+      info.steps?.[0]?.instruction ?? '',
+      info.steps?.length ?? 0,
+    ].join('|');
     if (lastRouteKeyRef.current === key) return;
     lastRouteKeyRef.current = key;
-    onRouteInfoChange?.({ distance: dist, eta });
+    onRouteInfoChange?.(info);
   };
 
   // ── Camera update (rotation + tilt + pan) ───────────────────────────────
@@ -138,68 +145,29 @@ export default function YandexRouteMap({
       routeFeatureRef.current = null;
     }
 
-    let coords: [number, number][] = [];
-    let distText = '';
-    let etaText  = '';
-    let stepInstruction = '';
-    let stepDistM = 0;
+    let coords: [number, number][] = [toLngLat(from), toLngLat(to)];
+    let routeInfo = estimateRouteInfo(from, to);
 
     try {
-      const result = await ymaps3.route({
-        points: [
-          { type: 'coordinates', coordinates: toLngLat(from) },
-          { type: 'coordinates', coordinates: toLngLat(to) },
-        ],
-        type: 'driving',
+      const resolvedRoute = await fetchRouteDetails(from, to, {
+        mode: 'driving',
+        traffic: 'enabled',
       });
 
       if (reqId !== routeReqRef.current || !mapRef.current) return;
 
-      const route = result?.routes?.[0];
-      if (route) {
-        // Handle both LineString and MultiLineString
-        const geomCoords = route.geometry?.coordinates ?? [];
-        if (route.geometry?.type === 'MultiLineString') {
-          coords = (geomCoords as number[][][]).flat(1) as [number, number][];
-        } else {
-          coords = geomCoords as [number, number][];
-        }
+      routeInfo = resolvedRoute;
 
-        // Distance & ETA
-        try {
-          const dM = route.properties?.distance?.value ?? route.distance?.value;
-          const dS = route.properties?.duration?.value ?? route.duration?.value;
-          if (typeof dM === 'number') {
-            const km = dM / 1000;
-            distText = km < 1 ? `${Math.round(dM)} m` : `${km.toFixed(1)} km`;
-          }
-          if (typeof dS === 'number') etaText = `${Math.ceil(dS / 60)} daq`;
-        } catch { /* skip */ }
-
-        // First turn instruction
-        try {
-          const steps =
-            route.legs?.[0]?.steps ??
-            route.properties?.legs?.[0]?.steps ??
-            [];
-          const step = steps[0];
-          if (step) {
-            stepInstruction =
-              step.properties?.instruction ??
-              step.instruction ??
-              step.properties?.text ??
-              '';
-            stepDistM =
-              step.properties?.distance?.value ??
-              step.distance?.value ??
-              0;
-          }
-        } catch { /* skip */ }
+      if (resolvedRoute.polyline?.length) {
+        coords = resolvedRoute.polyline.map((point) => toLngLat(point));
       }
-    } catch {
+
+      if (coords.length < 2) {
+        coords = [toLngLat(from), toLngLat(to)];
+      }
+    } catch (error) {
       if (reqId !== routeReqRef.current || !mapRef.current) return;
-      // Fallback: direct line
-      coords = [toLngLat(from), toLngLat(to)];
+      console.warn('[YandexRouteMap] Failed to load route', error);
     }
 
     if (reqId !== routeReqRef.current || !mapRef.current) return;
@@ -219,18 +187,8 @@ export default function YandexRouteMap({
       }
     }
 
-    if (distText && etaText) emitRouteInfo(distText, etaText);
-
-    if (stepInstruction) {
-      onNextStepChange?.({
-        instruction: stepInstruction,
-        distanceText:
-          stepDistM < 1000
-            ? `${Math.round(stepDistM)} m`
-            : `${(stepDistM / 1000).toFixed(1)} km`,
-        distanceMeters: stepDistM,
-      });
-    }
+    emitRouteInfo(routeInfo);
+    onNextStepChange?.(routeInfo.steps?.[0] ?? null);
   }
 
   // ── Init map ─────────────────────────────────────────────────────────────
