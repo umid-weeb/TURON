@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ProductAvailabilityEnum } from '@turon/shared';
 import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
-import { getProductImageUrl, getProductPosterUrl, getCategoryImageUrl, getCategoryPosterUrl } from '../../features/menu/placeholders';
+import { getProductImageUrl, getProductPosterUrl } from '../../features/menu/placeholders';
 import {
   getCustomerCategoryLabel,
   getProductPromotion,
@@ -246,41 +246,6 @@ const HomePage: React.FC = () => {
       </div>
 
       <main style={{ padding: '0 16px 24px' }}>
-
-        {/* Kategoriyalar */}
-        <section style={{ marginTop: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--app-muted)' }}>Bo'limlar</p>
-              <h2 style={{ marginTop: 4, fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em', color: 'var(--app-text)' }}>Kategoriyalar</h2>
-            </div>
-          </div>
-
-          <div className="scrollbar-hide" style={{ display: 'flex', gap: 12, overflowX: 'auto', marginInline: -16, paddingInline: 16, paddingBottom: 4 }}>
-            {sortedCategories.map((category) => {
-              const categoryLabel = formatText(getCustomerCategoryLabel(category.name));
-              return (
-                <a
-                  key={category.id}
-                  href={`/customer/category/${category.id}`}
-                  className="group flex shrink-0 flex-col items-center gap-2 text-center"
-                >
-                  <div className="relative h-20 w-20 overflow-hidden rounded-[16px] bg-slate-200 shadow-sm ring-1 ring-slate-900/[0.035]">
-                    <img
-                      src={getCategoryImageUrl(category)}
-                      alt={categoryLabel}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = getCategoryPosterUrl(category);
-                      }}
-                    />
-                  </div>
-                  <p className="max-w-[80px] text-[11px] font-semibold text-slate-700">{categoryLabel}</p>
-                </a>
-              );
-            })}
-          </div>
-        </section>
 
         {/* Category filter pills */}
         <div className="scrollbar-hide" style={{ display: 'flex', gap: 8, overflowX: 'auto', marginInline: -16, paddingInline: 16, paddingBottom: 8, marginTop: 16 }}>
