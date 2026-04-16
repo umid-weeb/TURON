@@ -325,7 +325,7 @@ model Order {
 
   items                    OrderItem[]
   payment                  Payment?
-  deliveryProofs           DeliveryProof[]
+  deliveryProofs           DeliveryProof[] @relation("DeliveryProofs")
   courierAssignments       CourierAssignment[]
   courierAssignmentEvents  CourierAssignmentEvent[]
   courierPresenceSnapshots CourierPresence[]
