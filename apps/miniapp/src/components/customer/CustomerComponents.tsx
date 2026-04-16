@@ -826,43 +826,55 @@ export const BottomNavbar: React.FC = () => {
   const cartCount = getTotalItems();
   const navigate = useNavigate();
 
-  // Items WITHOUT cart (cart is center)
-  const navItems = [
-    { icon: Home, label: tr('nav.home') || 'Shift', path: '/customer' },
-    { icon: Search, label: tr('nav.search') || 'Qidiruv', path: '/customer/search' },
-    { icon: UtensilsCrossed, label: 'Menyu', path: '/customer/menu' },
-    { icon: User, label: tr('nav.profile') || 'Profil', path: '/customer/profile', isNotification: true },
+  const leftItems = [
+    { icon: Home, label: 'Bosh sahifa', path: '/customer' },
+    { icon: Search, label: 'Qidiruv', path: '/customer/search' },
   ];
 
+  const rightItems = [
+    { icon: UtensilsCrossed, label: 'Menyu', path: '/customer/menu' },
+    { icon: User, label: 'Profil', path: '/customer/profile', isNotification: true },
+  ];
+
+  const isHomeActive = (path: string) =>
+    location.pathname === path ||
+    (path === '/customer' &&
+      (location.pathname.startsWith('/customer/category') ||
+        location.pathname.startsWith('/customer/product')));
+
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-[80] bg-gradient-to-r from-red-800 via-red-700 to-red-800 shadow-[0_-16px_34px_rgba(153,27,27,0.3)]">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-[80]"
+      style={{ background: 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #7f1d1d 100%)' }}
+    >
       <div
-        className="mx-auto flex w-full max-w-[430px] items-center justify-between px-1.5"
+        className="mx-auto flex w-full max-w-[430px] items-end justify-between px-2"
         style={{
-          height: 'calc(88px + env(safe-area-inset-bottom, 0px))',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          height: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
         }}
       >
-        {/* LEFT 2 ITEMS (Home, Search) */}
-        <div className="flex flex-1 items-center justify-around gap-2">
-          {navItems.slice(0, 2).map((item) => {
+        {/* LEFT: Bosh sahifa, Qidiruv */}
+        <div className="flex flex-1 items-end justify-around pb-1">
+          {leftItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              location.pathname === item.path ||
-              (item.path === '/customer' &&
-                (location.pathname.startsWith('/customer/category') || location.pathname.startsWith('/customer/product')));
-
+            const isActive = isHomeActive(item.path);
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={`group relative flex min-w-[50px] flex-col items-center gap-1 rounded-[14px] px-2 py-2 transition-all active:scale-95 ${isActive
-                    ? 'bg-white text-red-700 shadow-md'
-                    : 'text-red-200 hover:text-white'
-                  }`}
+                className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
               >
-                <Icon size={20} strokeWidth={2.2} />
-                <span className={`text-[9px] leading-tight font-bold`}>
+                <Icon
+                  size={22}
+                  strokeWidth={isActive ? 2.5 : 1.8}
+                  className={isActive ? 'text-white' : 'text-red-300/70'}
+                />
+                <span
+                  className={`text-[10px] font-bold leading-none tracking-tight ${
+                    isActive ? 'text-white' : 'text-red-300/70'
+                  }`}
+                >
                   {item.label}
                 </span>
               </NavLink>
@@ -870,42 +882,53 @@ export const BottomNavbar: React.FC = () => {
           })}
         </div>
 
-        {/* CENTER: WHITE CART BUTTON (elevated) */}
-        <div className="relative flex flex-col items-center -translate-y-4">
+        {/* CENTER: Savat (elevated floating) */}
+        <div className="relative flex flex-col items-center" style={{ marginBottom: '10px' }}>
           <button
             onClick={() => navigate('/customer/cart')}
             type="button"
-            className="group relative flex h-[68px] w-[68px] items-center justify-center rounded-full bg-white text-red-700 shadow-[0_12px_32px_rgba(153,27,27,0.5)] transition-transform active:scale-95 border-4 border-red-700"
+            className="relative flex h-[60px] w-[60px] items-center justify-center rounded-full text-red-800 transition-transform active:scale-90"
+            style={{
+              background: 'white',
+              boxShadow: '0 8px 24px rgba(127,29,29,0.55), 0 2px 8px rgba(0,0,0,0.18)',
+              border: '4px solid #7f1d1d',
+              marginTop: '-28px',
+            }}
           >
-            <ShoppingCart size={28} strokeWidth={2} />
+            <ShoppingCart size={26} strokeWidth={2.2} />
             {cartCount > 0 ? (
-              <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-[2.5px] border-white bg-red-600 text-[10px] font-black text-white shadow-lg">
+              <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 text-[9px] font-black text-white" style={{ border: '2px solid white' }}>
                 {cartCount}
               </span>
             ) : null}
           </button>
+          <span className="mt-[3px] text-[10px] font-bold leading-none text-red-200/80">Savat</span>
         </div>
 
-        {/* RIGHT 2 ITEMS (Menu, Profile) */}
-        <div className="flex flex-1 items-center justify-around gap-2">
-          {navItems.slice(2, 4).map((item) => {
+        {/* RIGHT: Menyu, Profil */}
+        <div className="flex flex-1 items-end justify-around pb-1">
+          {rightItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
-
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={`group relative flex min-w-[50px] flex-col items-center gap-1 rounded-[14px] px-2 py-2 transition-all active:scale-95 ${isActive
-                    ? 'bg-white text-red-700 shadow-md'
-                    : 'text-red-200 hover:text-white'
-                  }`}
+                className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
               >
                 <div className="relative">
-                  <Icon size={20} strokeWidth={2.2} />
+                  <Icon
+                    size={22}
+                    strokeWidth={isActive ? 2.5 : 1.8}
+                    className={isActive ? 'text-white' : 'text-red-300/70'}
+                  />
                   {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
                 </div>
-                <span className={`text-[9px] leading-tight font-bold`}>
+                <span
+                  className={`text-[10px] font-bold leading-none tracking-tight ${
+                    isActive ? 'text-white' : 'text-red-300/70'
+                  }`}
+                >
                   {item.label}
                 </span>
               </NavLink>
