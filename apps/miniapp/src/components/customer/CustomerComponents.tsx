@@ -797,22 +797,17 @@ export const HeaderBar: React.FC<{ title: string; showBack?: boolean; rightSlot?
       className="sticky top-0 z-40 border-b border-white/6 bg-[#060914]/88 backdrop-blur-xl"
       style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
     >
-      <div className="mx-auto flex h-[66px] w-full max-w-[430px] items-center justify-between px-4">
-        <div className="flex min-w-0 items-center gap-3">
-          {showBack ? (
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/8 bg-white/[0.06] text-white"
-            >
-              <ChevronLeft size={20} />
-            </button>
-          ) : null}
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">Turon Kafesi</p>
-            <h1 className="truncate text-lg font-black tracking-tight text-white">{title}</h1>
-          </div>
-        </div>
+      <div className="mx-auto flex h-[56px] w-full max-w-[430px] items-center gap-3 px-4">
+        {showBack ? (
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/8 bg-white/[0.06] text-white"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        ) : null}
+        <h1 className="flex-1 truncate text-base font-black tracking-tight text-white">{title}</h1>
         {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
       </div>
     </header>

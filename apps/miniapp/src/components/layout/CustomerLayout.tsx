@@ -5,7 +5,6 @@ import { CustomerErrorBoundary } from '../ui/CustomerErrorBoundary';
 import { useCartStore } from '../../store/useCartStore';
 import { useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
-import { MiniAppCloseButton } from '../telegram/MiniAppCloseButton';
 
 const IMMERSIVE_CUSTOMER_PATHS = [
   /^\/customer$/,
@@ -101,15 +100,6 @@ const CustomerLayout: React.FC = () => {
           <HeaderBar
             title={getPageTitle()}
             showBack={location.pathname !== '/customer'}
-            rightSlot={
-              <div className="flex items-center gap-2">
-                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] ${syncBadgeClass}`}>
-                  <span className={`h-2 w-2 rounded-full ${isConnected ? 'animate-pulse bg-emerald-300' : 'bg-current/50'}`} />
-                  <span>{syncLabel}</span>
-                </div>
-                <MiniAppCloseButton />
-              </div>
-            }
           />
         ) : null}
 
