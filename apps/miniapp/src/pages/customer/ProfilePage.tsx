@@ -7,13 +7,7 @@ import { useTelegram } from '../../hooks/useTelegram';
 
 const RED = '#C62020';
 
-/* ─── Dark mode initializer (run on app start too) ─────────────────────── */
-export function initDarkMode() {
-  const dark = localStorage.getItem('turon-dark') === '1';
-  document.body.classList.toggle('dark', dark);
-}
-
-/* ─── Toggle switch ─────────────────────────────────────────────────────── */
+/* ─── Toggle ─────────────────────────────────────────────────────────────── */
 const Toggle: React.FC<{ on: boolean; onChange: () => void }> = ({ on, onChange }) => (
   <button
     type="button"
@@ -37,7 +31,7 @@ const Toggle: React.FC<{ on: boolean; onChange: () => void }> = ({ on, onChange 
   </button>
 );
 
-/* ─── Section row ────────────────────────────────────────────────────────── */
+/* ─── Row ────────────────────────────────────────────────────────────────── */
 const Row: React.FC<{
   icon: React.ReactNode;
   label: string;
@@ -57,6 +51,7 @@ const Row: React.FC<{
       padding: '15px 20px',
       cursor: onClick ? 'pointer' : 'default',
       textAlign: 'left',
+      transition: 'background 0.15s',
     }}
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -79,25 +74,24 @@ const Row: React.FC<{
   </button>
 );
 
-/* ─── Section card ───────────────────────────────────────────────────────── */
-const Section: React.FC<{ title: string; children: React.ReactNode; delay?: number }> = ({
+/* ─── Section ────────────────────────────────────────────────────────────── */
+const Section: React.FC<{ title?: string; children: React.ReactNode; delay?: number }> = ({
   title, children, delay = 0,
 }) => (
   <div
     className="animate-in slide-in-from-left"
-    style={{ animationDelay: `${delay}ms`, paddingInline: 0, marginTop: 28 }}
+    style={{ animationDelay: `${delay}ms`, marginTop: 28 }}
   >
-    <p style={{
-      fontSize: 11, fontWeight: 700, color: 'var(--app-section-label)',
-      textTransform: 'uppercase', letterSpacing: '0.1em',
-      marginBottom: 8, paddingInline: 20,
-    }}>
-      {title}
-    </p>
-    <div style={{
-      overflow: 'hidden',
-      boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
-    }}>
+    {title && (
+      <p style={{
+        fontSize: 11, fontWeight: 700, color: 'var(--app-section-label)',
+        textTransform: 'uppercase', letterSpacing: '0.1em',
+        marginBottom: 8, paddingInline: 20,
+      }}>
+        {title}
+      </p>
+    )}
+    <div style={{ overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       {children}
     </div>
   </div>
@@ -107,13 +101,12 @@ const Section: React.FC<{ title: string; children: React.ReactNode; delay?: numb
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { tg, user: tgUser } = useTelegram();
+  const { user: tgUser } = useTelegram();
   const { language, setLanguage } = useCustomerLanguage();
 
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('turon-dark') === '1');
   const [notifOn, setNotifOn] = useState(() => localStorage.getItem('turon-notif') !== '0');
 
-  // Apply dark mode globally
   useEffect(() => {
     document.body.classList.toggle('dark', darkMode);
     localStorage.setItem('turon-dark', darkMode ? '1' : '0');
@@ -123,14 +116,13 @@ const ProfilePage: React.FC = () => {
     localStorage.setItem('turon-notif', notifOn ? '1' : '0');
   }, [notifOn]);
 
-  // Telegram profile photo
-  const photoUrl = tgUser?.photo_url || null;
-  const fullName = user?.fullName || tgUser?.first_name
-    ? `${tgUser?.first_name ?? ''} ${tgUser?.last_name ?? ''}`.trim()
-    : 'Turon Mijozi';
-  const displayName = user?.fullName || fullName;
-  const username = tgUser?.username ? `@${tgUser.username}` : (user?.phoneNumber || '');
-
+  const photoUrl: string | null = tgUser?.photo_url ?? null;
+  const displayName =
+    user?.fullName ||
+    (tgUser ? `${tgUser.first_name ?? ''} ${tgUser.last_name ?? ''}`.trim() : 'Turon Mijozi');
+  const username = tgUser?.username
+    ? `@${tgUser.username}`
+    : user?.phoneNumber ?? '';
   const initials = displayName
     .split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'TK';
 
@@ -144,55 +136,50 @@ const ProfilePage: React.FC = () => {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--app-bg)',
-      paddingBottom: 100,
-      color: 'var(--app-text)',
-    }}>
+    <div
+      className="animate-in slide-in-from-left"
+      style={{
+        minHeight: '100vh',
+        background: 'var(--app-bg)',
+        paddingBottom: 100,
+        color: 'var(--app-text)',
+      }}
+    >
 
-      {/* ── Red gradient header — slides in from top ── */}
-      <div
-        className="animate-in slide-in-from-top"
-        style={{
-          background: `linear-gradient(160deg, ${RED} 0%, #7B0000 100%)`,
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 16px)',
-          paddingBottom: 80,
-          textAlign: 'center',
-        }}
-      >
-        <h1 style={{ fontSize: 18, fontWeight: 800, color: 'white', margin: '14px 0 0' }}>
+      {/* ── Red gradient hero header ───────────────────────────────────────── */}
+      <div style={{
+        background: `linear-gradient(160deg, #9B0000 0%, ${RED} 60%, #E53535 100%)`,
+        paddingTop: 'max(env(safe-area-inset-top, 0px), 20px)',
+        paddingBottom: 60,
+        textAlign: 'center',
+        position: 'relative',
+      }}>
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: 'white', margin: '12px 0 0' }}>
           Profil
         </h1>
       </div>
 
-      {/* ── Avatar card — overlaps header, slides from left ── */}
+      {/* ── Avatar — overlaps header bottom, no card box ───────────────────── */}
       <div
-        className="animate-in slide-in-from-left"
         style={{
-          animationDelay: '80ms',
-          marginTop: -64,
-          marginInline: 16,
-          background: 'var(--app-card)',
-          borderRadius: 20,
-          padding: '28px 20px 22px',
-          boxShadow: '0 4px 28px rgba(0,0,0,0.10)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 6,
+          marginTop: -52,
+          paddingBottom: 20,
+          position: 'relative',
+          zIndex: 2,
         }}
       >
-        {/* Avatar: Telegram photo or initials */}
+        {/* Avatar circle */}
         <div style={{
-          width: 84, height: 84, borderRadius: '50%',
-          boxShadow: `0 4px 18px rgba(198,32,32,0.3)`,
-          border: `3px solid ${RED}`,
+          width: 90, height: 90, borderRadius: '50%',
+          border: `4px solid white`,
+          boxShadow: `0 6px 24px rgba(198,32,32,0.35), 0 2px 8px rgba(0,0,0,0.15)`,
           overflow: 'hidden',
-          marginBottom: 6,
-          flexShrink: 0,
           background: `linear-gradient(135deg, ${RED}, #7B0000)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
         }}>
           {photoUrl ? (
             <img
@@ -201,22 +188,28 @@ const ProfilePage: React.FC = () => {
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            <span style={{ fontSize: 28, fontWeight: 900, color: 'white' }}>{initials}</span>
+            <span style={{ fontSize: 30, fontWeight: 900, color: 'white' }}>{initials}</span>
           )}
         </div>
 
-        <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--app-text)', margin: 0 }}>
+        {/* Name */}
+        <h2 style={{
+          fontSize: 18, fontWeight: 800, color: 'var(--app-text)',
+          margin: '12px 0 0', textAlign: 'center',
+        }}>
           {displayName}
         </h2>
-        {username && (
-          <p style={{ fontSize: 13, color: 'var(--app-muted)', margin: 0 }}>
+
+        {/* Username / phone */}
+        {username ? (
+          <p style={{ fontSize: 13, color: 'var(--app-muted)', margin: '4px 0 0' }}>
             {username}
           </p>
-        )}
+        ) : null}
       </div>
 
-      {/* ── Section: Asosiy ── */}
-      <Section title="Asosiy" delay={150}>
+      {/* ── Rows ──────────────────────────────────────────────────────────── */}
+      <Section title="Asosiy" delay={120}>
         <Row
           icon={<ClipboardList size={19} color={RED} />}
           label="Buyurtmalar tarixi"
@@ -231,8 +224,7 @@ const ProfilePage: React.FC = () => {
         />
       </Section>
 
-      {/* ── Section: Sozlamalar ── */}
-      <Section title="Sozlamalar" delay={250}>
+      <Section delay={220}>
         <Row
           icon={<Moon size={19} color={RED} />}
           label="Dark Mode"
@@ -245,6 +237,7 @@ const ProfilePage: React.FC = () => {
           last
         />
       </Section>
+
     </div>
   );
 };
