@@ -1050,25 +1050,80 @@ async function buildFavoriteItemMap(userIds: string[]): Promise<Map<string, stri
   }
 }
 
-function buildBroadcastText(favItem: string | null, popularItems: string[]): string {
+// Drinks should never be described as "issiq pishirilgan"
+const DRINK_PATTERN = /pepsi|cola|sprite|fanta|sharbat|limonad|mors|kompot|choy|kofe|qahva|mineral|ayron|kefir|yogurt|juice|sut|lassi/i;
+
+async function getActivePromoLine(): Promise<string | null> {
+  try {
+    const now = new Date();
+    const promo = await prisma.promoCode.findFirst({
+      where: {
+        isActive: true,
+        startDate: { lte: now },
+        OR: [{ endDate: null }, { endDate: { gte: now } }],
+        targetUserId: null,
+      },
+      select: { code: true, discountType: true, discountValue: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!promo) return null;
+
+    const discountStr =
+      promo.discountType === 'PERCENTAGE'
+        ? `${Number(promo.discountValue)}%`
+        : `${Number(promo.discountValue).toLocaleString()} so'm`;
+
+    return `🎁 <b>${escapeHtml(promo.code)}</b> promokodi bilan ${discountStr} chegirma!`;
+  } catch {
+    return null;
+  }
+}
+
+function buildBroadcastText(
+  favItem: string | null,
+  popularItems: string[],
+  promoLine: string | null,
+): string {
+  const variant = Math.floor(Date.now() / BROADCAST_INTERVAL_MS) % 3;
+  let main: string;
+
   if (favItem) {
-    // Rotate between 3 natural variants so repeat users see different phrasing
-    const variant = Math.floor(Date.now() / BROADCAST_INTERVAL_MS) % 3;
-    if (variant === 0) {
-      return `${escapeHtml(favItem)} — bugun ham yangi pishirildi 🔥\n\nIssiq holda eshigingizga yetkazib beramiz.`;
+    const item = escapeHtml(favItem);
+    if (DRINK_PATTERN.test(favItem)) {
+      // Drink — no cooking/temperature references
+      const opts = [
+        `Sizning sevimlingiz — ${item} bor! 😊\n\nBuyurtma bering, yetkazib beramiz.`,
+        `${item} — bugun ham menyuda 🥤\n\nBuyurtma qiling!`,
+        `${item} xohlaysizmi?\n\nBuyurtma bering 🛒`,
+      ];
+      main = opts[variant];
+    } else {
+      // Food — can say hot/freshly cooked
+      const opts = [
+        `${item} — bugun yangi pishirildi 🍽️\n\nIssiq holda yetkazib beramiz.`,
+        `Sizning sevimli taomingiz — ${item} 😋\n\nBugun ham tayyor, issiq.`,
+        `${item} pishdi! 🔥\n\nBuyurtma qiling, issiq holda eshigingizga.`,
+      ];
+      main = opts[variant];
     }
-    if (variant === 1) {
-      return `Sizning sevimlingiz — ${escapeHtml(favItem)} 😋\n\nBugun ham tayyor. Issiq, yangi pishirilgan.`;
-    }
-    return `${escapeHtml(favItem)} yegulik payt keldi 🍽️\n\nIssiq holda eshigingizga yetkazamiz.`;
-  }
-
-  if (popularItems.length > 0) {
+  } else if (popularItems.length > 0) {
     const list = popularItems.slice(0, 3).map(escapeHtml).join(', ');
-    return `Bugun menyuda: ${list} va boshqalar 🍽️\n\nHammasi yangi pishirilgan, issiq.`;
+    const opts = [
+      `Bugun menyumizda: ${list} 🍽️\n\nYangi pishirilgan, issiq.`,
+      `${list} — barchasi tayyor 🔥\n\nBugun buyurtma qilasizmi?`,
+      `Issiq taomlar tayyor: ${list} 😋\n\nBuyurtma qiling!`,
+    ];
+    main = opts[variant];
+  } else {
+    const opts = [
+      `Bugun Turon kafesidan buyurtma qilasizmi? 🍽️\n\n30 daqiqada eshigingizda.`,
+      `Issiq taomlar tayyor 😋\n\nBuyurtma qiling, tez yetkazamiz.`,
+      `Bugun menyumiz boy 🍽️\n\nBir nazar tashlaysizmi?`,
+    ];
+    main = opts[variant];
   }
 
-  return `Bugun Turon kafesidan buyurtma qilasizmi? 🍽️\n\nIssiq taomlar tayyor, 30 daqiqada eshigingizda.`;
+  return promoLine ? `${main}\n\n${promoLine}` : main;
 }
 
 function calcNextBroadcastMs(lastTimestamp: number): number {
@@ -1092,11 +1147,12 @@ async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
     select: { id: true, telegramId: true },
   });
 
-  // Prefetch personalisation data in two parallel queries — no per-user DB calls in the loop
+  // Prefetch all personalisation data before the loop — no per-user DB calls
   const userIds = customers.map((c) => c.id);
-  const [favoriteItems, popularItems] = await Promise.all([
+  const [favoriteItems, popularItems, promoLine] = await Promise.all([
     buildFavoriteItemMap(userIds),
     getPopularMenuItemNames(),
+    getActivePromoLine(),
   ]);
 
   const launchUrl = resolveMiniAppLaunchUrl('customer');
@@ -1114,7 +1170,7 @@ async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
       await deleteAllStoredMessages(bot, chatId);
 
       const favItem = favoriteItems.get(customer.id) ?? null;
-      const text = buildBroadcastText(favItem, popularItems);
+      const text = buildBroadcastText(favItem, popularItems, promoLine);
 
       const sentMsg = await bot.telegram.sendMessage(chatId, text, {
         parse_mode: 'HTML',
