@@ -201,17 +201,10 @@ function parseConfiguredChatIds(rawValue?: string | null): string[] {
     .filter(Boolean);
 }
 
-function resolveConfiguredAdminIds(): string[] {
-  return parseConfiguredChatIds(env.ADMIN_IDS);
-}
-
 function resolveOrderNotificationRecipientChatIds(): string[] {
-  const recipients = [
-    ...(env.ADMIN_CHAT_ID?.trim() ? [env.ADMIN_CHAT_ID.trim()] : []),
-    ...resolveConfiguredAdminIds(),
-  ].filter(Boolean);
-
-  return [...new Set(recipients)];
+  const chatId = env.ADMIN_CHAT_ID?.trim();
+  if (!chatId) return [];
+  return [chatId];
 }
 
 async function getUserRole(telegramId: string): Promise<UserRoleEnum> {
@@ -514,50 +507,6 @@ function getTelegramOrderStatusLabel(status?: string | null): string {
   }
 }
 
-function buildOrderNotificationText(order: {
-  orderNumber: string | number | bigint;
-  createdAt?: string | Date | null;
-  orderStatus?: string | null;
-  customerName: string;
-  customerPhone?: string | null;
-  customerAddress: string;
-  customerAddressNote?: string | null;
-  paymentMethod: string;
-  items: Array<{ name: string; quantity: number; totalPrice: number }>;
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  hasReceipt: boolean;
-}): string {
-  const paymentLabel =
-    order.paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER
-      ? '💳 Karta orqali'
-      : order.paymentMethod === PaymentMethodEnum.EXTERNAL_PAYMENT
-        ? '📱 Click / Payme'
-        : '💵 Naqd pul';
-
-  const itemLines = order.items
-    .map((i) => `  • ${escapeHtml(i.name)} ×${i.quantity} — ${formatMoney(i.totalPrice)} so'm`)
-    .join('\n');
-
-  return [
-    `🆕 <b>Yangi buyurtma #${escapeHtml(order.orderNumber)}</b>`,
-    '',
-    `👤 Mijoz: <b>${escapeHtml(order.customerName)}</b>`,
-    order.customerPhone ? `📞 Telefon: ${escapeHtml(order.customerPhone)}` : null,
-    `📍 Manzil: ${escapeHtml(order.customerAddress)}`,
-    order.customerAddressNote ? `📝 Manzil izohi: ${escapeHtml(order.customerAddressNote)}` : null,
-    `${paymentLabel}${order.hasReceipt ? ' — <b>chek yuborildi</b>' : ''}`,
-    '',
-    '🛒 Taomlar:',
-    itemLines,
-    '',
-    `📦 Taomlar: ${formatMoney(order.subtotal)} so'm`,
-    `🚚 Yetkazish: ${formatMoney(order.deliveryFee)} so'm`,
-    `💰 <b>Jami: ${formatMoney(order.total)} so'm</b>`,
-  ].filter((line) => line !== null).join('\n');
-}
-
 function buildAdminOrderNotificationText(order: {
   orderNumber: string | number | bigint;
   createdAt?: string | Date | null;
@@ -623,35 +572,27 @@ async function resolveTelegramAdminUserId(telegramUserId?: number): Promise<stri
   }
 }
 
-function appendTelegramOrderResultLine(messageText: string, resultLine: string) {
-  const trimmed = messageText.trimEnd();
-  const knownResultLines = ['✅ Tasdiqlangan', '❌ Bekor qilingan'];
-  const withoutOldResult = knownResultLines.reduce((text, line) => {
-    return text.endsWith(line) ? text.slice(0, -line.length).trimEnd() : text;
-  }, trimmed);
-
-  return `${withoutOldResult}\n\n${resultLine}`;
+function buildOrderInitialKeyboard(orderId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('🟢 Qabul qilish', `order_approve:${orderId}`),
+      Markup.button.callback('🔴 Bekor qilish', `order_reject:${orderId}`),
+    ],
+  ]);
 }
 
-async function editTelegramOrderMessage(ctx: any, resultLine: string) {
-  const message = ctx.callbackQuery?.message;
-  const chatId = message?.chat?.id;
-  const messageId = message?.message_id;
-
-  if (!chatId || !messageId) return;
-
-  const editOptions = { reply_markup: { inline_keyboard: [] } };
-  const hasPhotoCaption = Boolean(message.photo && typeof message.caption === 'string');
-  const currentText = hasPhotoCaption ? message.caption : message.text ?? '';
-  const nextText = appendTelegramOrderResultLine(currentText, resultLine);
-
-  if (hasPhotoCaption) {
-    await ctx.telegram.editMessageCaption(chatId, messageId, undefined, nextText, editOptions);
-    return;
-  }
-
-  await ctx.telegram.editMessageText(chatId, messageId, undefined, nextText, editOptions);
+function buildOrderConfirmKeyboard(isApprove: boolean, orderId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(
+        isApprove ? '✅ Ha, tasdiqlayman' : '❌ Ha, bekor qilaman',
+        isApprove ? `order_approve_confirm:${orderId}` : `order_reject_confirm:${orderId}`,
+      ),
+      Markup.button.callback('✖ Orqaga', `order_dismiss_confirm:${orderId}`),
+    ],
+  ]);
 }
+
 
 function updateTelegramOrderStatusLine(messageText: string, statusLabel: string): string {
   return messageText.replace(
@@ -673,16 +614,24 @@ async function syncTelegramOrderMessages(orderId: string, statusLabel: string) {
   await Promise.all(
     messageTargets.map(async (target) => {
       try {
-        await state.bot.telegram.editMessageText(
-          target.chatId,
-          target.messageId,
-          undefined,
-          nextText,
-          {
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: [] },
-          },
-        );
+        // Try photo caption first (receipt+caption messages), fall back to text
+        try {
+          await state.bot.telegram.editMessageCaption(
+            target.chatId,
+            target.messageId,
+            undefined,
+            nextText,
+            { parse_mode: 'HTML', reply_markup: { inline_keyboard: [] } },
+          );
+        } catch {
+          await state.bot.telegram.editMessageText(
+            target.chatId,
+            target.messageId,
+            undefined,
+            nextText,
+            { parse_mode: 'HTML', reply_markup: { inline_keyboard: [] } },
+          );
+        }
       } catch (error) {
         console.warn('[Bot] Could not sync order message state:', {
           orderId,
@@ -889,9 +838,75 @@ function bindHandlers(bot: Telegraf) {
       return ctx.answerCbQuery('Ruxsat yo\'q');
     }
 
+    // ── Step 1: Show confirmation dialog ──────────────────────────────────
     if (data.startsWith('order_approve:') || data.startsWith('order_reject:')) {
-      const [action, orderId] = data.split(':');
-      const isApprove = action === 'order_approve';
+      const orderId = data.split(':')[1];
+      const isApprove = data.startsWith('order_approve:');
+      const question = isApprove
+        ? '❓ Haqiqatdan tasdiqlamoqchimisiz?'
+        : '❓ Haqiqatdan bekor qilmoqchimisiz?';
+      const confirmKeyboard = buildOrderConfirmKeyboard(isApprove, orderId);
+      const message = (ctx.callbackQuery as any).message;
+      const msgId = message?.message_id;
+
+      if (msgId && chatId) {
+        try {
+          const hasPhoto = Boolean(message.photo?.length);
+          const currentText = hasPhoto ? (message.caption ?? '') : (message.text ?? '');
+          const newText = `${currentText}\n\n${question}`;
+          if (hasPhoto) {
+            await ctx.telegram.editMessageCaption(chatId, msgId, undefined, newText, {
+              parse_mode: 'HTML',
+              ...confirmKeyboard,
+            });
+          } else {
+            await ctx.telegram.editMessageText(chatId, msgId, undefined, newText, {
+              parse_mode: 'HTML',
+              ...confirmKeyboard,
+            });
+          }
+        } catch { /* message already updated or too old */ }
+      }
+
+      await ctx.answerCbQuery();
+      return;
+    }
+
+    // ── Dismiss: restore original message + initial keyboard ──────────────
+    if (data.startsWith('order_dismiss_confirm:')) {
+      const orderId = data.slice('order_dismiss_confirm:'.length);
+      const message = (ctx.callbackQuery as any).message;
+      const msgId = message?.message_id;
+
+      if (msgId && chatId) {
+        const storedText = await getStoredOrderMessageText(orderId);
+        const restoredKeyboard = buildOrderInitialKeyboard(orderId);
+        const hasPhoto = Boolean(message.photo?.length);
+        const restoreText = storedText || (hasPhoto ? (message.caption ?? '') : (message.text ?? ''));
+
+        try {
+          if (hasPhoto) {
+            await ctx.telegram.editMessageCaption(chatId, msgId, undefined, restoreText, {
+              parse_mode: 'HTML',
+              ...restoredKeyboard,
+            });
+          } else {
+            await ctx.telegram.editMessageText(chatId, msgId, undefined, restoreText, {
+              parse_mode: 'HTML',
+              ...restoredKeyboard,
+            });
+          }
+        } catch { /* ignore */ }
+      }
+
+      await ctx.answerCbQuery();
+      return;
+    }
+
+    // ── Step 2: Execute confirmed action ──────────────────────────────────
+    if (data.startsWith('order_approve_confirm:') || data.startsWith('order_reject_confirm:')) {
+      const isApprove = data.startsWith('order_approve_confirm:');
+      const orderId = data.split(':')[1];
 
       try {
         const result = await applyTelegramOrderAction({
@@ -1024,19 +1039,11 @@ export async function sendOrderNotificationToAdmin(payload: {
   });
   void storeOrderMessageText(payload.orderId, text);
 
-  const keyboard = Markup.inlineKeyboard([
-    [
-      Markup.button.callback('✅ Tasdiqlash', `order_approve:${payload.orderId}`),
-      Markup.button.callback('❌ Bekor qilish', `order_reject:${payload.orderId}`),
-    ],
-  ]);
+  const orderKeyboard = buildOrderInitialKeyboard(payload.orderId);
 
-  const orderKeyboard = Markup.inlineKeyboard([
-    [
-      Markup.button.callback('Bekor qilish', `order_reject:${payload.orderId}`),
-      Markup.button.callback('Qabul qilish', `order_approve:${payload.orderId}`),
-    ],
-  ]);
+  // Telegram caption limit is 1024 chars — truncate if needed
+  const CAPTION_MAX = 1024;
+  const captionText = text.length <= CAPTION_MAX ? text : `${text.slice(0, 1021)}…`;
 
   try {
     const imageBuffer = payload.receiptImageBase64
@@ -1045,22 +1052,25 @@ export async function sendOrderNotificationToAdmin(payload: {
 
     for (const recipientChatId of recipientChatIds) {
       try {
-        const sent = await state.bot.telegram.sendMessage(recipientChatId, text, {
-          parse_mode: 'HTML',
-          ...orderKeyboard,
-        });
-        void storeOrderMessageId(payload.orderId, recipientChatId, sent.message_id);
-
         if (imageBuffer) {
-          await state.bot.telegram.sendPhoto(
+          // Single message: receipt photo on top, order details as caption
+          const sent = await state.bot.telegram.sendPhoto(
             recipientChatId,
             { source: imageBuffer },
             {
-              caption: `To'lov cheki - ${escapeHtml(formatTelegramOrderDisplayNumber(payload.orderNumber))}`,
+              caption: captionText,
               parse_mode: 'HTML',
-              reply_parameters: { message_id: sent.message_id },
+              ...orderKeyboard,
             },
           );
+          void storeOrderMessageId(payload.orderId, recipientChatId, sent.message_id);
+        } else {
+          // No receipt — plain text message
+          const sent = await state.bot.telegram.sendMessage(recipientChatId, text, {
+            parse_mode: 'HTML',
+            ...orderKeyboard,
+          });
+          void storeOrderMessageId(payload.orderId, recipientChatId, sent.message_id);
         }
       } catch (error) {
         console.warn('[Bot] Could not send order notification to recipient:', {
