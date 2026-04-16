@@ -37,9 +37,12 @@ const ProfilePage: React.FC = () => {
       label: tr('profile.language') || 'Tilni o\'zgartirish',
       value: languageLabel,
       onClick: () => {
-        // Toggle language selection
-        const nextLang = language === 'uz' ? 'ru' : 'uz';
-        setLanguage(nextLang);
+        // Show language options modal or navigate
+        // For now, just cycle to next available language
+        const allLanguages: Array<'uz-latn' | 'uz-cyrl' | 'ru'> = ['uz-latn', 'uz-cyrl', 'ru'];
+        const currentIndex = allLanguages.indexOf(language as any);
+        const nextIndex = (currentIndex + 1) % allLanguages.length;
+        setLanguage(allLanguages[nextIndex]);
       },
     },
     {
