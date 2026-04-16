@@ -36,10 +36,19 @@ const OrderSummaryCard: React.FC<{
 
   const deliveryFeeLabel =
     typeof quote?.deliveryFee === 'number'
-      ? `${quote.deliveryFee.toLocaleString()} so'm`
+      ? quote.deliveryFee === 0
+        ? 'Bepul!'
+        : `${quote.deliveryFee.toLocaleString()} so'm`
       : isQuoteLoading
         ? 'Hisoblanmoqda...'
         : 'Manzil tanlangach';
+
+  const deliveryFeeColor =
+    typeof quote?.deliveryFee === 'number' && quote.deliveryFee === 0
+      ? 'text-emerald-400 font-black'
+      : isQuoteLoading
+        ? 'text-amber-400'
+        : 'text-white';
 
   const paymentLabel =
     paymentMethod === PaymentMethod.CASH
@@ -78,7 +87,7 @@ const OrderSummaryCard: React.FC<{
           </div>
           <div className="flex items-center gap-2">
             {isQuoteLoading && <Loader2 size={14} className="animate-spin text-amber-400" />}
-            <span className={`font-black ${isQuoteLoading ? 'text-amber-400' : 'text-white'}`}>
+            <span className={`font-black ${deliveryFeeColor}`}>
               {deliveryFeeLabel}
             </span>
           </div>

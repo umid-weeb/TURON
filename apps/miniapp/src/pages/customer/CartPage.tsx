@@ -11,8 +11,6 @@ import { useOrderQuote } from '../../hooks/queries/useOrders';
 import { useAddressStore } from '../../store/useAddressStore';
 import { useCartStore } from '../../store/useCartStore';
 
-const ESTIMATED_DELIVERY_FEE = 15_000;
-
 const formatMoney = (value: number) => `${Math.max(0, Math.round(value)).toLocaleString()} so'm`;
 
 const CartProductCard: React.FC<{
@@ -124,8 +122,10 @@ const CartPage: React.FC = () => {
     enabled: Boolean(selectedAddress) && items.length > 0 && !isProductsLoading,
   });
 
-  const deliveryFee = orderQuoteQuery.data?.deliveryFee ?? (items.length > 0 ? ESTIMATED_DELIVERY_FEE : 0);
-  const totalPrice = orderQuoteQuery.data?.total ?? Math.max(0, subtotal - discount + deliveryFee);
+  const deliveryFee = orderQuoteQuery.data?.deliveryFee ?? null;
+  const isQuoteLoading = orderQuoteQuery.isLoading || orderQuoteQuery.isFetching;
+  // Total without delivery when quote not yet loaded — avoids showing wrong placeholder amount
+  const totalPrice = orderQuoteQuery.data?.total ?? Math.max(0, subtotal - discount);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   React.useEffect(() => {
@@ -298,7 +298,20 @@ const CartPage: React.FC = () => {
             ) : null}
             <div className="flex items-center justify-between gap-3">
               <span>Yetkazib berish</span>
-              <span>{formatMoney(deliveryFee)}</span>
+              {isQuoteLoading ? (
+                <span className="flex items-center gap-1.5 text-amber-500">
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Hisoblanmoqda...</span>
+                </span>
+              ) : deliveryFee === 0 ? (
+                <span className="font-black text-emerald-600">Bepul!</span>
+              ) : deliveryFee !== null ? (
+                <span>{formatMoney(deliveryFee)}</span>
+              ) : (
+                <span className="text-[#b0b0b8]">
+                  {selectedAddress ? 'Hisoblanmoqda...' : 'Manzil tanlangach'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -307,7 +320,10 @@ const CartPage: React.FC = () => {
               <p className="text-[18px] font-black tracking-[-0.04em]">Jami</p>
               <p className="mt-1 text-[12px] font-semibold text-[#9a9aa3]">{totalItems} ta mahsulot</p>
             </div>
-            <p className="text-[24px] font-black tracking-[-0.06em]">{formatMoney(totalPrice)}</p>
+            <p className="text-[24px] font-black tracking-[-0.06em]">
+              {!orderQuoteQuery.data && selectedAddress && deliveryFee === null ? '≈ ' : ''}
+              {formatMoney(totalPrice)}
+            </p>
           </div>
         </section>
       </main>
