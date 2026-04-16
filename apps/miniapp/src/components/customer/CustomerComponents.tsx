@@ -835,7 +835,7 @@ export const BottomNavbar: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-[80] bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 shadow-[0_-16px_34px_rgba(0,0,0,0.3)]">
+    <nav className="fixed inset-x-0 bottom-0 z-[80] bg-gradient-to-r from-red-800 via-red-700 to-red-800 shadow-[0_-16px_34px_rgba(153,27,27,0.3)]">
       <div
         className="mx-auto flex w-full max-w-[430px] items-center justify-between px-1.5"
         style={{
@@ -857,8 +857,8 @@ export const BottomNavbar: React.FC = () => {
                 key={item.path}
                 to={item.path}
                 className={`group relative flex min-w-[50px] flex-col items-center gap-1 rounded-[14px] px-2 py-2 transition-all active:scale-95 ${isActive
-                    ? 'bg-red-500 text-white'
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-white text-red-700 shadow-md'
+                    : 'text-red-200 hover:text-white'
                   }`}
               >
                 <Icon size={20} strokeWidth={2.2} />
@@ -870,16 +870,16 @@ export const BottomNavbar: React.FC = () => {
           })}
         </div>
 
-        {/* CENTER: RED CART BUTTON (elevated) */}
+        {/* CENTER: WHITE CART BUTTON (elevated) */}
         <div className="relative flex flex-col items-center -translate-y-4">
           <button
             onClick={() => navigate('/customer/cart')}
             type="button"
-            className="group relative flex h-[68px] w-[68px] items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white shadow-[0_12px_32px_rgba(220,38,38,0.5)] transition-transform active:scale-95 hover:shadow-[0_16px_40px_rgba(220,38,38,0.6)] border-4 border-slate-700"
+            className="group relative flex h-[68px] w-[68px] items-center justify-center rounded-full bg-white text-red-700 shadow-[0_12px_32px_rgba(153,27,27,0.5)] transition-transform active:scale-95 border-4 border-red-700"
           >
             <ShoppingCart size={28} strokeWidth={2} />
             {cartCount > 0 ? (
-              <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-red-600 bg-white text-[10px] font-black text-red-600 shadow-lg">
+              <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-[2.5px] border-white bg-red-600 text-[10px] font-black text-white shadow-lg">
                 {cartCount}
               </span>
             ) : null}
@@ -897,8 +897,8 @@ export const BottomNavbar: React.FC = () => {
                 key={item.path}
                 to={item.path}
                 className={`group relative flex min-w-[50px] flex-col items-center gap-1 rounded-[14px] px-2 py-2 transition-all active:scale-95 ${isActive
-                    ? 'bg-red-500 text-white'
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-white text-red-700 shadow-md'
+                    : 'text-red-200 hover:text-white'
                   }`}
               >
                 <div className="relative">
