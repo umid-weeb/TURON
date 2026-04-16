@@ -35,10 +35,10 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
   return (
     <>
       <style>{`
-        /* ── Burger rotation - smooth 360° spin ────────────────────────────── */
-        @keyframes burgerSpin {
-          0%   { transform: perspective(1000px) rotateY(0deg) scale(1); opacity: 1; }
-          100% { transform: perspective(1000px) rotateY(360deg) scale(1); opacity: 1; }
+        /* ── Rotating dish animation ────────────────────────────────────────── */
+        @keyframes dishRotate {
+          0%   { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
 
         /* ── Burger entry animation ──────────────────────────────────────────── */
@@ -75,50 +75,123 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
           userSelect: 'none',
         }}
       >
-        {/* ── Burger icon with rotation animation ────────────────────────────────── */}
+        {/* ── Turon Logo with Rotating Dish in O ────────────────────────────── */}
         <div
           style={{
-            fontSize: 80,
-            lineHeight: 1,
-            animation: 'burgerSpin 3s linear infinite, burgerEntry 0.8s ease-out forwards',
-            filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.2))',
+            animation: 'textFadeIn 1s ease-out forwards',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
             marginBottom: 32,
           }}
         >
-          🍔
+          {/* TUR text */}
+          <span
+            style={{
+              fontSize: 72,
+              fontWeight: 900,
+              color: '#fff',
+              letterSpacing: '0.02em',
+              textShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              lineHeight: 1,
+            }}
+          >
+            TUR
+          </span>
+
+          {/* Rotating Dish Circle (O) */}
+          <div
+            style={{
+              position: 'relative',
+              width: 80,
+              height: 80,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {/* Outer decorative ring - rotating */}
+            <div
+              style={{
+                position: 'absolute',
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                border: '3px solid #fff',
+                animation: 'dishRotate 4s linear infinite',
+              }}
+            />
+
+            {/* Inner decorative circle */}
+            <div
+              style={{
+                position: 'absolute',
+                width: 70,
+                height: 70,
+                borderRadius: '50%',
+                border: '2px dashed rgba(255,255,255,0.6)',
+              }}
+            />
+
+            {/* Center dish emoji - rotating */}
+            <div
+              style={{
+                fontSize: 48,
+                lineHeight: 1,
+                animation: 'dishRotate 6s linear infinite',
+                textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              🍛
+            </div>
+          </div>
+
+          {/* N text */}
+          <span
+            style={{
+              fontSize: 72,
+              fontWeight: 900,
+              color: '#fff',
+              letterSpacing: '0.02em',
+              textShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              lineHeight: 1,
+            }}
+          >
+            N
+          </span>
         </div>
 
-        {/* ── Brand name "Turon" ──────────────────────────────────────────────────── */}
+        {/* ── Brand tagline ────────────────────────────────────────────────────── */}
         <div
           style={{
             animation: 'textFadeIn 1.2s ease-out forwards',
+            textAlign: 'center',
+            marginBottom: 48,
           }}
         >
           <p
             style={{
-              margin: 0,
-              fontSize: 42,
-              fontWeight: 900,
-              color: '#fff',
-              letterSpacing: '-0.04em',
-              textAlign: 'center',
-              textShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            }}
-          >
-            Turon
-          </p>
-          <p
-            style={{
-              margin: '6px 0 0',
+              margin: '0 0 4px',
               fontSize: 13,
               fontWeight: 600,
               color: 'rgba(255, 255, 255, 0.85)',
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              textAlign: 'center',
             }}
           >
             Kafesi
+          </p>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 10,
+              fontWeight: 500,
+              color: 'rgba(255, 255, 255, 0.6)',
+              letterSpacing: '0.12em',
+            }}
+          >
+            Mazali Taomlar
           </p>
         </div>
 
@@ -127,7 +200,6 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
           style={{
             display: 'flex',
             gap: 10,
-            marginTop: 48,
             animation: 'textFadeIn 1.4s ease-out forwards',
           }}
         >
