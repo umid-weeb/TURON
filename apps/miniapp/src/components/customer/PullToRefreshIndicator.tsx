@@ -3,6 +3,48 @@ import { useQueryClient } from '@tanstack/react-query';
 
 type Phase = 'idle' | 'pulling' | 'refreshing' | 'done';
 
+/* ── Classic iOS 12-spoke spinner ─────────────────────────────────────────── */
+const IOSSpinner: React.FC<{ progress?: number; spin?: boolean; size?: number; color?: string }> = ({
+  progress = 1,
+  spin = false,
+  size = 28,
+  color = 'rgba(180,180,180,0.95)',
+}) => {
+  const spokes = 12;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 28 28"
+      style={{
+        animation: spin ? 'ios-activity-spin 0.9s steps(12,end) infinite' : 'none',
+        display: 'block',
+        flexShrink: 0,
+      }}
+    >
+      {Array.from({ length: spokes }).map((_, i) => {
+        // opacity: visible spokes = progress * 12
+        const visibleCount = Math.round(progress * spokes);
+        const opacity = i < visibleCount ? 1 - (i / spokes) * 0.75 : 0;
+        const angle = (i / spokes) * 360;
+        return (
+          <line
+            key={i}
+            x1="14"
+            y1="5"
+            x2="14"
+            y2="9"
+            stroke={color}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            style={{ opacity, transformOrigin: '14px 14px', transform: `rotate(${angle}deg)` }}
+          />
+        );
+      })}
+    </svg>
+  );
+};
+
 export const PullToRefreshIndicator: React.FC = () => {
   const queryClient = useQueryClient();
   const [phase, setPhase] = useState<Phase>('idle');
@@ -20,15 +62,15 @@ export const PullToRefreshIndicator: React.FC = () => {
     setPhaseSync('refreshing');
     setProgress(1);
 
-    // Haptic feedback — like native iOS pull-to-refresh
+    // Haptic — like native iOS
     try {
-      const tg = window.Telegram?.WebApp;
+      const tg = (window as any).Telegram?.WebApp;
       if (tg?.HapticFeedback?.impactOccurred) {
         tg.HapticFeedback.impactOccurred('medium');
       } else if (navigator.vibrate) {
         navigator.vibrate([30, 20, 60]);
       }
-    } catch { /* best-effort */ }
+    } catch { /* noop */ }
 
     try {
       await queryClient.invalidateQueries();
@@ -38,7 +80,7 @@ export const PullToRefreshIndicator: React.FC = () => {
         setPhaseSync('idle');
         setProgress(0);
         refreshingRef.current = false;
-      }, 600);
+      }, 500);
     }
   }, [queryClient]);
 
@@ -51,7 +93,7 @@ export const PullToRefreshIndicator: React.FC = () => {
         rafRef.current = null;
         const p = pendingProgressRef.current;
         setProgress(p);
-        setPhaseSync(p > 0.05 ? 'pulling' : 'idle');
+        setPhaseSync(p > 0.04 ? 'pulling' : 'idle');
       });
     };
     const onRefresh = () => triggerRefresh();
@@ -71,65 +113,53 @@ export const PullToRefreshIndicator: React.FC = () => {
 
   if (phase === 'idle') return null;
 
+  const isRefreshing = phase === 'refreshing' || phase === 'done';
   const clampedP = Math.min(progress, 1);
-  const PILL_H = 42;
-  const translateY = (phase === 'refreshing' || phase === 'done') ? 0 : -PILL_H + clampedP * PILL_H;
-  const opacity = (phase === 'refreshing' || phase === 'done') ? 1 : Math.min(clampedP * 1.6, 1);
-  const isRefreshing = phase === 'refreshing';
-  const isDone = phase === 'done';
 
-  // Spinner rotation based on progress while pulling
-  const spinnerDeg = isRefreshing ? undefined : Math.round(clampedP * 270);
+  // Slides down from top as user pulls
+  const INDICATOR_H = 56;
+  const translateY = isRefreshing ? 0 : -INDICATOR_H + clampedP * INDICATOR_H;
+  const opacity = isRefreshing ? 1 : Math.min(clampedP * 2, 1);
 
   return (
     <>
       <style>{`
-        @keyframes ios-spin {
-          0%   { transform: rotate(0deg); }
+        @keyframes ios-activity-spin {
+          0%   { transform: rotate(0deg);   }
           100% { transform: rotate(360deg); }
         }
       `}</style>
+
       <div
         style={{
           position: 'fixed',
           top: 'var(--tg-header-safe, env(safe-area-inset-top, 0px))',
-          left: 0, right: 0, zIndex: 9999,
-          display: 'flex', justifyContent: 'center',
+          left: 0, right: 0,
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
           transform: `translateY(${translateY}px)`,
           opacity,
-          transition: isRefreshing || isDone
+          transition: isRefreshing
             ? 'transform 0.28s cubic-bezier(0.22,1,0.36,1), opacity 0.2s'
             : 'none',
           pointerEvents: 'none',
           willChange: 'transform, opacity',
+          height: INDICATOR_H,
         }}
       >
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 10,
-          background: 'rgba(255,255,255,0.97)',
-          border: '1px solid rgba(0,0,0,0.08)',
-          borderTop: 'none',
-          borderRadius: '0 0 20px 20px',
-          padding: '8px 18px 10px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: INDICATOR_H,
         }}>
-          {/* iOS-style circular spinner */}
-          <div style={{
-            width: 20, height: 20,
-            borderRadius: '50%',
-            border: '2.5px solid #E5E7EB',
-            borderTopColor: '#C62020',
-            transform: isRefreshing ? undefined : `rotate(${spinnerDeg}deg)`,
-            animation: isRefreshing ? 'ios-spin 0.75s linear infinite' : 'none',
-            transition: isRefreshing ? 'none' : 'transform 0.05s linear',
-          }} />
-
-          <span style={{
-            fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
-            color: isDone ? '#16A34A' : '#374151',
-          }}>
-            {isDone ? 'Yangilandi ✓' : isRefreshing ? 'Yangilanmoqda...' : ''}
-          </span>
+          <IOSSpinner
+            spin={isRefreshing}
+            progress={isRefreshing ? 1 : clampedP}
+            size={32}
+          />
         </div>
       </div>
     </>
