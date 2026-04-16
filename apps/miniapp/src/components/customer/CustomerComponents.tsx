@@ -837,40 +837,29 @@ export const BottomNavbar: React.FC = () => {
   ];
 
   return (
-    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 80, overflow: 'visible' }}>
-      {/* SVG shape: red bar with smooth concave notch at top-center */}
-      <svg
-        viewBox="0 0 430 76"
-        preserveAspectRatio="none"
-        style={{ display: 'block', width: '100%', height: 64 }}
+    <nav
+      className="fixed inset-x-0 bottom-0 z-[80]"
+      style={{ background: `linear-gradient(135deg, ${RED} 0%, #9B0000 100%)` }}
+    >
+      <div
+        className="mx-auto flex w-full max-w-[430px] items-end justify-between px-2"
+        style={{
+          height: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+        }}
       >
-        <path
-          d="M 0 28 L 152 28 C 182 28 182 1 215 1 C 248 1 248 28 278 28 L 430 28 L 430 76 L 0 76 Z"
-          fill={RED}
-        />
-      </svg>
-
-      {/* Safe-area fill */}
-      <div style={{ background: RED, height: 'env(safe-area-inset-bottom, 0px)' }} />
-
-      {/* Nav icons overlaid on the flat bar portion */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
-        height: 'calc(46px + env(safe-area-inset-bottom, 0px))',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        paddingInline: 8, maxWidth: 430, margin: '0 auto',
-      }}>
-        {/* Left */}
-        <div style={{ display: 'flex', flex: 1, justifyContent: 'space-around' }}>
+        {/* LEFT */}
+        <div className="flex flex-1 items-end justify-around pb-1">
           {leftItems.map((item) => {
             const Icon = item.icon;
             return (
-              <NavLink key={item.path} to={item.path} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 4, color: 'white', padding: '4px 10px', textDecoration: 'none',
-              }}>
-                <Icon size={22} strokeWidth={2} />
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
+                style={{ textDecoration: 'none' }}
+              >
+                <Icon size={22} strokeWidth={2} color="white" />
                 <span style={{ fontSize: 10, fontWeight: 700, color: 'white', lineHeight: 1 }}>
                   {item.label}
                 </span>
@@ -879,20 +868,52 @@ export const BottomNavbar: React.FC = () => {
           })}
         </div>
 
-        {/* Spacer for center button */}
-        <div style={{ width: 74 }} />
+        {/* CENTER: elevated cart */}
+        <div className="relative flex flex-col items-center" style={{ marginBottom: 10 }}>
+          <button
+            onClick={() => navigate('/customer/cart')}
+            type="button"
+            className="relative flex items-center justify-center rounded-full transition-transform active:scale-90"
+            style={{
+              width: 60, height: 60,
+              background: 'white',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+              border: `4px solid ${RED}`,
+              marginTop: -28,
+              color: RED,
+            }}
+          >
+            <ShoppingCart size={26} strokeWidth={2.2} />
+            {cartCount > 0 && (
+              <span
+                className="absolute -right-1 -top-1 flex items-center justify-center rounded-full text-white"
+                style={{
+                  height: 18, minWidth: 18, fontSize: 9, fontWeight: 900,
+                  background: RED, border: '2px solid white', padding: '0 2px',
+                }}
+              >
+                {cartCount}
+              </span>
+            )}
+          </button>
+          <span style={{ marginTop: 3, fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.75)', lineHeight: 1 }}>
+            Savat
+          </span>
+        </div>
 
-        {/* Right */}
-        <div style={{ display: 'flex', flex: 1, justifyContent: 'space-around' }}>
+        {/* RIGHT */}
+        <div className="flex flex-1 items-end justify-around pb-1">
           {rightItems.map((item) => {
             const Icon = item.icon;
             return (
-              <NavLink key={item.path} to={item.path} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 4, color: 'white', padding: '4px 10px', textDecoration: 'none',
-              }}>
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
+                style={{ textDecoration: 'none' }}
+              >
                 <div style={{ position: 'relative' }}>
-                  <Icon size={22} strokeWidth={2} />
+                  <Icon size={22} strokeWidth={2} color="white" />
                   {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: 'white', lineHeight: 1 }}>
@@ -903,32 +924,6 @@ export const BottomNavbar: React.FC = () => {
           })}
         </div>
       </div>
-
-      {/* Elevated white cart button centered in the notch */}
-      <button
-        onClick={() => navigate('/customer/cart')}
-        type="button"
-        style={{
-          position: 'absolute', top: -26, left: '50%',
-          transform: 'translateX(-50%)',
-          width: 58, height: 58, borderRadius: '50%',
-          background: 'white', border: 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 18px rgba(120,0,0,0.4)',
-          cursor: 'pointer', color: RED, zIndex: 10,
-        }}
-      >
-        <ShoppingCart size={27} strokeWidth={2.4} />
-        {cartCount > 0 && (
-          <span style={{
-            position: 'absolute', top: -3, right: -3,
-            background: RED, color: 'white', borderRadius: '50%',
-            minWidth: 18, height: 18, fontSize: 9, fontWeight: 900,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '2px solid white', padding: '0 2px',
-          }}>{cartCount}</span>
-        )}
-      </button>
     </nav>
   );
 };
