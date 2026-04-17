@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Utensils } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ProductAvailabilityEnum } from '@turon/shared';
 import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
@@ -294,44 +294,24 @@ const HomePage: React.FC = () => {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--app-bg)', color: 'var(--app-text)' }}>
 
-      {/* ── Chegirmali taomlar banner ───────────────────────── */}
-      <BannerSection
-        title="Chegirmali taomlar"
-        emoji="🔥"
-        badgeColor="#C62020"
-        badgeText={(p) => p.discountPercent ? `-${p.discountPercent}%` : 'Chegirma'}
-        items={discountedProducts}
-      />
-
-      {/* ── Yangi taomlar banner ────────────────────────────── */}
-      <BannerSection
-        title="Yangi taomlar"
-        emoji="✨"
-        badgeColor="#0ea5e9"
-        badgeText={() => 'Yangi'}
-        items={newProducts}
-      />
-
-      {/* ── Category filter pills ───────────────────────────── */}
+      {/* ── Category filter pills (top) ─────────────────────── */}
       <div
         className="scrollbar-hide"
         style={{
           display: 'flex', gap: 8, overflowX: 'auto',
-          marginInline: 0, paddingInline: 16, paddingBottom: 8, marginTop: 20,
+          paddingInline: 16, paddingBottom: 8, paddingTop: 14,
         }}
       >
         <button
           onClick={() => setActiveCategoryId('all')}
           style={{
-            height: 38, flexShrink: 0, borderRadius: 999, padding: '0 16px',
+            height: 38, flexShrink: 0, borderRadius: 999, padding: '0 18px',
             fontSize: 13, fontWeight: 800, border: 'none', cursor: 'pointer',
             background: activeCategoryId === 'all' ? '#C62020' : 'var(--app-card)',
             color: activeCategoryId === 'all' ? 'white' : 'var(--app-text)',
             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-            display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
-          <Utensils size={16} />
           Hammasi
         </button>
         {sortedCategories.map((category) => {
@@ -354,6 +334,24 @@ const HomePage: React.FC = () => {
           );
         })}
       </div>
+
+      {/* ── Chegirmali taomlar banner ───────────────────────── */}
+      <BannerSection
+        title="Chegirmali taomlar"
+        emoji="🔥"
+        badgeColor="#C62020"
+        badgeText={(p) => p.discountPercent ? `-${p.discountPercent}%` : 'Chegirma'}
+        items={discountedProducts}
+      />
+
+      {/* ── Yangi taomlar banner ────────────────────────────── */}
+      <BannerSection
+        title="Yangi taomlar"
+        emoji="✨"
+        badgeColor="#0ea5e9"
+        badgeText={() => 'Yangi'}
+        items={newProducts}
+      />
 
       {/* ── Product grid ────────────────────────────────────── */}
       <main style={{ padding: '12px 16px 24px' }}>

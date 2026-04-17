@@ -837,7 +837,7 @@ export const BottomNavbar: React.FC = () => {
       style={{ background: `linear-gradient(135deg, ${RED} 0%, #9B0000 100%)` }}
     >
       <div
-        className="mx-auto flex w-full max-w-[430px] items-end justify-between px-2"
+        className="mx-auto flex w-full items-end justify-between px-2"
         style={{
           height: 'calc(72px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
@@ -873,7 +873,7 @@ export const BottomNavbar: React.FC = () => {
               width: 60, height: 60,
               background: 'white',
               boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-              border: `4px solid ${RED}`,
+              border: 'none',
               marginTop: -28,
               color: RED,
             }}
