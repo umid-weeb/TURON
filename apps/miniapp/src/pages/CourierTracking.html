@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TURON - Live Courier Tracking</title>
+  <script src="https://api-maps.yandex.ru/2.1/?lang=en_US&apikey=YOUR_YANDEX_MAPS_API_KEY"></script>
+  <style>
+    /* ===================================
+       Reset & Base Styles
+       =================================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      overflow: hidden;
+      background: #000;
+      color: #fff;
+    }
+
+    /* ===================================
+       Map Container
+       =================================== */
+    #map {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* ===================================
+       Glassmorphism Navigation Panel
+       =================================== */
+    .nav-panel {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 480px;
+      z-index: 100;
+      
+      /* Glassmorphism effect */
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* ===================================
+       Navigation Header
+       =================================== */
+    .nav-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .nav-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+      }
+    }
+
+    /* ===================================
+       Navigation Stats Grid
+       =================================== */
+    .nav-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 12px;
+      backdrop-filter: blur(8px);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .stat-unit {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+    }
+
+    /* ===================================
+       Turn Instruction (Next Step)
+       =================================== */
+    .turn-instruction {
+      background: rgba(59, 130, 246, 0.2);
+      border-left: 3px solid #3b82f6;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+    }
+
+    .turn-icon {
+      font-size: 20px;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    /* ===================================
+       Control Buttons
+       =================================== */
+    .nav-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .control-btn {
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(8px);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .control-btn:active {
+      transform: translateY(0);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* ===================================
+       Top Status Bar
+       =================================== */
+    .status-bar {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      z-index: 100;
+      
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    .status-indicator.error {
+      background: #ef4444;
+      animation: pulse-error 1s infinite;
+    }
+
+    @keyframes pulse-error {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+      }
+    }
+
+    /* ===================================
+       Distance/Duration Indicator
+       =================================== */
+    .eta-banner {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 100;
+      
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .eta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .eta-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .eta-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* ===================================
+       Responsive Design
+       =================================== */
+    @media (max-width: 640px) {
+      .nav-panel {
+        bottom: 12px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-width: none;
+        transform: none;
+      }
+
+      .nav-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .status-bar,
+      .eta-banner {
+        top: 12px;
+        left: 12px;
+        right: auto;
+        font-size: 12px;
+        padding: 10px 12px;
+      }
+
+      .eta-banner {
+        left: auto;
+        right: 12px;
+      }
+
+      .stat-value {
+        font-size: 20px;
+      }
+    }
+
+    /* ===================================
+       Loading State
+       =================================== */
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ===================================
+       Dark Mode (Default) & Light Mode
+       =================================== */
+    @media (prefers-color-scheme: light) {
+      body {
+        background: #f5f5f5;
+      }
+
+      .nav-panel,
+      .status-bar,
+      .eta-banner {
+        background: rgba(0, 0, 0, 0.1);
+        border-color: rgba(0, 0, 0, 0.15);
+        color: rgba(0, 0, 0, 0.9);
+      }
+
+      .stat-card {
+        background: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .control-btn {
+        background: rgba(0, 0, 0, 0.08);
+        border-color: rgba(0, 0, 0, 0.15);
+        color: #333;
+      }
+
+      .nav-title,
+      .eta-label,
+      .stat-label {
+        color: rgba(0, 0, 0, 0.7);
+      }
+
+      .stat-value,
+      .eta-value {
+        color: #000;
+      }
+    }
+
+    /* ===================================
+       Accessibility
+       =================================== */
+    @media (prefers-reduced-motion: reduce) {
+      .nav-panel,
+      .control-btn,
+      .status-dot {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Map Container -->
+  <div id="map"></div>
+
+  <!-- Top Status Bar -->
+  <div class="status-bar">
+    <div class="status-indicator" id="connectionStatus"></div>
+    <span id="statusText">Ulanmoqda...</span>
+  </div>
+
+  <!-- ETA Banner -->
+  <div class="eta-banner">
+    <div class="eta-item">
+      <div class="eta-label">Yetib borish</div>
+      <div class="eta-value" id="etaTime">--:--</div>
+    </div>
+    <div class="eta-item">
+      <div class="eta-label">Vaqt</div>
+      <div class="eta-value" id="durationDisplay">--</div>
+    </div>
+  </div>
+
+  <!-- Navigation Panel -->
+  <div class="nav-panel">
+    <div class="nav-header">
+      <span class="nav-title">Yetib borish ma'lumotlari</span>
+      <div class="status-dot"></div>
+    </div>
+
+    <div class="nav-stats">
+      <div class="stat-card">
+        <div class="stat-label">Masofa</div>
+        <div class="stat-value">
+          <span id="distanceDisplay">-</span>
+          <span class="stat-unit" id="distanceUnit">m</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Tezlik</div>
+        <div class="stat-value">
+          <span id="speedDisplay">-</span>
+          <span class="stat-unit">km/h</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="turn-instruction" id="turnInstruction" style="display: none;">
+      <div class="turn-icon" id="turnIcon">→</div>
+      <div id="turnText">Chap tomonga</div>
+    </div>
+
+    <div class="nav-controls">
+      <button class="control-btn" id="btnZoom" title="Xaritani moslab ko'rsatish">🔍 Mosla</button>
+      <button class="control-btn" id="btnSimulate" title="Simulyatsiyani boshlash">▶️ Simu</button>
+      <button class="control-btn" id="btnCenter" title="Kuryerga markazla">📍 Kuz</button>
+    </div>
+  </div>
+
+  <script>
+    /* ===================================
+       CourierTracker Class - Main System
+       =================================== */
+    class CourierTracker {
+      constructor(mapContainerId) {
+        this.mapContainer = mapContainerId;
+        this.myMap = null;
+        this.multiRoute = null;
+        this.courierMarker = null;
+        this.customerMarker = null;
+        
+        // Current state
+        this.courierPos = [41.3200, 69.2500];
+        this.customerPos = [41.2900, 69.2200];
+        this.courierHeading = 0; // Azimuth in degrees
+        this.isSimulating = false;
+        this.simulationStep = 0;
+        
+        // Route data
+        this.routeDistance = 0;
+        this.routeDuration = 0;
+        this.currentSpeed = 0;
+        
+        this.init();
+      }
+
+      init() {
+        if (typeof ymaps === 'undefined') {
+          this.setError('Yandex Maps API not loaded');
+          return;
+        }
+
+        ymaps.ready(() => this.setup());
+      }
+
+      setup() {
+        try {
+          this.initMap();
+          this.addMarkers();
+          this.setupRoute();
+          this.setupEventListeners();
+          this.setStatus('Tayyorlangani yo\'q', 'connected');
+        } catch (error) {
+          this.setError(error.message);
+        }
+      }
+
+      initMap() {
+        this.myMap = new ymaps.Map(this.mapContainer, {
+          center: this.courierPos,
+          zoom: 16,
+          controls: ['zoomControl', 'fullscreenControl'],
+          behaviors: ['drag', 'dblClickZoom', 'pinchToZoom']
+        });
+
+        // Disable scroll zoom on desktop
+        this.myMap.behaviors.disable('scrollZoom');
+      }
+
+      addMarkers() {
+        // Courier Marker with Rotating SVG Icon
+        const courierSVG = this.createScooterIcon(this.courierHeading);
+        this.courierMarker = new ymaps.Placemark(
+          this.courierPos,
+          { hintContent: 'Kuryer' },
+          {
+            iconLayout: 'default#image',
+            iconImageHref: courierSVG,
+            iconImageSize: [40, 40],
+            iconImageOffset: [-20, -20],
+            zIndex: 100
+          }
+        );
+
+        // Customer Marker with Pulsing Effect
+        const customerSVG = this.createHomeIcon();
+        this.customerMarker = new ymaps.Placemark(
+          this.customerPos,
+          { hintContent: 'Mishtari' },
+          {
+            iconLayout: 'default#image',
+            iconImageHref: customerSVG,
+            iconImageSize: [48, 48],
+            iconImageOffset: [-24, -24],
+            zIndex: 50
+          }
+        );
+
+        this.myMap.geoObjects.add(this.courierMarker);
+        this.myMap.geoObjects.add(this.customerMarker);
+      }
+
+      /**
+       * Create rotating Scooter SVG Icon
+       * @param {number} azimuth - Direction in degrees (0-360)
+       */
+      createScooterIcon(azimuth) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+          <g transform="translate(40, 40) rotate(${azimuth})">
+            <!-- Scooter Arrow Body -->
+            <path d="M 0 -25 L 8 -5 L 0 20 L -8 -5 Z" fill="#FF4500" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+            <!-- Front Circle -->
+            <circle cx="0" cy="-20" r="4" fill="#fff"/>
+            <!-- Rear Circle -->
+            <circle cx="0" cy="18" r="4" fill="#fff"/>
+          </g>
+          <!-- Outer Ring -->
+          <circle cx="40" cy="40" r="38" stroke="#FF4500" stroke-width="2" fill="none" opacity="0.3"/>
+        </svg>`;
+        
+        return `data:image/svg+xml;base64,${btoa(svg)}`;
+      }
+
+      /**
+       * Create pulsing Home Icon SVG
+       */
+      createHomeIcon() {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+          <defs>
+            <style>
+              @keyframes housePulse {
+                0%, 100% { r: 38; opacity: 0.3; }
+                50% { r: 42; opacity: 0.1; }
+              }
+            </style>
+          </defs>
+          <!-- Pulse Ring -->
+          <circle cx="40" cy="40" r="38" fill="none" stroke="#2196F3" stroke-width="2" opacity="0.3"/>
+          <circle cx="40" cy="40" r="38" fill="none" stroke="#2196F3" stroke-width="2" 
+                  style="animation: housePulse 2s infinite;"/>
+          <!-- House Body -->
+          <path d="M 40 18 L 58 32 L 58 60 L 22 60 L 22 32 Z" fill="#2196F3" stroke="#fff" stroke-width="2"/>
+          <!-- Roof -->
+          <path d="M 40 18 L 22 32 L 58 32" fill="none" stroke="#fff" stroke-width="2"/>
+          <!-- Door -->
+          <rect x="36" y="42" width="8" height="12" fill="#fff" rx="1"/>
+          <!-- Door Handle -->
+          <circle cx="43" cy="48" r="1.5" fill="#2196F3"/>
+        </svg>`;
+
+        return `data:image/svg+xml;base64,${btoa(svg)}`;
+      }
+
+      setupRoute() {
+        this.multiRoute = new ymaps.multiRouter.MultiRoute({
+          referencePoints: [this.courierPos, this.customerPos],
+          params: {
+            routingMode: 'pedestrian', // Scooter-optimized
+            avoidTrafficJams: true,
+            results: 1
+          }
+        }, {
+          routeActiveStrokeColor: '#FF4500',
+          routeActiveStrokeWidth: 5,
+          routeActiveOpacity: 0.9,
+          boundsAutoApply: true,
+          routeStrokeColor: '#e0e0e0',
+          routeStrokeWidth: 2,
+          routeOpacity: 0.5
+        });
+
+        this.myMap.geoObjects.add(this.multiRoute);
+      }
+
+      setupEventListeners() {
+        this.multiRoute.model.events.add('requestsuccess', () => {
+          this.onRouteCalculated();
+        });
+
+        this.multiRoute.model.events.add('requesterror', (e) => {
+          this.setError('Yo\'nalishni hisoblashda xato');
+        });
+
+        // UI Button Events
+        document.getElementById('btnZoom').addEventListener('click', () => this.zoomToFit());
+        document.getElementById('btnSimulate').addEventListener('click', () => this.toggleSimulation());
+        document.getElementById('btnCenter').addEventListener('click', () => this.centerOnCourier());
+      }
+
+      onRouteCalculated() {
+        const activeRoute = this.multiRoute.getActiveRoute();
+        if (!activeRoute) return;
+
+        const distance = activeRoute.properties.get('distance');
+        const duration = activeRoute.properties.get('duration');
+
+        this.routeDistance = distance?.value || 0;
+        this.routeDuration = duration?.value || 0;
+
+        this.updateUI();
+        this.setStatus('Faol', 'connected');
+      }
+
+      /**
+       * Update courier position with heading direction
+       * @param {number} lat - Latitude
+       * @param {number} lon - Longitude
+       * @param {number} azimuth - Heading in degrees (0-360)
+       * @param {number} speed - Speed in km/h
+       */
+      updateCourierPosition(lat, lon, azimuth = 0, speed = 0) {
+        // Validate coordinates
+        if (!this.isValidCoord(lat, lon)) return;
+
+        this.courierPos = [lat, lon];
+        this.courierHeading = azimuth;
+        this.currentSpeed = speed;
+
+        // Update marker with new heading
+        const newIcon = this.createScooterIcon(azimuth);
+        this.courierMarker.properties.set('iconImageHref', newIcon);
+        this.courierMarker.geometry.setCoordinates(this.courierPos);
+
+        // Recalculate route
+        this.multiRoute.model.setReferencePoints([
+          this.courierPos,
+          this.customerPos
+        ]);
+
+        // Smooth pan to courier
+        this.smartPan(this.courierPos);
+
+        this.updateUI();
+      }
+
+      /**
+       * Smart pan to keep courier in view
+       */
+      smartPan(coords) {
+        const bounds = this.myMap.getBounds();
+        const inView = bounds && this.isInBounds(coords, bounds);
+
+        if (!inView) {
+          this.myMap.panTo(coords, {
+            flying: true,
+            duration: 800
+          });
+        }
+      }
+
+      isInBounds(coords, bounds) {
+        const [lat, lon] = coords;
+        const [[minLat, minLon], [maxLat, maxLon]] = bounds;
+        return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+      }
+
+      isValidCoord(lat, lon) {
+        return typeof lat === 'number' && typeof lon === 'number' &&
+               lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+      }
+
+      /**
+       * Update UI with current route data
+       */
+      updateUI() {
+        // Distance
+        const distKm = this.routeDistance / 1000;
+        const distDisplay = distKm >= 1 
+          ? distKm.toFixed(1) + ' km'
+          : Math.round(this.routeDistance) + ' m';
+        
+        document.getElementById('distanceDisplay').textContent = 
+          distKm >= 1 ? distKm.toFixed(1) : Math.round(this.routeDistance);
+        document.getElementById('distanceUnit').textContent = 
+          distKm >= 1 ? 'km' : 'm';
+
+        // Duration
+        const minutes = Math.ceil(this.routeDuration / 60);
+        document.getElementById('durationDisplay').textContent = minutes + ' min';
+
+        // ETA
+        const eta = new Date(Date.now() + this.routeDuration * 1000);
+        const etaStr = String(eta.getHours()).padStart(2, '0') + ':' + 
+                       String(eta.getMinutes()).padStart(2, '0');
+        document.getElementById('etaTime').textContent = etaStr;
+
+        // Speed
+        document.getElementById('speedDisplay').textContent = 
+          this.currentSpeed > 0 ? this.currentSpeed.toFixed(1) : '-';
+
+        // Turn Instruction (optional)
+        this.showTurnInstruction(this.routeDistance);
+      }
+
+      showTurnInstruction(distanceRemaining) {
+        const instruction = document.getElementById('turnInstruction');
+        
+        // Show instruction when getting close to destination
+        if (distanceRemaining < 200) {
+          instruction.style.display = 'flex';
+          const turns = ['←', '→', '↑', '↙', '↗'];
+          const randomTurn = turns[Math.floor(Math.random() * turns.length)];
+          document.getElementById('turnIcon').textContent = randomTurn;
+          
+          const turnTexts = ['Chap tomonga', 'O\'ng tomonga', 'To\'g\'ri davom et', 'Diagonali chap', 'Diagonali o\'ng'];
+          const randomText = turnTexts[Math.floor(Math.random() * turnTexts.length)];
+          document.getElementById('turnText').textContent = randomText;
+        } else {
+          instruction.style.display = 'none';
+        }
+      }
+
+      /**
+       * Start simulation (courier moves toward customer)
+       */
+      toggleSimulation() {
+        if (this.isSimulating) {
+          this.stopSimulation();
+        } else {
+          this.startSimulation();
+        }
+      }
+
+      startSimulation() {
+        if (this.isSimulating) return;
+        this.isSimulating = true;
+        this.simulationStep = 0;
+        
+        document.getElementById('btnSimulate').textContent = '⏸️ Stop';
+        
+        const interval = setInterval(() => {
+          if (!this.isSimulating || this.simulationStep >= 30) {
+            this.stopSimulation();
+            clearInterval(interval);
+            return;
+          }
+
+          const progress = this.simulationStep / 30;
+          const lat = this.courierPos[0] + 
+                      (this.customerPos[0] - this.courierPos[0]) * progress +
+                      (Math.random() - 0.5) * 0.0002;
+          const lon = this.courierPos[1] + 
+                      (this.customerPos[1] - this.courierPos[1]) * progress +
+                      (Math.random() - 0.5) * 0.0002;
+
+          // Calculate heading toward destination
+          const heading = this.calculateHeading(this.courierPos, [lat, lon]);
+          const speed = 15 + Math.random() * 10;
+
+          this.updateCourierPosition(lat, lon, heading, speed);
+          this.simulationStep++;
+        }, 1500);
+      }
+
+      stopSimulation() {
+        this.isSimulating = false;
+        this.simulationStep = 0;
+        document.getElementById('btnSimulate').textContent = '▶️ Simu';
+      }
+
+      /**
+       * Calculate heading between two points
+       */
+      calculateHeading(from, to) {
+        const dLon = to[1] - from[1];
+        const y = Math.sin(dLon) * Math.cos(to[0]);
+        const x = Math.cos(from[0]) * Math.sin(to[0]) -
+                  Math.sin(from[0]) * Math.cos(to[0]) * Math.cos(dLon);
+        
+        let heading = Math.atan2(y, x) * 180 / Math.PI;
+        return (heading + 360) % 360;
+      }
+
+      zoomToFit() {
+        const collection = new ymaps.GeoObjectCollection();
+        collection.add(this.courierMarker);
+        collection.add(this.customerMarker);
+        
+        this.myMap.setBounds(collection.getBounds(), {
+          checkZoomRange: true,
+          zoomMargin: [50, 50, 50, 50]
+        });
+      }
+
+      centerOnCourier() {
+        this.smartPan(this.courierPos);
+      }
+
+      setStatus(text, status = 'loading') {
+        document.getElementById('statusText').textContent = text;
+        
+        const indicator = document.getElementById('connectionStatus');
+        indicator.classList.remove('error');
+        
+        if (status === 'error') {
+          indicator.classList.add('error');
+        }
+      }
+
+      setError(message) {
+        console.error(message);
+        this.setStatus('Xato: ' + message, 'error');
+      }
+
+      /**
+       * Connect to real GPS stream (replace this with your backend)
+       */
+      connectToGPSStream(handler) {
+        handler((data) => {
+          this.updateCourierPosition(
+            data.latitude,
+            data.longitude,
+            data.heading || 0,
+            data.speed || 0
+          );
+        });
+      }
+    }
+
+    /* ===================================
+       Initialize on Page Load
+       =================================== */
+    let tracker;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      tracker = new CourierTracker('map');
+
+      // Example: Start simulation
+      // tracker.startSimulation();
+
+      // Example: Set custom positions
+      // tracker.updateCourierPosition(41.3210, 69.2505, 45, 20);
+      // tracker.customerPos = [41.2895, 69.2195];
+
+      // Expose to window for debugging
+      window.tracker = tracker;
+    });
+
+    // Example: Simulate GPS updates from backend
+    // setInterval(() => {
+    //   const lat = 41.3200 + (Math.random() - 0.5) * 0.01;
+    //   const lon = 69.2500 + (Math.random() - 0.5) * 0.01;
+    //   const heading = Math.random() * 360;
+    //   const speed = 15 + Math.random() * 10;
+    //   tracker.updateCourierPosition(lat, lon, heading, speed);
+    // }, 2000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!-- TURON - Courier Tracking Page Template -->
+<!-- Usage: Include this in your main app (React, Vue, or vanilla JS) -->
+
+<div class="courier-tracking-container">
+  <!-- Map Container -->
+  <div id="map" class="courier-map"></div>
+
+  <!-- Tracking Info Panel -->
+  <div id="tracking-info" class="tracking-info-panel">
+    <!-- Will be populated by JavaScript -->
+    <div class="tracking-card">
+      <div class="tracking-header">
+        <h3>Yuklanmoqda...</h3>
+      </div>
+      <div class="tracking-stats">
+        <div class="stat-skeleton"></div>
+        <div class="stat-skeleton"></div>
+        <div class="stat-skeleton"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Control Panel -->
+  <div class="tracking-controls">
+    <button id="btn-zoom-fit" class="control-btn" title="Xaritani moslab ko'rsatish">
+      🔍 Mosla
+    </button>
+    <button id="btn-center-courier" class="control-btn" title="Kuryerga markazla">
+      📍 Kuryer
+    </button>
+    <button id="btn-center-customer" class="control-btn" title="Mijozga markazla">
+      🏠 Mijoz
+    </button>
+  </div>
+
+  <!-- Status Indicator -->
+  <div class="tracking-status-bar">
+    <div class="status-indicator" id="connection-status">
+      <span class="status-light"></span>
+      <span class="status-label">Ulanmoqda...</span>
+    </div>
+  </div>
+</div>
