@@ -17,7 +17,7 @@ import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { sendAdminAlert } from './telegram-bot.service.js';
 
 const UNACCEPTED_TIMEOUT_MS = 5 * 60 * 60 * 1000; // 5 hours
-const DELIVERY_TIMEOUT_MS   = 3 * 60 * 60 * 1000; // 3 hours
+const DELIVERY_TIMEOUT_MS   = 2 * 60 * 60 * 1000; // 2 hours
 const CHECK_INTERVAL_MS     = 5 * 60 * 1000;       // every 5 minutes
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ async function cancelExpiredDeliveries(): Promise<void> {
           where: { id: order.id },
           data: {
             status: 'CANCELLED' as any,
-            cancellationReason: `Kuryer 3 soat ichida yetkazib bermadi — avtomatik bekor`,
+            cancellationReason: `Kuryer 2 soat ichida yetkazib bermadi — avtomatik bekor`,
             cancelledByRole: 'system',
           },
         });
@@ -160,8 +160,8 @@ async function cancelExpiredDeliveries(): Promise<void> {
         await InAppNotificationsService.notifyAdmins(
           {
             type: NotificationTypeEnum.WARNING,
-            title: 'Kuryer 3 soatda yetkazib bermadi!',
-            message: `#${String(order.orderNumber)} buyurtma kuryer tomonidan 3 soat ichida yetkazilmadi va avtomatik bekor qilindi.`,
+            title: 'Kuryer 2 soatda yetkazib bermadi!',
+            message: `#${String(order.orderNumber)} buyurtma kuryer tomonidan 2 soat ichida yetkazilmadi va avtomatik bekor qilindi.`,
             relatedOrderId: order.id,
           },
           tx,
@@ -176,7 +176,7 @@ async function cancelExpiredDeliveries(): Promise<void> {
         `📦 Buyurtma: <b>#${String(order.orderNumber)}</b>\n` +
         `🛵 Kuryer: <b>${courierName}</b>\n` +
         `✅ Qabul qilindi: ${formatDate(acceptedAt)}\n` +
-        `⏱ 3 soat o'tdi — yetkazib berish amalga oshmadi\n\n` +
+        `⏱ 2 soat o'tdi — yetkazib berish amalga oshmadi\n\n` +
         `❌ Buyurtma avtomatik bekor qilindi. Iltimos kuryer bilan bog'laning!`,
       ).catch(() => {});
 
