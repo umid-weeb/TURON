@@ -28,13 +28,56 @@ function readPropertyValue(entity: any, key: string) {
   }
 }
 
+function haversineMeters(coords: number[][]): number {
+  let total = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const [lat1, lng1] = coords[i - 1];
+    const [lat2, lng2] = coords[i];
+    const R = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  return total;
+}
+
 function readDistanceMeters(entity: any) {
-  const property = readPropertyValue(entity, 'distance');
-  const fromProperty = normalizeNumericValue(property?.value ?? property);
+  // Try 'distance' property (regular ymaps.route)
+  const distProp = readPropertyValue(entity, 'distance');
+  const fromDistance = normalizeNumericValue(distProp?.value ?? distProp);
+
+  // Try 'length' property (some multiRouter segment variants)
+  const lenProp = readPropertyValue(entity, 'length');
+  const fromLength = normalizeNumericValue(lenProp?.value ?? lenProp);
+
+  // Try metaData.distance (another multiRouter variant)
+  const meta = readPropertyValue(entity, 'metaData');
+  const fromMeta = normalizeNumericValue(meta?.distance?.value ?? meta?.distance);
+
+  // Try getLength() method
   const fromMethod =
     typeof entity?.getLength === 'function' ? normalizeNumericValue(entity.getLength()) : undefined;
 
-  return Math.max(0, Math.round(fromProperty ?? fromMethod ?? 0));
+  const fromProps = fromDistance ?? fromLength ?? fromMeta ?? fromMethod;
+  if (fromProps !== undefined && fromProps > 0) {
+    return Math.max(0, Math.round(fromProps));
+  }
+
+  // Fallback: compute from segment geometry coordinates
+  try {
+    const rawCoords = entity?.geometry?.getCoordinates?.();
+    if (Array.isArray(rawCoords) && rawCoords.length >= 2) {
+      const coords = rawCoords as number[][];
+      if (Array.isArray(coords[0])) {
+        return Math.max(0, Math.round(haversineMeters(coords)));
+      }
+    }
+  } catch { /* ignore */ }
+
+  return 0;
 }
 
 function readEtaSeconds(entity: any) {
@@ -145,6 +188,11 @@ function extractSegmentInstruction(segment: any, index: number) {
   return `Bosqich ${index + 1}`;
 }
 
+function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
 function extractRouteSteps(route: any): RouteStep[] {
   const paths = collectionToArray(route?.getPaths?.());
   const steps: RouteStep[] = [];
@@ -152,22 +200,39 @@ function extractRouteSteps(route: any): RouteStep[] {
   paths.forEach((path) => {
     const segments = collectionToArray(path?.getSegments?.());
 
-    segments.forEach((segment, index) => {
+    // Gather per-segment geometry coords for haversine fallback
+    const segmentCoords: number[][][] = segments.map((seg: any) => {
+      try {
+        const c = seg?.geometry?.getCoordinates?.();
+        return Array.isArray(c) && c.length >= 2 ? (c as number[][]) : [];
+      } catch { return []; }
+    });
+
+    // Check if all segment distances are zero — if so we'll compute from geometry
+    const rawDistances = segments.map((seg: any) => readDistanceMeters(seg));
+    const allZero = rawDistances.every((d: number) => d === 0);
+
+    // Fallback: compute per-segment distance from path geometry proportionally
+    let geoDistances: number[] = rawDistances;
+    if (allZero && segmentCoords.some((c) => c.length >= 2)) {
+      geoDistances = segmentCoords.map((coords) =>
+        coords.length >= 2 ? Math.round(haversineMeters(coords)) : 0,
+      );
+    }
+
+    segments.forEach((segment: any, index: number) => {
       const actionValue = readPropertyValue(segment, 'action');
       const actionText =
         typeof actionValue === 'string' ? actionValue : actionValue?.text;
       const street =
         (typeof segment?.getStreet === 'function' ? segment.getStreet() : undefined) ||
         readPropertyValue(segment, 'street');
-      const distanceMeters = readDistanceMeters(segment);
+      const distanceMeters = geoDistances[index] ?? 0;
 
       steps.push({
         instruction: extractSegmentInstruction(segment, index),
         distanceMeters,
-        distanceText:
-          distanceMeters < 1000
-            ? `${Math.round(distanceMeters)} m`
-            : `${(distanceMeters / 1000).toFixed(1)} km`,
+        distanceText: formatDistance(distanceMeters),
         action: mapYandexActionToDirection(actionText),
         street: typeof street === 'string' && street.trim() ? street.trim() : undefined,
       });
