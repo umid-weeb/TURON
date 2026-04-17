@@ -78,6 +78,11 @@ export default function App() {
         <Routes>
           {/* Base Redirect is handled inside AppBootstrapGate */}
           <Route path="/" element={<div />} />
+          <Route path="/menu" element={<Navigate to="/customer/menu" replace />} />
+          <Route path="/search" element={<Navigate to="/customer/search" replace />} />
+          <Route path="/cart" element={<Navigate to="/customer/cart" replace />} />
+          <Route path="/profile" element={<Navigate to="/customer/profile" replace />} />
+          <Route path="/orders" element={<Navigate to="/customer/orders" replace />} />
 
           <Route
             path="/customer/orders/:orderId/tracking"

@@ -240,6 +240,7 @@ const ProductPage: React.FC = () => {
               </div>
             </div>
           )}
+          </div>
         </div>
       </main>
 
