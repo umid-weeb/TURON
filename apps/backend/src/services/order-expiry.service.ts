@@ -16,14 +16,56 @@ import { prisma } from '../lib/prisma.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { sendAdminAlert } from './telegram-bot.service.js';
 
-const UNACCEPTED_TIMEOUT_MS = 5 * 60 * 60 * 1000; // 5 hours
-const DELIVERY_TIMEOUT_MS   = 2 * 60 * 60 * 1000; // 2 hours
-const CHECK_INTERVAL_MS     = 5 * 60 * 1000;       // every 5 minutes
+const UNACCEPTED_TIMEOUT_MS  = 5 * 60 * 60 * 1000; // 5 hours
+const DELIVERY_TIMEOUT_MS    = 2 * 60 * 60 * 1000; // 2 hours
+const CHECK_INTERVAL_MS      = 5 * 60 * 1000;       // every 5 minutes
+const PROXIMITY_SAFE_METERS  = 500;                  // don't cancel if courier ≤ 500 m from customer
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date) {
   return d.toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });
+}
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Returns true if the courier's last known position is within PROXIMITY_SAFE_METERS of the destination. */
+async function isCourierNearDestination(
+  courierId: string,
+  destLat: number,
+  destLng: number,
+): Promise<boolean> {
+  try {
+    const presence = await prisma.courierPresence.findUnique({
+      where: { courierId },
+      select: { latitude: true, longitude: true, updatedAt: true },
+    });
+    if (!presence) return false;
+
+    // Ignore stale GPS (>15 min old) — courier may have turned off the app
+    const staleCutoff = new Date(Date.now() - 15 * 60 * 1000);
+    if (presence.updatedAt < staleCutoff) return false;
+
+    const dist = haversineMeters(
+      Number(presence.latitude),
+      Number(presence.longitude),
+      destLat,
+      destLng,
+    );
+    return dist <= PROXIMITY_SAFE_METERS;
+  } catch {
+    return false; // on error, don't block cancellation
+  }
 }
 
 // ── Case 1: orders with no courier acceptance within 5 h ─────────────────────
@@ -129,6 +171,26 @@ async function cancelExpiredDeliveries(): Promise<void> {
     try {
       const now = new Date();
       const order = assignment.order;
+
+      // If courier is already near the customer (≤ 500 m) and actively delivering,
+      // give them a chance to complete — do not cancel.
+      if (
+        (assignment.status === 'DELIVERING' || assignment.status === 'PICKED_UP') &&
+        order.destinationLat !== null &&
+        order.destinationLng !== null
+      ) {
+        const near = await isCourierNearDestination(
+          assignment.courierId,
+          Number(order.destinationLat),
+          Number(order.destinationLng),
+        );
+        if (near) {
+          console.log(
+            `[OrderExpiry] Skipping timeout for #${String(order.orderNumber)} — courier is within 500 m of destination`,
+          );
+          continue;
+        }
+      }
 
       await prisma.$transaction(async (tx) => {
         await tx.courierAssignment.update({

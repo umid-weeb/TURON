@@ -272,6 +272,8 @@ export async function getCourierOrders(request: FastifyRequest, reply: FastifyRe
       destinationAddress,
       destinationArea: getDestinationAreaLabel(destinationAddress),
       createdAt: serialized.createdAt,
+      assignedAt: relevantAssignment?.assignedAt?.toISOString?.() ?? null,
+      acceptedAt: relevantAssignment?.acceptedAt?.toISOString?.() ?? null,
       itemCount: serialized.items.length,
       latestCourierEventType: latestEvent?.eventType ?? null,
     };

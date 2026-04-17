@@ -136,6 +136,8 @@ export interface CourierOrderPreview {
   destinationAddress: string;
   destinationArea: string;
   createdAt: string;
+  assignedAt?: string | null;
+  acceptedAt?: string | null;
   itemCount: number;
   latestCourierEventType?: string | null;
 }

@@ -14,9 +14,11 @@ import {
   Phone,
   Route,
   Store,
+  Timer,
   TimerReset,
   TriangleAlert,
 } from 'lucide-react';
+import { useCountdown } from '../../hooks/useCountdown';
 import { OrderChatPanel } from '../chat/OrderChatPanel';
 import { useOrderChatUnread } from '../../hooks/queries/useOrderChat';
 import { DeliveryStage, PaymentMethod } from '../../data/types';
@@ -570,6 +572,31 @@ export const CourierProblemReporter: React.FC<{
   );
 };
 
+// ── Countdown badge ──────────────────────────────────────────────────────────
+
+const ACCEPT_LIMIT_MS   = 5 * 60 * 60 * 1000; // 5 h — matches backend expiry
+const DELIVERY_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 h — matches backend expiry
+
+function CountdownBadge({ deadlineIso, label }: { deadlineIso: string; label: string }) {
+  const { label: timeLabel, status } = useCountdown(deadlineIso);
+
+  const colors =
+    status === 'expired'
+      ? 'bg-slate-900/70 text-white/40'
+      : status === 'critical'
+        ? 'bg-rose-500/90 text-white animate-pulse'
+        : status === 'warning'
+          ? 'bg-amber-400/90 text-slate-950'
+          : 'bg-white/15 text-white';
+
+  return (
+    <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${colors}`}>
+      <Timer size={11} strokeWidth={2.5} />
+      <span>{label}: {timeLabel}</span>
+    </div>
+  );
+}
+
 export const CourierOrderCard: React.FC<{
   order: CourierOrderPreview;
   onClick: () => void;
@@ -583,6 +610,18 @@ export const CourierOrderCard: React.FC<{
       : order.courierAssignmentStatus === 'DELIVERED'
         ? 'Tugatilgan'
         : 'Faol topshiriq';
+
+  // Deadline ISO strings for countdowns
+  const acceptDeadline =
+    order.courierAssignmentStatus === 'ASSIGNED' && order.createdAt
+      ? new Date(new Date(order.createdAt).getTime() + ACCEPT_LIMIT_MS).toISOString()
+      : null;
+
+  const deliveryDeadline =
+    ['ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(order.courierAssignmentStatus ?? '') &&
+    order.acceptedAt
+      ? new Date(new Date(order.acceptedAt).getTime() + DELIVERY_LIMIT_MS).toISOString()
+      : null;
 
   return (
     <button
@@ -628,6 +667,18 @@ export const CourierOrderCard: React.FC<{
             </div>
           </div>
         </div>
+
+        {/* Countdown timer row */}
+        {(acceptDeadline || deliveryDeadline) && (
+          <div className="mt-3">
+            {acceptDeadline && (
+              <CountdownBadge deadlineIso={acceptDeadline} label="Qabul qilish muddati" />
+            )}
+            {deliveryDeadline && (
+              <CountdownBadge deadlineIso={deliveryDeadline} label="Yetkazish muddati" />
+            )}
+          </div>
+        )}
 
         <div className="mt-4 flex items-center justify-between text-[11px] font-black uppercase tracking-[0.18em] text-white/65">
           <span>{createdAt}</span>
