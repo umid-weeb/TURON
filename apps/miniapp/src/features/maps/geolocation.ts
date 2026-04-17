@@ -41,6 +41,14 @@ export async function detectBrowserGeolocation(options: GeolocationOptions = {})
             lng: position.coords.longitude,
           },
           accuracy: position.coords.accuracy,
+          heading:
+            typeof position.coords.heading === 'number' && Number.isFinite(position.coords.heading)
+              ? position.coords.heading
+              : null,
+          speed:
+            typeof position.coords.speed === 'number' && Number.isFinite(position.coords.speed)
+              ? position.coords.speed
+              : null,
           timestamp: position.timestamp,
         });
       },
@@ -95,6 +103,14 @@ export function watchBrowserGeolocation(
           lng: position.coords.longitude,
         },
         accuracy: position.coords.accuracy,
+        heading:
+          typeof position.coords.heading === 'number' && Number.isFinite(position.coords.heading)
+            ? position.coords.heading
+            : null,
+        speed:
+          typeof position.coords.speed === 'number' && Number.isFinite(position.coords.speed)
+            ? position.coords.speed
+            : null,
         timestamp: position.timestamp,
       });
     },

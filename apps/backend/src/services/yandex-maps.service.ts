@@ -80,8 +80,12 @@ function formatBiasPair(point: CoordinatePoint) {
 }
 
 function normalizeTrafficQueryValue(traffic?: YandexTrafficMode) {
-  if (!traffic || traffic === 'enabled') {
+  if (!traffic) {
     return null;
+  }
+
+  if (traffic === 'enabled') {
+    return 'realtime';
   }
 
   if (traffic === 'disabled' || traffic === 'forecast' || traffic === 'realtime') {

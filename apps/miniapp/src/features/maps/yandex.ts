@@ -15,6 +15,7 @@ type YandexMapsNamespace = {
   Placemark: new (geometry: number[], properties?: Record<string, unknown>, options?: Record<string, unknown>) => any;
   Polyline?: new (geometry: number[][], properties?: Record<string, unknown>, options?: Record<string, unknown>) => any;
   geocode: (request: string | number[], options?: Record<string, unknown>) => Promise<any>;
+  route?: (points: unknown[], params?: Record<string, unknown>) => Promise<any>;
   ready: (callback: () => void) => void;
   multiRouter?: {
     MultiRoute: new (model: Record<string, unknown>, options?: Record<string, unknown>) => any;
@@ -130,7 +131,9 @@ export async function loadYandexMaps() {
 
     const script = document.createElement('script');
     script.id = SCRIPT_ID;
-    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(MAP_API_KEY)}&lang=${encodeURIComponent(MAP_LANGUAGE)}`;
+    script.src =
+      `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(MAP_API_KEY)}` +
+      `&lang=${encodeURIComponent(MAP_LANGUAGE)}&load=package.full`;
     script.async = true;
     script.onload = handleLoad;
     script.onerror = handleError;

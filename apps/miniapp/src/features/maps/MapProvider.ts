@@ -71,6 +71,8 @@ export interface RouteInfo {
 export interface UserGeolocation {
   pin: MapPin;
   accuracy?: number;
+  heading?: number | null;
+  speed?: number | null;
   timestamp: number;
 }
 

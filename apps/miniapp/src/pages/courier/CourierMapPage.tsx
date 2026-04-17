@@ -30,6 +30,7 @@ import {
   stopWatchingBrowserGeolocation,
   watchBrowserGeolocation,
 } from '../../features/maps/geolocation';
+import { useDeviceHeading } from '../../features/maps/deviceHeading';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { api } from '../../lib/api';
 import {
@@ -121,12 +122,11 @@ const CourierMapPage: React.FC = () => {
 
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
-  const [heading, setHeading]                   = useState<number | undefined>(undefined);
-  const [tilt, setTilt]                         = useState<number>(40); // 0-60 degrees, closer view
+  const [movementHeading, setMovementHeading]   = useState<number | undefined>(undefined);
+  const tilt                                    = 40; // 0-60 degrees, closer view
   const [followMode, setFollowMode]             = useState(false); // Disabled for gesture control
   const [routeInfo, setRouteInfo]               = useState<RouteInfo | null>(null);
   const [currentStep, setCurrentStep]           = useState<RouteStep | null>(null);
-  const [isUserInteracting, setIsUserInteracting] = useState(false);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft]         = useState('');
   const [problemFeedback, setProblemFeedback]   = useState<{
@@ -141,10 +141,7 @@ const CourierMapPage: React.FC = () => {
   const previousCourierPosRef   = useRef<{ lat: number; lng: number } | null>(null);
   const approachingNotifiedRef  = useRef(false);
   const copiedTimerRef          = useRef<number | null>(null);
-  const touchPointsRef          = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const lastHeadingRef          = useRef<number>(0);
-  const autoResetTimerRef       = useRef<number | null>(null);
-  const mapContainerRef         = useRef<HTMLDivElement | null>(null);
+  const sensorHeading = useDeviceHeading(Boolean(order?.id));
 
   // ── Derived positions (memoised) ───────────────────────────────────────────
   const restaurantPos = useMemo(
@@ -191,6 +188,7 @@ const CourierMapPage: React.FC = () => {
     currentStage !== DeliveryStage.IDLE && currentStage !== DeliveryStage.DELIVERED;
 
   const courierPos    = liveCourierPos ?? trackedCourierPos ?? restaurantPos;
+  const heading       = sensorHeading ?? movementHeading;
   const currentTarget =
     currentState === 'ACCEPTED' || currentState === 'ARRIVED' ? restaurantPos : customerPos;
 
@@ -279,9 +277,13 @@ const CourierMapPage: React.FC = () => {
     const watchId = watchBrowserGeolocation(
       (location) => {
         setGeolocationError(null);
-        if (lastPos) {
-          const h = getHeadingDegrees(lastPos, location.pin);
-          if (h !== undefined) setHeading(h);
+        if (typeof location.heading === 'number' && Number.isFinite(location.heading)) {
+          setMovementHeading(location.heading);
+        } else if (lastPos) {
+          const derivedHeading = getHeadingDegrees(lastPos, location.pin);
+          if (derivedHeading !== undefined) {
+            setMovementHeading(derivedHeading);
+          }
         }
         lastPos = location.pin;
         setLiveCourierPos(location.pin);
@@ -322,9 +324,11 @@ const CourierMapPage: React.FC = () => {
     const longitude           = Number(liveCourierPos.lng.toFixed(6));
     const remainingDistanceKm = Number(remainingMetrics.distanceKm.toFixed(2));
     const remainingEtaMinutes = remainingMetrics.etaMinutes;
-    const heading             = previousCourierPosRef.current
-      ? getHeadingDegrees(previousCourierPosRef.current, liveCourierPos)
-      : undefined;
+    const reportedHeading     =
+      heading ??
+      (previousCourierPosRef.current
+        ? getHeadingDegrees(previousCourierPosRef.current, liveCourierPos)
+        : undefined);
     const speedKmh = getCourierSpeedKmh(currentState);
 
     const sig = [
@@ -339,7 +343,7 @@ const CourierMapPage: React.FC = () => {
       id: order.id,
       latitude,
       longitude,
-      heading,
+      heading: reportedHeading,
       speedKmh,
       remainingDistanceKm,
       remainingEtaMinutes,
@@ -351,6 +355,7 @@ const CourierMapPage: React.FC = () => {
     order?.id,
     remainingMetrics.distanceKm,
     remainingMetrics.etaMinutes,
+    heading,
     canPublishLiveLocation,
     updateLocationMutation,
   ]);
@@ -478,11 +483,7 @@ const CourierMapPage: React.FC = () => {
     <div className="relative h-screen w-full overflow-hidden bg-slate-950 font-sans text-white">
 
       {/* ── Full-screen map (gesture-enabled) ────────────────────────────── */}
-      <div
-        ref={mapContainerRef}
-        className="absolute inset-0 z-0"
-        style={{ touchAction: 'none' }}
-      >
+      <div className="absolute inset-0 z-0">
         <CourierMapView
           pickup={restaurantPos}
           destination={customerPos}
@@ -497,12 +498,8 @@ const CourierMapPage: React.FC = () => {
           onRouteInfoChange={setRouteInfo}
           onNextStepChange={setCurrentStep}
           onMapInteraction={() => {
-            setIsUserInteracting(true);
             setFollowMode(false);
           }}
-          onHeadingChange={setHeading}
-          onTiltChange={setTilt}
-          onFollowModeChange={setFollowMode}
         />
         {/* Subtle bottom gradient for panel legibility */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-slate-950/70 to-transparent" />

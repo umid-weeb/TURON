@@ -1,16 +1,48 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { RouteInfo, RouteMapProps } from '../MapProvider';
+import type { MapPin, RouteInfo, RouteMapProps } from '../MapProvider';
 import { fetchRouteDetails } from '../api';
 import { estimateRouteInfo } from '../route';
+import { resolveRouteWithYandexJsApi } from '../yandex-routing';
 import { isYandexMaps3Enabled, loadYandexMaps3, toLngLat } from '../yandex3';
 import MockMapComponent from './MockMapComponent';
 
 const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_KEY` ni sozlang.';
 const NAV_ZOOM = 17;
 const DEFAULT_NAV_TILT = 50; // degrees: 0 = flat overhead, 50 = 3D like Yandex Maps app
+const ROUTE_REBUILD_DISTANCE_METERS = 30;
+const ROUTE_REBUILD_INTERVAL_MS = 10_000;
 
 function normalizeDegrees(value: number) {
   return ((value % 360) + 360) % 360;
+}
+
+function getDistanceMeters(from: MapPin, to: MapPin) {
+  const earthRadiusMeters = 6371000;
+  const latDelta = ((to.lat - from.lat) * Math.PI) / 180;
+  const lngDelta = ((to.lng - from.lng) * Math.PI) / 180;
+  const originLat = (from.lat * Math.PI) / 180;
+  const targetLat = (to.lat * Math.PI) / 180;
+  const haversine =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(originLat) * Math.cos(targetLat) * Math.sin(lngDelta / 2) * Math.sin(lngDelta / 2);
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function isPermanentRoutingError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message.toLowerCase()
+      : typeof error === 'string'
+        ? error.toLowerCase()
+        : '';
+
+  return (
+    message.includes('apikey rejected') ||
+    message.includes('key not found') ||
+    message.includes('yandex_router_api_key') ||
+    message.includes('401')
+  );
 }
 
 // ── DOM marker factories ──────────────────────────────────────────────────────
@@ -64,9 +96,6 @@ export default function YandexRouteMap({
   onMapReady,
   onRouteInfoChange,
   onNextStepChange,
-  onHeadingChange,
-  onTiltChange,
-  onFollowModeChange,
 }: RouteMapProps) {
   const mapContainerRef  = useRef<HTMLDivElement | null>(null);
   const mapRef           = useRef<any>(null);
@@ -78,6 +107,8 @@ export default function YandexRouteMap({
   const mapListenerRef   = useRef<any>(null);
   const courierElRef     = useRef<HTMLDivElement | null>(null);
   const routeReqRef      = useRef(0);
+  const backendRoutingAvailableRef = useRef(true);
+  const lastRouteSnapshotRef = useRef<{ from: MapPin; to: MapPin; at: number } | null>(null);
   const lastRouteKeyRef  = useRef<string | null>(null);
   const followModeRef    = useRef(followMode);
   const courierPosRef    = useRef(courierPos);
@@ -172,8 +203,10 @@ export default function YandexRouteMap({
 
     let coords: [number, number][] = [toLngLat(from), toLngLat(to)];
     let routeInfo = estimateRouteInfo(from, to);
+    let lastError: unknown = null;
 
-    try {
+    if (backendRoutingAvailableRef.current) {
+      try {
       const resolvedRoute = await fetchRouteDetails(from, to, {
         mode: 'driving',
         traffic: 'enabled',
@@ -181,18 +214,40 @@ export default function YandexRouteMap({
 
       if (reqId !== routeReqRef.current || !mapRef.current) return;
 
-      routeInfo = resolvedRoute;
-
-      if (resolvedRoute.polyline?.length) {
+      if (resolvedRoute.polyline?.length && resolvedRoute.distanceMeters) {
+        routeInfo = resolvedRoute;
         coords = resolvedRoute.polyline.map((point) => toLngLat(point));
+      } else {
+        lastError = new Error('Backend route polylinesi bo‘sh qaytdi');
       }
+      } catch (error) {
+        if (reqId !== routeReqRef.current || !mapRef.current) return;
+        if (isPermanentRoutingError(error)) {
+          backendRoutingAvailableRef.current = false;
+        }
+        lastError = error;
+      }
+    }
 
-      if (coords.length < 2) {
-        coords = [toLngLat(from), toLngLat(to)];
+    if ((!routeInfo.polyline?.length || coords.length < 2) && reqId === routeReqRef.current && mapRef.current) {
+      try {
+        const fallbackRoute = await resolveRouteWithYandexJsApi(from, to);
+        if (reqId !== routeReqRef.current || !mapRef.current) return;
+
+        routeInfo = fallbackRoute;
+        coords = fallbackRoute.polyline?.map((point) => toLngLat(point)) || coords;
+        lastError = null;
+      } catch (fallbackError) {
+        lastError = fallbackError;
       }
-    } catch (error) {
-      if (reqId !== routeReqRef.current || !mapRef.current) return;
-      console.warn('[YandexRouteMap] Failed to load route', error);
+    }
+
+    if (!routeInfo.polyline?.length || coords.length < 2) {
+      coords = [toLngLat(from), toLngLat(to)];
+    }
+
+    if (lastError) {
+      console.warn('[YandexRouteMap] Failed to load routed polyline', lastError);
     }
 
     if (reqId !== routeReqRef.current || !mapRef.current) return;
@@ -342,6 +397,7 @@ export default function YandexRouteMap({
 
         // ── Build initial route ───────────────────────────────────────────────
         const reqId = ++routeReqRef.current;
+        lastRouteSnapshotRef.current = { from: activeFrom, to: activeTo, at: Date.now() };
         if (!disposed) await buildRoute(ymaps3, map, activeFrom, activeTo, reqId);
 
         onMapReady?.(map);
@@ -369,6 +425,8 @@ export default function YandexRouteMap({
       destMarkerRef.current    = null;
       courierMarkerRef.current = null;
       courierElRef.current     = null;
+      backendRoutingAvailableRef.current = true;
+      lastRouteSnapshotRef.current = null;
       hasNavZoomedRef.current  = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -383,6 +441,25 @@ export default function YandexRouteMap({
     try { pickupMarkerRef.current?.update({ coordinates: toLngLat(pickup) }); }     catch { /* skip */ }
     try { destMarkerRef.current?.update({ coordinates: toLngLat(destination) }); } catch { /* skip */ }
 
+    const now = Date.now();
+    const previousRouteSnapshot = lastRouteSnapshotRef.current;
+    const destinationChanged =
+      !previousRouteSnapshot || getDistanceMeters(previousRouteSnapshot.to, activeTo) >= 5;
+    const originMovedMeters = previousRouteSnapshot
+      ? getDistanceMeters(previousRouteSnapshot.from, activeFrom)
+      : Number.POSITIVE_INFINITY;
+    const elapsedMs = previousRouteSnapshot ? now - previousRouteSnapshot.at : Number.POSITIVE_INFINITY;
+
+    if (
+      previousRouteSnapshot &&
+      !destinationChanged &&
+      originMovedMeters < ROUTE_REBUILD_DISTANCE_METERS &&
+      elapsedMs < ROUTE_REBUILD_INTERVAL_MS
+    ) {
+      return;
+    }
+
+    lastRouteSnapshotRef.current = { from: activeFrom, to: activeTo, at: now };
     const reqId = ++routeReqRef.current;
     void buildRoute(ymaps3, map, activeFrom, activeTo, reqId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
