@@ -303,104 +303,113 @@ export function SlideToConfirmAction({
   disabled?: boolean;
   theme?: 'light' | 'dark';
 }) {
-  const trackRef   = React.useRef<HTMLDivElement | null>(null);
-  const offsetRef  = React.useRef(0);
-  const rafRef     = React.useRef<number | null>(null);
-  const [offset, setOffset]       = React.useState(0);
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [confirmed, setConfirmed]  = React.useState(false);
-  const knobSize = 52;
-  const threshold = 0.80;
+  const KNOB_SIZE = 52;
+  const THRESHOLD = 0.82;
+  const SNAP_DURATION = '0.35s cubic-bezier(0.34,1.56,0.64,1)';
+  const CONFIRM_DURATION = '0.25s ease-out';
 
-  const setSliderOffset = (v: number) => { offsetRef.current = v; setOffset(v); };
+  const trackRef = React.useRef<HTMLDivElement | null>(null);
+  const knobRef  = React.useRef<HTMLButtonElement | null>(null);
+  const fillRef  = React.useRef<HTMLDivElement | null>(null);
+  const maxOffsetRef = React.useRef(0);
+  const dragging = React.useRef(false);
 
-  // Reset when label changes (new action)
+  const [confirmed, setConfirmed] = React.useState(false);
+
+  // ── Direct DOM helpers (zero React re-renders during drag) ───────────────
+  const applyOffset = React.useCallback((px: number, animate: boolean) => {
+    const knob = knobRef.current;
+    const fill = fillRef.current;
+    if (!knob || !fill) return;
+    const t = animate ? SNAP_DURATION : 'none';
+    knob.style.transition = t;
+    fill.style.transition = t;
+    knob.style.transform = `translateX(${px}px)`;
+    fill.style.width = `${px + KNOB_SIZE + 8}px`;
+  }, []);
+
+  // Reset when label changes or loading ends
   React.useEffect(() => {
-    setConfirmed(false);
-    setSliderOffset(0);
-  }, [label]);
+    if (!confirmed) applyOffset(0, false);
+  }, [label, confirmed, applyOffset]);
 
-  // Snap back when not dragging and not confirmed/loading
   React.useEffect(() => {
-    if (!isDragging && !isLoading && !confirmed) setSliderOffset(0);
-  }, [isDragging, isLoading, confirmed]);
+    if (!isLoading && !confirmed) applyOffset(0, true);
+  }, [isLoading, confirmed, applyOffset]);
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+  const handlePointerDown = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (disabled || isLoading || confirmed || !trackRef.current) return;
-    event.preventDefault();
-    
-    const trackRect = trackRef.current.getBoundingClientRect();
-    const maxOffset = Math.max(trackRect.width - knobSize - 8, 0);
-    const startX = event.clientX;
-    const startOffset = offsetRef.current;
-    setIsDragging(true);
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
 
-    let lastUpdate = 0;
-    const THROTTLE = 16; // ~60fps
+    const trackWidth = trackRef.current.getBoundingClientRect().width;
+    maxOffsetRef.current = Math.max(trackWidth - KNOB_SIZE - 8, 0);
+    const startX = e.clientX;
+    dragging.current = true;
 
-    const handleMove = (e: PointerEvent) => {
-      const now = Date.now();
-      if (now - lastUpdate < THROTTLE) return;
-      lastUpdate = now;
+    // Remove any transition while dragging for zero-latency tracking
+    applyOffset(0, false);
 
-      const next = Math.min(maxOffset, Math.max(0, startOffset + e.clientX - startX));
-      setSliderOffset(next);
+    const onMove = (ev: PointerEvent) => {
+      if (!dragging.current) return;
+      const next = Math.min(maxOffsetRef.current, Math.max(0, ev.clientX - startX));
+      applyOffset(next, false);
     };
 
-    const handleUp = () => {
-      const progress = maxOffset > 0 ? offsetRef.current / maxOffset : 0;
-      const shouldConfirm = progress >= threshold;
-      setIsDragging(false);
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleUp);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const onUp = (ev: PointerEvent) => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
 
-      if (shouldConfirm) {
-        setSliderOffset(maxOffset);
+      const knob = knobRef.current;
+      const fill = fillRef.current;
+      const max  = maxOffsetRef.current;
+      const current = knob ? parseFloat(knob.style.transform.replace('translateX(', '')) || 0 : 0;
+      const progress = max > 0 ? current / max : 0;
+
+      if (progress >= THRESHOLD) {
+        // Snap to end then confirm
+        if (knob) knob.style.transition = CONFIRM_DURATION;
+        if (fill) fill.style.transition = CONFIRM_DURATION;
+        applyOffset(max, false);
+        if (knob) knob.style.transition = CONFIRM_DURATION;
+        if (fill) fill.style.transition = CONFIRM_DURATION;
         setConfirmed(true);
         window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-        window.setTimeout(() => { onConfirm(); }, 250);
-        return;
+        window.setTimeout(() => { onConfirm(); }, 200);
+      } else {
+        // Snap back with spring
+        applyOffset(0, true);
       }
-      setSliderOffset(0);
+      void ev; // satisfy linter
     };
 
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleUp);
-  };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [disabled, isLoading, confirmed, applyOffset, onConfirm]);
 
   const isDark = theme === 'dark';
 
-  // ── Track base ──────────────────────────────────────────────────────────────
   const trackBase = isDark
     ? 'border-white/12 bg-white/[0.07] text-white'
     : 'border-slate-200 bg-slate-100 text-slate-900';
 
-  // ── Fill gradient (confirmed = emerald, normal = amber) ──────────────────
   const fillGradient = confirmed
     ? 'from-emerald-400 to-emerald-500'
     : isDark
       ? 'from-amber-300 via-orange-400 to-orange-500'
       : 'from-amber-400 to-orange-500';
 
-  // ── Knob ───────────────────────────────────────────────────────────────────
   const knobBase = confirmed
     ? 'bg-emerald-500 text-white border-emerald-400 shadow-[0_8px_24px_rgba(16,185,129,0.45)]'
     : isDark
       ? 'bg-white text-slate-950 border-white/20 shadow-[0_8px_24px_rgba(255,255,255,0.18)]'
       : 'bg-white text-amber-600 border-amber-200 shadow-[0_8px_24px_rgba(249,115,22,0.20)]';
 
-  const progressWidth = offset + knobSize + 8;
-
-  // ── Center text ────────────────────────────────────────────────────────────
-  const centerLabel = confirmed
-    ? 'Tasdiqlandi'
-    : isLoading
-      ? 'Bajarilmoqda...'
-      : label;
-  const centerSub = confirmed ? null : "O'ngga suring →";
+  const centerLabel = confirmed ? 'Tasdiqlandi' : isLoading ? 'Bajarilmoqda...' : label;
 
   return (
     <div>
@@ -408,33 +417,33 @@ export function SlideToConfirmAction({
         ref={trackRef}
         className={`relative overflow-hidden rounded-full border p-1 transition-colors duration-300 ${trackBase} ${disabled ? 'opacity-50' : ''}`}
       >
-        {/* Fill bar */}
+        {/* Fill bar — width driven by direct DOM writes during drag */}
         <div
-          className={`pointer-events-none absolute inset-y-1 left-1 rounded-full bg-gradient-to-r transition-[width] duration-200 ${fillGradient}`}
-          style={{ width: `${progressWidth}px` }}
+          ref={fillRef}
+          className={`pointer-events-none absolute inset-y-1 left-1 rounded-full bg-gradient-to-r ${fillGradient}`}
+          style={{ width: `${KNOB_SIZE + 8}px` }}
         />
 
         {/* Center text */}
-        <div className="pointer-events-none relative z-10 flex h-14 items-center justify-center px-16 text-center">
+        <div className="pointer-events-none relative z-10 flex h-14 items-center justify-center px-16 text-center select-none">
           <div>
-            <p className={`text-[13px] font-black transition-colors duration-300 ${confirmed ? (isDark ? 'text-white' : 'text-white') : ''}`}>
-              {centerLabel}
-            </p>
-            {centerSub && !confirmed && (
-              <p className={`text-[10px] font-semibold opacity-60 mt-0.5 ${isDark ? 'text-white' : 'text-slate-600'}`}>
-                {centerSub}
+            <p className="text-[13px] font-black">{centerLabel}</p>
+            {!confirmed && (
+              <p className={`mt-0.5 text-[10px] font-semibold opacity-55 ${isDark ? 'text-white' : 'text-slate-600'}`}>
+                O'ngga suring →
               </p>
             )}
           </div>
         </div>
 
-        {/* Knob — fully circular */}
+        {/* Knob — position driven by direct DOM writes during drag */}
         <button
+          ref={knobRef}
           type="button"
           onPointerDown={handlePointerDown}
           disabled={disabled || isLoading || confirmed}
-          className={`absolute left-1 top-1 z-20 flex h-[52px] w-[52px] items-center justify-center rounded-full border-2 transition-all duration-300 active:scale-95 ${knobBase}`}
-          style={{ transform: `translateX(${offset}px)` }}
+          className={`absolute left-1 top-1 z-20 flex h-[52px] w-[52px] items-center justify-center rounded-full border-2 ${knobBase} ${confirmed ? 'transition-colors duration-200' : ''}`}
+          style={{ transform: 'translateX(0px)', touchAction: 'none' }}
           aria-label={label}
         >
           {isLoading ? (
@@ -447,7 +456,6 @@ export function SlideToConfirmAction({
         </button>
       </div>
 
-      {/* Hint — hidden after confirm */}
       {hint && !confirmed && (
         <p className={`mt-2.5 text-center text-[11px] font-semibold ${isDark ? 'text-white/45' : 'text-slate-400'}`}>
           {hint}
