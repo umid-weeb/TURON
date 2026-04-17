@@ -554,3 +554,65 @@ export async function updateCourierLocation(
 
   return reply.send({ orderId: order.id, tracking: tracking ?? persistedPresence.tracking });
 }
+
+export async function getNextAvailableOrder(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+
+  // Find next ASSIGNED order (not yet accepted by this courier)
+  const nextOrder = await prisma.order.findFirst({
+    where: {
+      courierAssignments: {
+        some: {
+          courierId: requester.id,
+          status: 'ASSIGNED' as any,
+        },
+      },
+    },
+    include: ORDER_INCLUDE as any,
+    orderBy: { createdAt: 'asc' }, // Oldest first (FIFO)
+  });
+
+  if (!nextOrder) {
+    // No available orders
+    return reply.send({ noOrdersAvailable: true });
+  }
+
+  // Format as CourierOrderPreview
+  const relevantAssignment = nextOrder.courierAssignments?.find(
+    (a: any) => a.courierId === requester.id && a.status === 'ASSIGNED',
+  );
+  const serialized = serializeOrder(nextOrder);
+  const destinationAddress = serialized.customerAddress?.addressText || '';
+
+  return reply.send({
+    order: {
+      id: serialized.id,
+      assignmentId: relevantAssignment?.id ?? null,
+      orderNumber: serialized.orderNumber,
+      orderStatus: serialized.orderStatus,
+      deliveryStage: serialized.deliveryStage,
+      courierAssignmentStatus: 'ASSIGNED',
+      total: serialized.total,
+      deliveryFee: serialized.deliveryFee,
+      paymentMethod: serialized.paymentMethod,
+      restaurantName: RESTAURANT_COORDINATES.name,
+      distanceToRestaurantMeters:
+        typeof relevantAssignment?.distanceMeters === 'number'
+          ? relevantAssignment.distanceMeters
+          : null,
+      etaToRestaurantMinutes:
+        typeof relevantAssignment?.etaMinutes === 'number' ? relevantAssignment.etaMinutes : null,
+      customerName: serialized.customerName || 'Mijoz',
+      destinationAddress,
+      destinationArea: getDestinationAreaLabel(destinationAddress),
+      createdAt: serialized.createdAt,
+      assignedAt: relevantAssignment?.assignedAt?.toISOString?.() ?? null,
+      acceptedAt: relevantAssignment?.acceptedAt?.toISOString?.() ?? null,
+      itemCount: serialized.items.length,
+      latestCourierEventType: null,
+    },
+  });
+}

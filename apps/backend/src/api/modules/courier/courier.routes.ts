@@ -7,6 +7,7 @@ import {
   deliverCourierOrder,
   getCourierOrders,
   getCourierOrderDetail,
+  getNextAvailableOrder,
   getCourierStatus,
   getCourierTodayStats,
   notifyApproaching,
@@ -41,6 +42,8 @@ export default async function courierRoutes(fastify: FastifyInstance) {
   }, updateCourierStatus);
 
   fastify.get('/orders', getCourierOrders);
+  
+  fastify.get('/orders/next', getNextAvailableOrder);
   
   fastify.get('/order/:id', {
     schema: {
