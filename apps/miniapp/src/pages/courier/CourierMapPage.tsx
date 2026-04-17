@@ -5,12 +5,14 @@ import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import CourierNavigationPanel, { type RouteAlternative } from '../../components/courier/CourierNavigationPanel';
+import { DeliveryCompletedPanel } from '../../components/courier/DeliveryCompletedPanel';
 import type { RouteInfo, RouteStep } from '../../features/maps/MapProvider';
 import {
   CourierProblemReporter,
   DeliveryBottomPanel,
 } from '../../components/courier/CourierComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
+import { useNextAvailableOrder } from '../../hooks/queries/useNextAvailableOrder';
 import {
   useCourierOrderDetails,
   useReportCourierProblem,
@@ -119,6 +121,15 @@ const CourierMapPage: React.FC = () => {
   const updateStageMutation   = useUpdateCourierOrderStage();
   const reportProblemMutation = useReportCourierProblem();
   const updateLocationMutation = useUpdateCourierLocation();
+  const nextOrderMutation = useNextAvailableOrder({
+    onSuccess: (nextOrder) => {
+      showToast(`Yangi buyurtma #${nextOrder.orderNumber}!`, 'success');
+      navigate(`/courier/map/${nextOrder.id}`);
+    },
+    onError: (error) => {
+      showToast(error.message || 'Keyingi buyurtma topilmadi', 'error');
+    },
+  });
 
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
@@ -433,9 +444,7 @@ const CourierMapPage: React.FC = () => {
           window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
           const { text, type } = stageToast(nextStage);
           showToast(text, type);
-          if (nextStage === DeliveryStage.DELIVERED) {
-            window.setTimeout(() => navigate('/courier/orders'), 3000);
-          }
+          // Delivery completed panel will show automatically via state change
         },
       },
     );
@@ -479,6 +488,19 @@ const CourierMapPage: React.FC = () => {
     currentState !== 'ARRIVED';
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  
+  // Show delivery completed panel when order is delivered
+  if (currentStage === DeliveryStage.DELIVERED) {
+    return (
+      <DeliveryCompletedPanel
+        order={order}
+        metrics={remainingMetrics}
+        onNextOrder={() => nextOrderMutation.mutate()}
+        isLoadingNext={nextOrderMutation.isPending}
+      />
+    );
+  }
+
   return (
     <div className="relative h-screen w-full overflow-hidden bg-slate-950 font-sans text-white">
 
@@ -551,7 +573,8 @@ const CourierMapPage: React.FC = () => {
         nearCustomer={nearCustomer}
         approachingCustomer={approachingCustomer}
         problemPanel={
-          currentStage !== DeliveryStage.DELIVERED ? (
+          // After early return check, currentStage can't be DELIVERED
+          (
             <CourierProblemReporter
               value={problemDraft}
               onChange={(value) => {
@@ -565,7 +588,7 @@ const CourierMapPage: React.FC = () => {
               feedbackText={problemFeedback?.text ?? null}
               feedbackTone={problemFeedback?.tone ?? 'neutral'}
             />
-          ) : null
+          )
         }
         isUpdating={updateStageMutation.isPending}
         canCall={Boolean(order.customerPhone)}
