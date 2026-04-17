@@ -2,6 +2,7 @@ import fastify from 'fastify';
 import { env } from '../config.js';
 import app from './app.js';
 import { launchTelegramBot, stopTelegramBot } from '../services/telegram-bot.service.js';
+import { startOrderExpiryScheduler } from '../services/order-expiry.service.js';
 
 const server = fastify({
   logger: true,
@@ -17,6 +18,9 @@ async function main() {
 
     await server.listen({ port, host });
     console.log(`Turon API is running at http://${host}:${port}`);
+
+    // Start auto-cancellation scheduler (unaccepted 5h + delivery timeout 3h)
+    startOrderExpiryScheduler();
 
     // Never block API health/startup on Telegram bot launch.
     if (env.NODE_ENV === 'production') {

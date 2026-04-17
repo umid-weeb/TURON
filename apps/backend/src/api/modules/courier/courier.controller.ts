@@ -222,14 +222,21 @@ export async function getCourierTodayStats(request: FastifyRequest, reply: Fasti
 export async function getCourierOrders(request: FastifyRequest, reply: FastifyReply) {
   const requester = request.user as any;
 
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
   const orders = await prisma.order.findMany({
     where: {
       courierAssignments: {
         some: {
           courierId: requester.id,
-          status: {
-            in: [...COURIER_LIST_ASSIGNMENT_STATUSES] as any,
-          },
+          OR: [
+            // Active in-progress assignments — always show regardless of age
+            { status: { in: ['ACCEPTED', 'PICKED_UP', 'DELIVERING'] as any } },
+            // Pending assignments — only show if assigned within the last 24 h
+            { status: 'ASSIGNED' as any, assignedAt: { gte: yesterday } },
+            // Completed today — show for review
+            { status: 'DELIVERED' as any, deliveredAt: { gte: yesterday } },
+          ],
         },
       },
     },

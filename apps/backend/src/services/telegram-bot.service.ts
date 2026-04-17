@@ -1319,3 +1319,23 @@ export async function stopTelegramBot(signal: string) {
   state.bot.stop(signal);
   state.launched = false;
 }
+
+/** Send a plain HTML alert message to all configured admin chat IDs. Non-throwing. */
+export async function sendAdminAlert(text: string): Promise<void> {
+  const chatIds = resolveOrderNotificationRecipientChatIds();
+  if (chatIds.length === 0) return;
+
+  const state = getBotState();
+  if (!state.handlersBound) {
+    bindHandlers(state.bot);
+    state.handlersBound = true;
+  }
+
+  for (const chatId of chatIds) {
+    try {
+      await state.bot.telegram.sendMessage(chatId, text, { parse_mode: 'HTML' });
+    } catch (err) {
+      console.warn('[Bot] sendAdminAlert failed for chatId', chatId, err instanceof Error ? err.message : err);
+    }
+  }
+}
