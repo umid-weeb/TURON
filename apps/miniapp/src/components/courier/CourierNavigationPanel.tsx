@@ -25,7 +25,7 @@ interface CourierNavigationPanelProps {
 
 function DirectionArrow({ action }: { action?: NavigationStep['action'] }) {
   const s = {
-    stroke: 'black',
+    stroke: 'white',
     strokeWidth: 5.5,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
@@ -64,9 +64,9 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
   if (!currentStep) return null;
 
   return (
-    <div className="inline-flex items-center gap-2.5 rounded-[16px] bg-white px-3 py-2.5 shadow-2xl">
+    <div className="inline-flex items-center gap-2.5 rounded-[16px] bg-amber-400 px-3 py-2.5 shadow-2xl">
       <DirectionArrow action={currentStep.action} />
-      <span className="whitespace-nowrap text-[24px] font-black leading-none tracking-tight text-black">
+      <span className="whitespace-nowrap text-[24px] font-black leading-none tracking-tight text-white">
         {currentStep.distanceText}
       </span>
     </div>
