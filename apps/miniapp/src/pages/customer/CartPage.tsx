@@ -194,14 +194,8 @@ const CartPage: React.FC = () => {
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
-        <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/95 px-4 backdrop-blur-xl">
-          <div className="mx-auto flex h-[56px] max-w-[430px] items-center justify-center">
-            <h1 className="text-[18px] font-black tracking-[-0.02em]">Savat</h1>
-          </div>
-        </header>
-
         <main className="mx-auto flex min-h-[calc(100dvh-160px)] max-w-[430px] flex-col items-center justify-center px-6 text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-[#202124] shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-[#202020] shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
             <ShoppingCart size={34} strokeWidth={2.3} />
           </div>
           <h2 className="mt-5 text-[24px] font-black tracking-[-0.05em]">Savat bo'sh</h2>
@@ -211,7 +205,8 @@ const CartPage: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/customer')}
-            className="mt-6 h-12 rounded-full bg-[#202124] px-6 text-[15px] font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.16)] transition active:scale-95"
+            className="mt-6 h-12 rounded-full px-8 text-[15px] font-black text-white shadow-[0_14px_28px_rgba(198,32,32,0.3)] transition active:scale-95"
+            style={{ background: '#C62020' }}
           >
             Menyuga qaytish
           </button>
@@ -222,12 +217,6 @@ const CartPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
-      <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/95 px-4 backdrop-blur-xl">
-        <div className="mx-auto flex h-[56px] max-w-[430px] items-center justify-center">
-          <h1 className="text-[18px] font-black tracking-[-0.02em]">Savat</h1>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-[430px] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+190px)] pt-4">
         <section className="space-y-3">
           {items.map((item) => (
