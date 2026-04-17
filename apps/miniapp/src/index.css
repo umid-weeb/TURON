@@ -99,6 +99,12 @@ body {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  /* Hide scrollbar visually — keeps scroll functionality, removes right gap */
+  scrollbar-width: none;
+}
+
+.tg-app-shell::-webkit-scrollbar {
+  display: none;
 }
 
 /* On large screens (desktop browser, not Telegram), keep phone-like frame */
@@ -111,8 +117,7 @@ body {
 }
 
 html[data-tg-client="desktop"] body {
-  display: flex;
-  justify-content: center;
+  display: block;       /* no flex centering on desktop — fills full width */
   background: var(--app-bg);
 }
 
