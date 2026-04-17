@@ -1,48 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { MapPin, RouteInfo, RouteMapProps } from '../MapProvider';
-import { fetchRouteDetails } from '../api';
-import { estimateRouteInfo } from '../route';
-import { resolveRouteWithYandexJsApi } from '../yandex-routing';
+import { LiveMultiRouteTracker } from '../yandex-routing';
 import { isYandexMaps3Enabled, loadYandexMaps3, toLngLat } from '../yandex3';
 import MockMapComponent from './MockMapComponent';
 
 const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_KEY` ni sozlang.';
 const NAV_ZOOM = 17;
 const DEFAULT_NAV_TILT = 50; // degrees: 0 = flat overhead, 50 = 3D like Yandex Maps app
-const ROUTE_REBUILD_DISTANCE_METERS = 30;
-const ROUTE_REBUILD_INTERVAL_MS = 10_000;
 
 function normalizeDegrees(value: number) {
   return ((value % 360) + 360) % 360;
-}
-
-function getDistanceMeters(from: MapPin, to: MapPin) {
-  const earthRadiusMeters = 6371000;
-  const latDelta = ((to.lat - from.lat) * Math.PI) / 180;
-  const lngDelta = ((to.lng - from.lng) * Math.PI) / 180;
-  const originLat = (from.lat * Math.PI) / 180;
-  const targetLat = (to.lat * Math.PI) / 180;
-  const haversine =
-    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
-    Math.cos(originLat) * Math.cos(targetLat) * Math.sin(lngDelta / 2) * Math.sin(lngDelta / 2);
-
-  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-}
-
-function isPermanentRoutingError(error: unknown) {
-  const message =
-    error instanceof Error
-      ? error.message.toLowerCase()
-      : typeof error === 'string'
-        ? error.toLowerCase()
-        : '';
-
-  return (
-    message.includes('apikey rejected') ||
-    message.includes('key not found') ||
-    message.includes('yandex_router_api_key') ||
-    message.includes('401')
-  );
 }
 
 // ── DOM marker factories ──────────────────────────────────────────────────────
@@ -106,9 +73,8 @@ export default function YandexRouteMap({
   const courierMarkerRef = useRef<any>(null);
   const mapListenerRef   = useRef<any>(null);
   const courierElRef     = useRef<HTMLDivElement | null>(null);
-  const routeReqRef      = useRef(0);
-  const backendRoutingAvailableRef = useRef(true);
-  const lastRouteSnapshotRef = useRef<{ from: MapPin; to: MapPin; at: number } | null>(null);
+  // Live route tracker — ymaps2.1 multiRouter feeds polyline into ymaps3 renderer
+  const trackerRef       = useRef<LiveMultiRouteTracker | null>(null);
   const lastRouteKeyRef  = useRef<string | null>(null);
   const followModeRef    = useRef(followMode);
   const courierPosRef    = useRef(courierPos);
@@ -121,10 +87,16 @@ export default function YandexRouteMap({
   const snapTimerRef     = useRef<number | null>(null);
   const cleanupRef       = useRef<(() => void) | null>(null);
 
+  // Stable refs for callbacks that may change between renders
+  const onRouteInfoRef   = useRef(onRouteInfoChange);
+  const onNextStepRef    = useRef(onNextStepChange);
+  useEffect(() => { onRouteInfoRef.current  = onRouteInfoChange; }, [onRouteInfoChange]);
+  useEffect(() => { onNextStepRef.current   = onNextStepChange;  }, [onNextStepChange]);
+
   // Only show loading/fallback if ymaps3 is expected to work
   const ymaps3Expected = isYandexMaps3Enabled();
   const [isLoading,   setIsLoading]   = useState(ymaps3Expected);
-  const [hasFallback, setHasFallback] = useState(false); // never start in fallback if key present
+  const [hasFallback, setHasFallback] = useState(false);
 
   const activeFrom = routeFrom ?? pickup;
   const activeTo   = routeTo   ?? destination;
@@ -138,17 +110,14 @@ export default function YandexRouteMap({
     courierHeading = headingRef.current,
     cameraAzimuth = cameraAzimuthRef.current,
   ) {
-    if (!courierElRef.current) {
-      return;
-    }
-
+    if (!courierElRef.current) return;
     const relativeRotation = normalizeDegrees(courierHeading - cameraAzimuth);
     courierElRef.current.style.transform =
       `translate(-50%,-50%) rotate(${relativeRotation}deg)`;
   }
 
-  // ── Emit route info ──────────────────────────────────────────────────────
-  const emitRouteInfo = (info: RouteInfo) => {
+  // ── Emit route info (dedup) ──────────────────────────────────────────────
+  function emitRouteInfo(info: RouteInfo) {
     const key = [
       info.distance,
       info.eta,
@@ -157,8 +126,8 @@ export default function YandexRouteMap({
     ].join('|');
     if (lastRouteKeyRef.current === key) return;
     lastRouteKeyRef.current = key;
-    onRouteInfoChange?.(info);
-  };
+    onRouteInfoRef.current?.(info);
+  }
 
   // ── Camera update (rotation + tilt + pan) ───────────────────────────────
   function updateCamera(pos: { lat: number; lng: number }, zoom?: number) {
@@ -182,93 +151,47 @@ export default function YandexRouteMap({
         },
       });
     } catch {
-      // Fallback: pan only, no camera control
       try { map.setLocation?.({ center: toLngLat(pos), duration: 600 }); } catch { /* skip */ }
     }
   }
 
-  // ── Route builder ────────────────────────────────────────────────────────
-  async function buildRoute(
-    ymaps3: any,
-    map: any,
-    from: { lat: number; lng: number },
-    to: { lat: number; lng: number },
-    reqId: number,
-  ) {
-    // Remove stale route
+  // ── Route polyline update ────────────────────────────────────────────────
+  // Called from the LiveMultiRouteTracker callback every time the multiRouter
+  // returns a new route. Tries an in-place geometry update first (no flicker)
+  // and falls back to remove + add if YMapFeature.update() isn't supported.
+  function updateRoutePolyline(coords: [number, number][]) {
+    if (coords.length < 2) return;
+    const ymaps3 = ymaps3Ref.current;
+    const map    = mapRef.current;
+    if (!ymaps3 || !map) return;
+
+    if (routeFeatureRef.current) {
+      try {
+        routeFeatureRef.current.update({
+          geometry: { type: 'LineString', coordinates: coords },
+        });
+        return;
+      } catch {
+        // YMapFeature.update() not available — fall through to recreate
+      }
+    }
+
     if (routeFeatureRef.current) {
       try { map.removeChild(routeFeatureRef.current); } catch { /* skip */ }
       routeFeatureRef.current = null;
     }
 
-    let coords: [number, number][] = [toLngLat(from), toLngLat(to)];
-    let routeInfo = estimateRouteInfo(from, to);
-    let lastError: unknown = null;
-
-    if (backendRoutingAvailableRef.current) {
-      try {
-      const resolvedRoute = await fetchRouteDetails(from, to, {
-        mode: 'driving',
-        traffic: 'enabled',
+    try {
+      const feature = new ymaps3.YMapFeature({
+        id: 'courier-route',
+        geometry: { type: 'LineString', coordinates: coords },
+        style: { stroke: [{ color: '#00E676', width: 7, opacity: 0.95 }] },
       });
-
-      if (reqId !== routeReqRef.current || !mapRef.current) return;
-
-      if (resolvedRoute.polyline?.length && resolvedRoute.distanceMeters) {
-        routeInfo = resolvedRoute;
-        coords = resolvedRoute.polyline.map((point) => toLngLat(point));
-      } else {
-        lastError = new Error('Backend route polylinesi bo‘sh qaytdi');
-      }
-      } catch (error) {
-        if (reqId !== routeReqRef.current || !mapRef.current) return;
-        if (isPermanentRoutingError(error)) {
-          backendRoutingAvailableRef.current = false;
-        }
-        lastError = error;
-      }
+      map.addChild(feature);
+      routeFeatureRef.current = feature;
+    } catch (err) {
+      console.warn('[YandexRouteMap] YMapFeature draw error:', err);
     }
-
-    if ((!routeInfo.polyline?.length || coords.length < 2) && reqId === routeReqRef.current && mapRef.current) {
-      try {
-        const fallbackRoute = await resolveRouteWithYandexJsApi(from, to);
-        if (reqId !== routeReqRef.current || !mapRef.current) return;
-
-        routeInfo = fallbackRoute;
-        coords = fallbackRoute.polyline?.map((point) => toLngLat(point)) || coords;
-        lastError = null;
-      } catch (fallbackError) {
-        lastError = fallbackError;
-      }
-    }
-
-    if (!routeInfo.polyline?.length || coords.length < 2) {
-      coords = [toLngLat(from), toLngLat(to)];
-    }
-
-    if (lastError) {
-      console.warn('[YandexRouteMap] Failed to load routed polyline', lastError);
-    }
-
-    if (reqId !== routeReqRef.current || !mapRef.current) return;
-
-    // Draw route as GeoJSON LineString feature
-    if (coords.length >= 2) {
-      try {
-        const feature = new ymaps3.YMapFeature({
-          id: 'courier-route',
-          geometry: { type: 'LineString', coordinates: coords },
-          style: { stroke: [{ color: '#22c55e', width: 7, opacity: 0.92 }] },
-        });
-        map.addChild(feature);
-        routeFeatureRef.current = feature;
-      } catch (err) {
-        console.warn('[YandexRouteMap] YMapFeature draw error:', err);
-      }
-    }
-
-    emitRouteInfo(routeInfo);
-    onNextStepChange?.(routeInfo.steps?.[0] ?? null);
   }
 
   // ── Init map ─────────────────────────────────────────────────────────────
@@ -287,7 +210,7 @@ export default function YandexRouteMap({
         if (disposed || !mapContainerRef.current) return;
         ymaps3Ref.current = ymaps3;
 
-        // ── Create map (no camera in constructor — set via update after init) ──
+        // ── Create map ───────────────────────────────────────────────────────
         const map = new ymaps3.YMap(mapContainerRef.current, {
           location: { center: toLngLat(pickup), zoom: 14 },
           behaviors: [
@@ -302,31 +225,31 @@ export default function YandexRouteMap({
           ],
         });
 
-        // ── Required layers ──────────────────────────────────────────────────
-        // 1. Tile/scheme layer — dark theme for night navigation
+        // Dark scheme layer for night-navigation look
         map.addChild(new ymaps3.YMapDefaultSchemeLayer({ theme: 'dark' }));
 
-        // 2. Features layer — REQUIRED for YMapFeature (route polyline) to render
+        // Features layer — required for YMapFeature (route polyline) to render
         if (ymaps3.YMapDefaultFeaturesLayer) {
           map.addChild(new ymaps3.YMapDefaultFeaturesLayer({}));
         }
 
-        // ── Set 3D camera AFTER init ─────────────────────────────────────────
+        // 3D camera (set after init to avoid constructor issues)
         try {
           map.update({ camera: { azimuth: 0, tilt: DEFAULT_NAV_TILT } });
           cameraAzimuthRef.current = 0;
           cameraTiltRef.current = DEFAULT_NAV_TILT;
-        } catch { /* camera might not be supported — non-fatal */ }
+        } catch { /* non-fatal */ }
 
-        // ── Zoom control ─────────────────────────────────────────────────────
+        // Zoom control
         try {
           if (ymaps3.YMapControls && ymaps3.YMapZoomControl) {
             const controls = new ymaps3.YMapControls({ position: 'right' });
             controls.addChild(new ymaps3.YMapZoomControl({}));
             map.addChild(controls);
           }
-        } catch { /* controls optional */ }
+        } catch { /* optional */ }
 
+        // Camera listener (sync rotation state)
         try {
           const mapListener = new ymaps3.YMapListener({
             onUpdate: ({ camera }: { camera?: { azimuth?: number; tilt?: number } }) => {
@@ -341,7 +264,7 @@ export default function YandexRouteMap({
           mapListenerRef.current = null;
         }
 
-        // ── Snap-back: pointer events on container ───────────────────────────
+        // Snap-back after manual pan: 3 s of no touch → resume follow mode
         const el = mapContainerRef.current;
         const onDown = () => {
           isManualRef.current = true;
@@ -365,7 +288,7 @@ export default function YandexRouteMap({
           el.removeEventListener('pointercancel', onUp);
         };
 
-        // ── Pickup marker (green dot) ────────────────────────────────────────
+        // ── Markers ──────────────────────────────────────────────────────────
         try {
           const pEl = createPickupElement();
           const pMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(pickup), zIndex: 100 }, pEl);
@@ -373,7 +296,6 @@ export default function YandexRouteMap({
           pickupMarkerRef.current = pMarker;
         } catch { /* skip */ }
 
-        // ── Destination marker (red dot) ─────────────────────────────────────
         try {
           const dEl = createDestinationElement();
           const dMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(destination), zIndex: 100 }, dEl);
@@ -381,7 +303,6 @@ export default function YandexRouteMap({
           destMarkerRef.current = dMarker;
         } catch { /* skip */ }
 
-        // ── Courier arrow marker ─────────────────────────────────────────────
         if (courierPos) {
           try {
             const cEl = createCourierElement(0);
@@ -395,10 +316,18 @@ export default function YandexRouteMap({
 
         mapRef.current = map;
 
-        // ── Build initial route ───────────────────────────────────────────────
-        const reqId = ++routeReqRef.current;
-        lastRouteSnapshotRef.current = { from: activeFrom, to: activeTo, at: Date.now() };
-        if (!disposed) await buildRoute(ymaps3, map, activeFrom, activeTo, reqId);
+        // ── Live route tracker ───────────────────────────────────────────────
+        // ymaps2.1 multiRouter (pedestrian mode) → ymaps3 polyline renderer.
+        // GPS updates call tracker.updateOrigin() which calls setReferencePoints()
+        // on the existing model — no map reinit, no flicker.
+        const tracker = new LiveMultiRouteTracker((info, polyline) => {
+          if (disposed) return;
+          updateRoutePolyline(polyline.map((p) => toLngLat(p)));
+          emitRouteInfo(info);
+          onNextStepRef.current?.(info.steps?.[0] ?? null);
+        });
+        trackerRef.current = tracker;
+        void tracker.init(activeFrom, activeTo);
 
         onMapReady?.(map);
       } catch (err) {
@@ -413,55 +342,34 @@ export default function YandexRouteMap({
 
     return () => {
       disposed = true;
-      routeReqRef.current += 1;
       if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
       cleanupRef.current?.();
+      trackerRef.current?.destroy();
+      trackerRef.current = null;
       try { mapRef.current?.destroy(); } catch { /* skip */ }
-      mapRef.current       = null;
-      ymaps3Ref.current    = null;
+      mapRef.current         = null;
+      ymaps3Ref.current      = null;
       mapListenerRef.current = null;
       routeFeatureRef.current  = null;
       pickupMarkerRef.current  = null;
       destMarkerRef.current    = null;
       courierMarkerRef.current = null;
       courierElRef.current     = null;
-      backendRoutingAvailableRef.current = true;
-      lastRouteSnapshotRef.current = null;
       hasNavZoomedRef.current  = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onMapReady, ymaps3Expected]);
 
-  // ── Rebuild route when endpoints change ──────────────────────────────────
+  // ── Re-route when pickup / destination change ────────────────────────────
   useEffect(() => {
-    const ymaps3 = ymaps3Ref.current;
-    const map    = mapRef.current;
-    if (!ymaps3 || !map) return;
+    const tracker = trackerRef.current;
+    if (!tracker) return;
 
     try { pickupMarkerRef.current?.update({ coordinates: toLngLat(pickup) }); }     catch { /* skip */ }
     try { destMarkerRef.current?.update({ coordinates: toLngLat(destination) }); } catch { /* skip */ }
 
-    const now = Date.now();
-    const previousRouteSnapshot = lastRouteSnapshotRef.current;
-    const destinationChanged =
-      !previousRouteSnapshot || getDistanceMeters(previousRouteSnapshot.to, activeTo) >= 5;
-    const originMovedMeters = previousRouteSnapshot
-      ? getDistanceMeters(previousRouteSnapshot.from, activeFrom)
-      : Number.POSITIVE_INFINITY;
-    const elapsedMs = previousRouteSnapshot ? now - previousRouteSnapshot.at : Number.POSITIVE_INFINITY;
-
-    if (
-      previousRouteSnapshot &&
-      !destinationChanged &&
-      originMovedMeters < ROUTE_REBUILD_DISTANCE_METERS &&
-      elapsedMs < ROUTE_REBUILD_INTERVAL_MS
-    ) {
-      return;
-    }
-
-    lastRouteSnapshotRef.current = { from: activeFrom, to: activeTo, at: now };
-    const reqId = ++routeReqRef.current;
-    void buildRoute(ymaps3, map, activeFrom, activeTo, reqId);
+    // Re-init the multiRoute model with new endpoints (old model is cleanly destroyed inside)
+    void tracker.init(activeFrom, activeTo);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     pickup.lat, pickup.lng,
@@ -470,7 +378,7 @@ export default function YandexRouteMap({
     activeTo.lat,   activeTo.lng,
   ]);
 
-  // ── GPS position update: move courier + camera ────────────────────────────
+  // ── GPS position update: move marker + camera + update route origin ──────
   useEffect(() => {
     const ymaps3 = ymaps3Ref.current;
     const map    = mapRef.current;
@@ -499,23 +407,26 @@ export default function YandexRouteMap({
       try { courierMarkerRef.current.update({ coordinates: toLngLat(courierPos) }); } catch { /* skip */ }
     }
 
-    // Follow + camera
+    // Follow mode camera
     if (followModeRef.current && !isManualRef.current) {
       if (!hasNavZoomedRef.current) {
         hasNavZoomedRef.current = true;
         updateCamera(courierPos, NAV_ZOOM); // first fix: zoom to street level
       } else {
-        updateCamera(courierPos);           // subsequent: smooth pan
+        updateCamera(courierPos);           // subsequent: smooth pan only
       }
     }
+
+    // Push new origin to multiRouter — recalculates only what changed,
+    // fires requestsuccess → updateRoutePolyline() → polyline refreshed
+    trackerRef.current?.updateOrigin(courierPos);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierPos?.lat, courierPos?.lng]);
 
-  // ── Heading + Tilt update: rotate arrow icon + camera azimuth ────────────
+  // ── Heading + Tilt: rotate arrow icon + camera azimuth ───────────────────
   useEffect(() => {
     syncCourierRotation(heading ?? headingRef.current, cameraAzimuthRef.current);
 
-    // Also update the map camera azimuth and tilt for heading-up navigation
     if (
       mapRef.current &&
       followModeRef.current &&

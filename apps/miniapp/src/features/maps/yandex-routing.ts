@@ -207,7 +207,7 @@ export async function resolveRouteWithYandexJsApi(from: MapPin, to: MapPin): Pro
   const etaSeconds = readEtaSeconds(route);
 
   if (polyline.length < 2) {
-    throw new Error('Yandex JS routing polylinesi bo‘sh qaytdi');
+    throw new Error("Yandex JS routing polylinesi bo'sh qaytdi");
   }
 
   return createRouteInfoFromMeters(distanceMeters, etaSeconds, {
@@ -215,4 +215,112 @@ export async function resolveRouteWithYandexJsApi(from: MapPin, to: MapPin): Pro
     source: 'yandex-jsapi',
     steps,
   });
+}
+
+/**
+ * LiveMultiRouteTracker  -  uses ymaps.multiRouter.MultiRoute with pedestrian
+ * routing mode (best for scooters  -  finds small-street shortcuts).
+ *
+ * GPS updates call updateOrigin() which invokes setReferencePoints() on the
+ * existing multiRoute model instead of re-initialising from scratch, so the
+ * route recalculates incrementally with no map flicker.
+ */
+export class LiveMultiRouteTracker {
+  private multiRoute: any = null;
+  private destination: MapPin | null = null;
+  private readonly onRouteUpdate: (info: RouteInfo, polyline: MapPin[]) => void;
+  /** Incremented on every init()/destroy() so stale async callbacks are ignored. */
+  private generation = 0;
+
+  constructor(onRouteUpdate: (info: RouteInfo, polyline: MapPin[]) => void) {
+    this.onRouteUpdate = onRouteUpdate;
+  }
+
+  async init(from: MapPin, to: MapPin): Promise<void> {
+    const gen = ++this.generation;
+    this.cleanupMultiRoute();
+    this.destination = to;
+
+    try {
+      const ymaps = await loadYandexMaps();
+      if (gen !== this.generation) return; // superseded by a newer init() or destroy()
+
+      if (!ymaps.multiRouter?.MultiRoute) {
+        throw new Error('ymaps.multiRouter yuklanmadi  -  package.full kerak');
+      }
+
+      const mr = new ymaps.multiRouter.MultiRoute(
+        {
+          referencePoints: [
+            [from.lat, from.lng],
+            [to.lat, to.lng],
+          ],
+          params: {
+            // pedestrian mode lets a scooter use small streets and shortcuts
+            routingMode: 'pedestrian',
+            avoidTrafficJams: true,
+          },
+        },
+        { boundsAutoApply: false },
+      );
+
+      // Store the handler reference so we can remove it precisely on cleanup.
+      const handler = () => {
+        if (gen !== this.generation) return;
+        this.handleSuccess();
+      };
+      mr.model.events.add('requestsuccess', handler);
+      (mr as any).__successHandler = handler;
+
+      this.multiRoute = mr;
+    } catch (err) {
+      if (gen !== this.generation) return;
+      console.warn('[LiveMultiRouteTracker] init failed:', err);
+      throw err;
+    }
+  }
+
+  /** Call on every GPS tick  -  multiRouter recalculates only what changed. */
+  updateOrigin(from: MapPin): void {
+    if (!this.multiRoute || !this.destination) return;
+    try {
+      this.multiRoute.model.setReferencePoints([
+        [from.lat, from.lng],
+        [this.destination.lat, this.destination.lng],
+      ]);
+    } catch { /* ignore transient errors */ }
+  }
+
+  private handleSuccess(): void {
+    try {
+      const route = this.multiRoute?.getActiveRoute();
+      if (!route) return;
+
+      const polyline = extractRoutePolyline(route);
+      if (polyline.length < 2) return;
+
+      const info = createRouteInfoFromMeters(
+        readDistanceMeters(route),
+        readEtaSeconds(route),
+        { polyline, source: 'yandex-multirouter', steps: extractRouteSteps(route) },
+      );
+
+      this.onRouteUpdate(info, polyline);
+    } catch { /* skip */ }
+  }
+
+  private cleanupMultiRoute(): void {
+    if (!this.multiRoute) return;
+    try {
+      const handler = (this.multiRoute as any).__successHandler;
+      if (handler) this.multiRoute.model.events.remove('requestsuccess', handler);
+    } catch { /* skip */ }
+    this.multiRoute = null;
+  }
+
+  destroy(): void {
+    this.generation++; // invalidate all pending async ops
+    this.cleanupMultiRoute();
+    this.destination = null;
+  }
 }
