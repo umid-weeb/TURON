@@ -25,6 +25,13 @@ const ProductPage: React.FC = () => {
   const posterSrc = useMemo(() => (product ? getProductPosterUrl(product) : ''), [product]);
   const [imageSrc, setImageSrc] = useState('');
 
+  const similarProducts = useMemo(() => {
+    if (!product || allProducts.length === 0) return [];
+    return allProducts
+      .filter((p) => p.categoryId === product.categoryId && p.id !== product.id && p.isActive)
+      .slice(0, 10);
+  }, [product, allProducts]);
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 40);
@@ -90,18 +97,11 @@ const ProductPage: React.FC = () => {
     navigate('/customer/cart');
   };
 
-  const similarProducts = useMemo(() => {
-    if (!product || allProducts.length === 0) return [];
-    return allProducts
-      .filter((p) => p.categoryId === product.categoryId && p.id !== product.id && p.isActive)
-      .slice(0, 10);
-  }, [product, allProducts]);
-
   return (
     <div className="relative min-h-screen bg-[#f6f6f7] text-[#202020] animate-in fade-in duration-300">
       {/* ── Background Arc ─────────────────────────────── */}
       <div
-        className="absolute inset-x-0 top-0 z-0 bg-[#C62020]"
+        className="absolute inset-x-0 top-0 z-0 bg-[#C62020] animate-in slide-in-from-top-full duration-700 ease-out"
         style={{
           height: 380,
           borderBottomLeftRadius: '100% 40%',
