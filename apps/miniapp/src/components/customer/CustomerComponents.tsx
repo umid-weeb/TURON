@@ -85,7 +85,9 @@ function getProductAvailabilityLabel(product: DisplayProduct) {
 export const BannerCarousel: React.FC<{
   slides: PromoBannerSlide[];
 }> = ({ slides }) => (
-  <div className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+  <div className="scrollb
+  
+  ar-hide -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
     {slides.map((slide) => (
       <article
         key={slide.id}
