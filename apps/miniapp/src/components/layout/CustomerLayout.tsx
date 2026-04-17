@@ -20,8 +20,19 @@ const HIDE_BOTTOM_NAV_PATHS = [
   /^\/customer\/orders\/[^/]+\/tracking$/,
 ];
 
-/* ── Universal header — logo only, centered ─────────────────────────────── */
-const AppHeader: React.FC = () => (
+/* ── Universal header — page title ─────────────────────────────── */
+const getHeaderTitle = (pathname: string) => {
+  if (pathname === '/customer') return 'Asosiy menyu';
+  if (pathname.includes('/cart')) return 'Savat';
+  if (pathname.includes('/orders')) return 'Buyurtmalarim';
+  if (pathname.includes('/checkout')) return 'Buyurtmani rasmiylashtirish';
+  if (pathname.includes('/category/')) return 'Kategoriya';
+  if (pathname.includes('/product/')) return 'Taom haqida';
+  if (pathname.includes('/profile')) return 'Profil';
+  return 'Turon Kafe';
+};
+
+const AppHeader: React.FC<{ pathname: string }> = ({ pathname }) => (
   <div
     style={{
       position: 'sticky',
@@ -29,27 +40,26 @@ const AppHeader: React.FC = () => (
       zIndex: 50,
       background: `linear-gradient(135deg, #8B0000 0%, #C62020 55%, #E83535 100%)`,
       display: 'flex',
-      alignItems: 'flex-end',
+      alignItems: 'center',
       justifyContent: 'center',
-      paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 8px)) + 10px)',
-      paddingBottom: 14,
-      minHeight: 'calc(90px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
-      boxShadow: '0 4px 20px rgba(150,0,0,0.4)',
+      paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + 12px)',
+      paddingBottom: 12,
+      minHeight: 'calc(60px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
+      boxShadow: '0 2px 12px rgba(150,0,0,0.3)',
     }}
   >
-    <img
-      src="/turon-logo.png"
-      alt="Turon Kafesi"
+    <h1
       style={{
-        height: 78,
-        maxWidth: '72vw',
-        objectFit: 'contain',
-        filter:
-          'brightness(0) invert(1) drop-shadow(0 0 12px rgba(255,200,200,0.55)) drop-shadow(0 2px 6px rgba(0,0,0,0.35))',
-        userSelect: 'none',
-        pointerEvents: 'none',
+        margin: 0,
+        fontSize: 18,
+        fontWeight: 700,
+        color: '#FFFFFF',
+        letterSpacing: '0.02em',
+        textShadow: '0 1px 3px rgba(0,0,0,0.2)',
       }}
-    />
+    >
+      {getHeaderTitle(pathname)}
+    </h1>
   </div>
 );
 
@@ -98,7 +108,7 @@ const CustomerLayout: React.FC = () => {
       }}
     >
       <div className="w-full">
-        {showHeader && <AppHeader />}
+        {showHeader && <AppHeader pathname={location.pathname} />}
 
         <main
           style={{

@@ -209,7 +209,7 @@ const HomePage: React.FC = () => {
       {/* ── Sticky search bar ─────────────────────────────────────── */}
       <div style={{
         position: 'sticky',
-        top: 'calc(90px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
+        top: 'calc(60px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
         zIndex: 30,
         background: 'var(--app-card)',
         borderBottom: '1px solid var(--app-line)',
