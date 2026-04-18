@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Loader2, LocateFixed, MapPin, MapPinOff, Phone, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, LocateFixed, MapPin, Phone, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
 import { SelectedAddressCard } from '../../components/customer/AddressComponents';
@@ -16,45 +16,6 @@ import { useCheckoutStore } from '../../store/useCheckoutStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { createRouteInfoFromMeters } from '../../features/maps/route';
-
-// ── Location permission denied card ──────────────────────────────────────────
-
-function LocationPermissionCard({ onRetry }: { onRetry: () => void }) {
-  // Detect browser for tailored instructions
-  const ua = navigator.userAgent;
-  const isChrome  = /Chrome/.test(ua) && !/Edg|OPR/.test(ua);
-  const isFirefox = /Firefox/.test(ua);
-  const isSafari  = /Safari/.test(ua) && !/Chrome/.test(ua);
-  const isEdge    = /Edg/.test(ua);
-
-  let steps: string;
-  if (isChrome || isEdge)  steps = "Manzil satridagi 🔒 belgini bosing → «Sayt sozlamalari» → «Joylashuv» → «Ruxsat»";
-  else if (isFirefox)      steps = "Manzil satridagi qalqon belgini bosing → «Ruxsatlar» → «Joylashuvga ruxsat bering»";
-  else if (isSafari)       steps = "Safari → Sozlamalar → Veb-saytlar → Joylashuv → Ruxsat bering";
-  else                     steps = "Brauzer sozlamalarida ushbu sayt uchun joylashuvga ruxsat bering";
-
-  return (
-    <div className="mt-3 rounded-[16px] border border-amber-200 bg-amber-50 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
-          <MapPinOff size={16} className="text-amber-600" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[13px] font-black text-slate-900">Joylashuv ruxsati kerak</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-slate-600">{steps}</p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] bg-amber-400 text-[12px] font-black text-slate-950 active:scale-[0.97] transition-transform"
-      >
-        <LocateFixed size={13} />
-        Qayta urinish
-      </button>
-    </div>
-  );
-}
 
 // ── Phone entry modal ─────────────────────────────────────────────────────────
 
@@ -308,9 +269,8 @@ const CheckoutPage: React.FC = () => {
     setAddressError(null);
     setLocationPermDenied(false);
 
-    // Pre-check permission using Permissions API (desktop browsers support this).
-    // If already denied, show the instruction card immediately — no need to call
-    // getCurrentPosition and get an instant silent error.
+    // If already denied, show the small hint immediately. For "prompt" state we
+    // just call the mutation directly — the browser will show its native dialog.
     if (navigator.permissions?.query) {
       try {
         const perm = await navigator.permissions.query({ name: 'geolocation' } as PermissionDescriptor);
@@ -318,8 +278,9 @@ const CheckoutPage: React.FC = () => {
           setLocationPermDenied(true);
           return;
         }
+        // "prompt" → fall through and let getCurrentPosition trigger the native dialog
       } catch {
-        // Permissions API not available in this browser — proceed normally
+        // Permissions API not available — proceed normally
       }
     }
 
@@ -330,12 +291,13 @@ const CheckoutPage: React.FC = () => {
       },
       {
         onSuccess: (result) => {
+          setLocationPermDenied(false);
           setAddressHint(result.hint);
         },
         onError: (error) => {
-          // Permission was denied during the request (user clicked Block in the dialog)
+          // Permission was denied in the native browser dialog
           const msg = error.message ?? '';
-          if (msg.toLowerCase().includes('ruxsat') || msg.toLowerCase().includes('permission')) {
+          if (msg.toLowerCase().includes('ruxsat') || msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied')) {
             setLocationPermDenied(true);
           } else {
             setAddressError(msg);
@@ -429,7 +391,9 @@ const CheckoutPage: React.FC = () => {
           ) : null}
 
           {locationPermDenied ? (
-            <LocationPermissionCard onRetry={handleAutoDetectAddress} />
+            <p className="mt-2 text-[11px] font-semibold text-slate-500">
+              Brauzer sozlamalarida joylashuvga ruxsat bering, so'ng qayta bosing
+            </p>
           ) : addressError ? (
             <p className="mt-3 text-[11px] font-semibold text-red-600">{addressError}</p>
           ) : null}
