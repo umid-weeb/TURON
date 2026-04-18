@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
-import { useToastStore } from '../../store/useToastStore';
+import { useToastStore, type Toast } from '../../store/useToastStore';
 
 export const ToastContainer: React.FC = () => {
     const { toasts, removeToast } = useToastStore();
@@ -24,7 +24,7 @@ export const ToastContainer: React.FC = () => {
 };
 
 const Toast: React.FC<{
-    toast: any;
+    toast: Toast;
     onClose: () => void;
 }> = ({ toast, onClose }) => {
     useEffect(() => {
@@ -34,17 +34,21 @@ const Toast: React.FC<{
         }
     }, [toast.duration, onClose]);
 
-    const bgColor = {
+    const bgColorMap: Record<Toast['type'], string> = {
         success: 'bg-emerald-500',
         error: 'bg-red-500',
         info: 'bg-blue-500',
-    }[toast.type];
+    };
+    
+    const bgColor = bgColorMap[toast.type];
 
-    const Icon = {
+    const iconMap: Record<Toast['type'], typeof CheckCircle> = {
         success: CheckCircle,
         error: AlertCircle,
         info: Info,
-    }[toast.type];
+    };
+    
+    const Icon = iconMap[toast.type];
 
     return (
         <div
