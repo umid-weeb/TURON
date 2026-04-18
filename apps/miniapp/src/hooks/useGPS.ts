@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCourierStore } from '../store/courierStore';
 
 /**
@@ -7,6 +7,7 @@ import { useCourierStore } from '../store/courierStore';
  */
 export function useGPS() {
   const setGpsData = useCourierStore((s) => s.setGpsData);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -17,12 +18,14 @@ export function useGPS() {
     // Production Note: watchPosition provides updates natively without us polling.
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        setError(null);
         const { latitude, longitude, speed, heading } = position.coords;
         // Speed is in m/s, heading is true north bearing if speed > 0
         setGpsData(latitude, longitude, speed, heading);
       },
-      (error) => {
-        console.error('GPS Watch Error:', error.message);
+      (watchError) => {
+        setError(watchError.message);
+        console.error('GPS Watch Error:', watchError.message);
       },
       {
         enableHighAccuracy: true,
@@ -35,4 +38,6 @@ export function useGPS() {
       navigator.geolocation.clearWatch(watchId);
     };
   }, [setGpsData]);
+
+  return { error };
 }

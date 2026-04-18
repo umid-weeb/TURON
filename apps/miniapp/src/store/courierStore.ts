@@ -6,6 +6,7 @@ interface CourierState {
   /** [longitude, latitude] — GeoJSON / ymaps3 format */
   coords: [number, number] | null;
   accuracy: number | null;
+  speed: number | null;
   /** Raw heading from GPS (faqat harakatda ishlaydi, zaxira) */
   gpsHeading: number | null;
 
@@ -26,6 +27,7 @@ interface CourierState {
 
   // ── Actions ────────────────────────────────────────────────────────────────
   setCoords: (coords: [number, number], accuracy: number) => void;
+  setGpsData: (lat: number, lng: number, speed: number | null, heading: number | null) => void;
   setGpsHeading: (heading: number) => void;
   setCompassHeading: (raw: number) => void;
   setCompassPermission: (status: 'granted' | 'denied') => void;
@@ -36,6 +38,7 @@ interface CourierState {
 export const useCourierStore = create<CourierState>((set, get) => ({
   coords: null,
   accuracy: null,
+  speed: null,
   gpsHeading: null,
   compassHeading: null,
   smoothedHeading: 0,
@@ -45,6 +48,18 @@ export const useCourierStore = create<CourierState>((set, get) => ({
   routePoints: [],
 
   setCoords: (coords, accuracy) => set({ coords, accuracy }),
+
+  setGpsData: (lat, lng, speed, heading) => {
+    set({
+      coords: [lng, lat],
+      accuracy: null,
+      speed,
+    });
+
+    if (heading !== null && Number.isFinite(heading)) {
+      get().setGpsHeading(heading);
+    }
+  },
 
   /**
    * GPS heading — compass yo'q bo'lganda smoothedHeading ni ham yangilaydi
@@ -79,6 +94,7 @@ export const useCourierStore = create<CourierState>((set, get) => ({
     set({
       coords: null,
       accuracy: null,
+      speed: null,
       gpsHeading: null,
       compassHeading: null,
       smoothedHeading: 0,
