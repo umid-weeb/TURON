@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Flame, Pizza, Coffee, IceCream, Utensils } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
-  CategoryTabs,
   LoadingSkeleton,
   ProductGrid,
   EmptyState,
@@ -11,6 +10,15 @@ import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { getCustomerCategoryLabel, sortCustomerCategories } from '../../features/menu/customerCatalog';
 import { useCategories, useProducts } from '../../hooks/queries/useMenu';
 import { ProductAvailabilityEnum } from '@turon/shared';
+
+function getCategoryIcon(label: string) {
+  const l = label.toLowerCase();
+  if (l.includes('pitsa') || l.includes('pizza')) return <Pizza size={24} strokeWidth={2.2} />;
+  if (l.includes('drink') || l.includes('ichimlik')) return <Coffee size={24} strokeWidth={2.2} />;
+  if (l.includes('dessert') || l.includes('shirinlik') || l.includes('muzqaymoq')) return <IceCream size={24} strokeWidth={2.2} />;
+  if (l.includes('burger') || l.includes('lavash') || l.includes('fast food') || l.includes('kombo')) return <Flame size={24} strokeWidth={2.2} />;
+  return <Utensils size={24} strokeWidth={2.2} />;
+}
 
 const MenuPage: React.FC = () => {
   const navigate = useNavigate();
@@ -77,12 +85,35 @@ const MenuPage: React.FC = () => {
 
         {/* Category Tabs (only show when not searching) */}
         {!searchQuery.trim() && (
-          <div className="border-t border-slate-100 bg-white">
-            <CategoryTabs
-              tabs={tabs}
-              activeId={activeCategoryId}
-              onSelect={(id) => setActiveCategoryId(id)}
-            />
+          <div className="border-t border-slate-100 bg-white py-3">
+            <div className="scrollbar-hide -mx-4 flex gap-4 overflow-x-auto px-5 pb-1 relative">
+              {tabs.map((tab) => {
+                const isActive = tab.id === activeCategoryId;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveCategoryId(tab.id)}
+                    className="flex flex-col items-center gap-2 outline-none group"
+                  >
+                    <div
+                      className={`flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full transition-all duration-300 ${isActive
+                          ? 'bg-[#FFD700] text-[#111] shadow-sm transform scale-[1.02]'
+                          : 'bg-[#f4f4f5] text-[#222] group-active:scale-95 hover:bg-[#e4e4e5]'
+                        }`}
+                    >
+                      {getCategoryIcon(tab.label)}
+                    </div>
+                    <span
+                      className={`text-[12px] whitespace-nowrap transition-colors ${isActive ? 'font-black text-slate-900' : 'font-bold text-slate-500'
+                        }`}
+                    >
+                      {tab.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </header>
