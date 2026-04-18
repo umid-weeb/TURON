@@ -778,7 +778,6 @@ export const DeliveryBottomPanel: React.FC<{
   onCopyAddress,
   copySuccess = false,
 }) => {
-  // Start expanded so the action slider is visible immediately on the map
   const [isExpanded, setIsExpanded] = React.useState(true);
   const [isProblemOpen, setIsProblemOpen] = React.useState(false);
   const [isChatOpen, setIsChatOpen] = React.useState(false);
@@ -789,7 +788,6 @@ export const DeliveryBottomPanel: React.FC<{
   const isDelivered = currentStage === DeliveryStage.DELIVERED;
   const prevStageRef = React.useRef(currentStage);
 
-  // ── Navigation target ──────────────────────────────────────────────────────
   const goingToRestaurant =
     currentStage === DeliveryStage.GOING_TO_RESTAURANT ||
     currentStage === DeliveryStage.ARRIVED_AT_RESTAURANT;
@@ -798,280 +796,55 @@ export const DeliveryBottomPanel: React.FC<{
   const navLabel = goingToRestaurant ? 'Restoran' : 'Mijoz manzili';
   const hasNavTarget = typeof navLat === 'number' && typeof navLng === 'number';
 
-  // Close problem panel on delivery complete
-  React.useEffect(() => {
-    if (isDelivered) { setIsProblemOpen(false); setIsExpanded(false); }
-  }, [isDelivered]);
-
-  // Auto-expand when close to target or approaching (action needed)
-  React.useEffect(() => {
-    if (nearRestaurant || nearCustomer || approachingCustomer) {
-      setIsExpanded(true);
-    }
-  }, [nearRestaurant, nearCustomer, approachingCustomer]);
-
-  // Auto-expand on stage change so courier sees the new status
-  React.useEffect(() => {
-    if (prevStageRef.current !== currentStage) {
-      prevStageRef.current = currentStage;
-      if (!isDelivered) setIsExpanded(true);
-    }
-  }, [currentStage, isDelivered]);
-
-  // Report expansion state to parent (used for RouteInfoPanel visibility if needed)
-  React.useEffect(() => {
-    onExpandedChange?.(isExpanded);
-  }, [isExpanded, onExpandedChange]);
-
-  // Show slider for all actionable stages so the courier never has to hunt for it
-  const showSlider =
-    !isDelivered &&
-    Boolean(primaryAction.next) &&
-    (currentStage === DeliveryStage.GOING_TO_RESTAURANT ||
-      currentStage === DeliveryStage.ARRIVED_AT_RESTAURANT ||
-      currentStage === DeliveryStage.PICKED_UP ||
-      currentStage === DeliveryStage.ARRIVED_AT_DESTINATION ||
-      (nearCustomer && currentStage === DeliveryStage.DELIVERING));
-
-  // Show proximity hint only when actually close to target
-  const isProximitySlider =
-    (nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT) ||
-    (nearCustomer && currentStage === DeliveryStage.DELIVERING);
-
-  // Pulse the handle pill when action is needed
-  const hasActionNeeded = showSlider || (approachingCustomer && !nearCustomer);
-
   return (
-    <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50">
-      <div className="pointer-events-auto mx-auto w-full max-w-[430px]">
-
-        {/* ── DELIVERED success card ───────────────────────────────── */}
-        {isDelivered && (
-          <div className="mx-4 mb-3 overflow-hidden rounded-[28px] border border-emerald-300/20 bg-slate-950/92 px-5 py-5 shadow-2xl backdrop-blur-2xl animate-in slide-in-from-bottom duration-300">
-            <div className="flex flex-col items-center gap-3 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/15">
-                <CheckCircle2 size={30} className="text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-[18px] font-black text-emerald-200">Buyurtma topshirildi!</p>
-                <p className="mt-1 text-[12px] text-white/45">Ajoyib ish — davom eting</p>
-              </div>
-              {onDeliveredNavigate && (
-                <button
-                  type="button"
-                  onClick={onDeliveredNavigate}
-                  className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-emerald-500 text-[13px] font-black text-white shadow-lg shadow-emerald-900/40 active:scale-[0.97] transition-transform"
-                >
-                  Buyurtmalar ro'yxatiga
-                </button>
-              )}
-            </div>
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 text-white p-4 rounded-t-3xl shadow-lg">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-emerald-400 font-bold text-lg">{stageMeta.label}</span>
+          <div className="flex items-center gap-1">
+            {[...Array(3)].map((_, index) => (
+              <span
+                key={index}
+                className={`h-2 w-2 rounded-full ${index < stageMeta.progress ? 'bg-emerald-400' : 'bg-slate-600'}`}
+              ></span>
+            ))}
           </div>
-        )}
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-bold">{distance} km</p>
+          <p className="text-xs text-slate-400">{eta} daq</p>
+        </div>
+      </div>
 
-        {!isDelivered && (
-          <>
-            {/* ── Expanded content (slides up above bar) ───────────── */}
-            {isExpanded && (
-              <div className="mx-4 mb-1 space-y-2 animate-in slide-in-from-bottom duration-200">
-
-                {/* ── Navigation row ──────────────────────────────────── */}
-                {hasNavTarget && !isDelivered && (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openYandexNavigator(navLat!, navLng!, navLabel)}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-[18px] border border-amber-400/30 bg-amber-400/15 py-3 text-[12px] font-black text-amber-200 active:scale-[0.97] transition-transform"
-                    >
-                      <Navigation size={15} />
-                      <span>Yandex Navigator</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => open2GIS(navLat!, navLng!)}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-[18px] border border-sky-400/25 bg-sky-400/12 py-3 text-[12px] font-black text-sky-200 active:scale-[0.97] transition-transform"
-                    >
-                      <Route size={15} />
-                      <span>2GIS</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Arrival time + copy address row */}
-                {(arrivalTime || onCopyAddress) && (
-                  <div className="flex items-center gap-2">
-                    {arrivalTime && (
-                      <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1.5 backdrop-blur-xl">
-                        <TimerReset size={11} className="text-amber-300" />
-                        <span className="text-[10px] text-white/50">Yetib borish:</span>
-                        <span className="text-[12px] font-black text-amber-300">{arrivalTime}</span>
-                      </div>
-                    )}
-                    {onCopyAddress && (
-                      <button
-                        type="button"
-                        onClick={onCopyAddress}
-                        className="flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1.5 text-[11px] font-black text-white backdrop-blur-xl transition-transform active:scale-95"
-                      >
-                        <ClipboardCopy size={12} className={copySuccess ? 'text-emerald-400' : 'text-white/50'} />
-                        <span className={copySuccess ? 'text-emerald-300' : ''}>
-                          {copySuccess ? 'Nusxalandi!' : 'Manzil'}
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Approaching (500m) notification */}
-                {approachingCustomer && !nearCustomer && (
-                  <div className="flex items-center gap-2 rounded-[18px] border border-sky-400/25 bg-sky-400/12 px-4 py-2.5 backdrop-blur-xl">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
-                    <p className="text-[12px] font-black text-sky-300">Mijozga 500m qoldi</p>
-                  </div>
-                )}
-
-                {/* Action slider */}
-                {showSlider && (
-                  <div>
-                    {isProximitySlider && (
-                      <div className="mb-2 flex justify-center">
-                        <span className="rounded-full border border-amber-400/30 bg-amber-400/15 px-3 py-1 text-[11px] font-black text-amber-300">
-                          {nearRestaurant ? 'Restoranga 50m yaqindasiz' : 'Mijozga 50m yaqindasiz'}
-                        </span>
-                      </div>
-                    )}
-                    <SlideToConfirmAction
-                      label={primaryAction.slideLabel}
-                      hint={primaryAction.hint}
-                      onConfirm={() => onAction(primaryAction.next!)}
-                      isLoading={isUpdating}
-                      theme="dark"
-                    />
-                  </div>
-                )}
-
-                {/* Problem panel */}
-                {isProblemOpen && hasProblemPanel && (
-                  <div className="rounded-[24px] border border-white/8 bg-slate-950/92 p-4 backdrop-blur-xl">
-                    {problemPanel}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Compact bottom bar (always visible) ──────────────── */}
-            <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+10px)]">
-              {/* Drag handle */}
-              <button
-                type="button"
-                onClick={() => setIsExpanded((e) => !e)}
-                className="flex w-full items-center justify-center py-1.5"
-                aria-label={isExpanded ? "Yig'ish" : 'Ochish'}
-              >
-                <div className={`h-1 w-10 rounded-full transition-all duration-300 ${hasActionNeeded ? 'bg-amber-400/70 animate-pulse' : isExpanded ? 'bg-white/35' : 'bg-white/18'}`} />
-              </button>
-
-              <div className="flex items-center gap-2 rounded-[28px] border border-white/10 bg-slate-950/88 px-4 py-3 shadow-[0_24px_60px_rgba(2,6,23,0.7)] backdrop-blur-2xl">
-                {/* Stage badge + ETA + distance — tap to expand */}
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded((e) => !e)}
-                  className="min-w-0 flex-1 text-left"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <div className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${stageMeta.badgeClassDark}`}>
-                      {stageMeta.label}
-                    </div>
-                    {/* Map legend — 3 dots */}
-                    <div className="ml-auto flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" title="Restoran" />
-                      <span className="h-2 w-2 rounded-full bg-sky-400" title="Siz" />
-                      <span className="h-2 w-2 rounded-full bg-rose-400" title="Mijoz" />
-                    </div>
-                  </div>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <span className="text-[14px] font-black text-white">{eta}</span>
-                    {isEtaLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />}
-                    <span className="text-[11px] text-white/35">· {distance}</span>
-                    {isExpanded
-                      ? <ChevronDown size={13} className="ml-auto text-white/30" />
-                      : <ChevronUp size={13} className="ml-auto text-white/30" />
-                    }
-                  </div>
-                </button>
-
-                {/* Quick action buttons */}
-                <div className="flex items-center gap-1.5">
-                  {hasNavTarget && (
-                    <button
-                      type="button"
-                      onClick={() => { openYandexNavigator(navLat!, navLng!, navLabel); setIsExpanded(true); }}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/15 text-amber-200 active:scale-95 transition-transform"
-                      aria-label="Navigatsiya"
-                    >
-                      <Navigation size={16} />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onCall}
-                    disabled={!canCall}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/8 bg-white/[0.07] text-white disabled:opacity-35 active:scale-95 transition-transform"
-                    aria-label="Qo'ng'iroq"
-                  >
-                    <Phone size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setIsChatOpen(true); }}
-                    className="relative flex h-10 w-10 items-center justify-center rounded-full border border-indigo-400/25 bg-indigo-400/12 text-indigo-200 active:scale-95 transition-transform"
-                    aria-label="Chat"
-                  >
-                    <MessageCircle size={16} />
-                    {unreadCount > 0 && (
-                      <span className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onOpenDetails}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/8 bg-white/[0.07] text-white active:scale-95 transition-transform"
-                    aria-label="Tafsilot"
-                  >
-                    <Package size={16} />
-                  </button>
-                  {hasProblemPanel && (
-                    <button
-                      type="button"
-                      onClick={() => { setIsProblemOpen((p) => !p); setIsExpanded(true); }}
-                      className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all active:scale-95 ${
-                        isProblemOpen
-                          ? 'border-red-400/50 bg-red-400/20 text-red-200'
-                          : 'border-red-400/25 bg-red-400/10 text-red-300'
-                      }`}
-                      aria-label="Muammo"
-                    >
-                      <TriangleAlert size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ── Chat overlay ─────────────────────────────────────────── */}
-        {isChatOpen && (
-          <OrderChatPanel
-            orderId={order.id}
-            role="courier"
-            theme="dark"
-            onClose={() => setIsChatOpen(false)}
-          />
-        )}
-
+      <div className="flex justify-around items-center">
+        <button
+          onClick={onCall}
+          className="flex flex-col items-center justify-center text-yellow-400 hover:text-yellow-500 transition-colors"
+        >
+          <Phone size={24} />
+          <span className="text-xs">Qo'ng'iroq</span>
+        </button>
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="flex flex-col items-center justify-center text-blue-400 hover:text-blue-500 transition-colors"
+        >
+          <Send size={24} />
+          <span className="text-xs">Chat</span>
+        </button>
+        <button
+          onClick={onOpenDetails}
+          className="flex flex-col items-center justify-center text-green-400 hover:text-green-500 transition-colors"
+        >
+          <Package size={24} />
+          <span className="text-xs">Buyurtma</span>
+        </button>
+        <button
+          onClick={() => setIsProblemOpen(true)}
+          className="flex flex-col items-center justify-center text-red-400 hover:text-red-500 transition-colors"
+        >
+          <AlertTriangle size={24} />
+          <span className="text-xs">Muammo</span>
+        </button>
       </div>
     </div>
   );
