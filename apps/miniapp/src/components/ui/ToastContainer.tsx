@@ -34,7 +34,7 @@ const ToastItem: React.FC<{
         }
     }, [toast.duration, onClose]);
 
-    const bgColorMap: Record<Toast['type'], string> = {
+    const bgColorMap: Record<ToastType['type'], string> = {
         success: 'bg-emerald-500',
         error: 'bg-red-500',
         info: 'bg-blue-500',
@@ -42,7 +42,7 @@ const ToastItem: React.FC<{
     
     const bgColor = bgColorMap[toast.type];
 
-    const iconMap: Record<Toast['type'], typeof CheckCircle> = {
+    const iconMap: Record<ToastType['type'], typeof CheckCircle> = {
         success: CheckCircle,
         error: AlertCircle,
         info: Info,
