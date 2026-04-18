@@ -625,10 +625,21 @@ function buildOrderConfirmKeyboard(isApprove: boolean, orderId: string) {
 
 
 function updateTelegramOrderStatusLine(messageText: string, statusLabel: string): string {
-  return messageText.replace(
-    /Holat:\s*<b>.*?<\/b>/,
-    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
+  const nextStatusLine = `Holat: <b>${escapeHtml(statusLabel)}</b>`;
+
+  // Support both legacy plain-text lines (`Holat: Kutilmoqda`) and
+  // current HTML-formatted lines (`Holat: <b>Kutilmoqda</b>`).
+  const replaced = messageText.replace(
+    /Holat:\s*(?:<b>.*?<\/b>|[^\r\n]*)/i,
+    nextStatusLine,
   );
+
+  if (replaced === messageText) {
+    // If no status line exists at all, append one instead of silently failing.
+    return `${messageText.trim()}\n${nextStatusLine}`;
+  }
+
+  return replaced;
 }
 
 function buildStatusOnlyMessage(statusLabel: string) {
