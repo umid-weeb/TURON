@@ -45,6 +45,19 @@ function haversineMeters(coords: number[][]): number {
 }
 
 function readDistanceMeters(entity: any) {
+  // PRIORITY 0: getAll() — ymaps2.1 multiRouter asosiy yo'li.
+  // route.properties.getAll() → { distance: { value: <meters>, text: "5.2 km" }, ... }
+  try {
+    const all = entity?.properties?.getAll?.();
+    if (all) {
+      console.log('[readDistanceMeters] properties.getAll():', JSON.stringify(all));
+      const fromAll = normalizeNumericValue(all?.distance?.value ?? all?.distance);
+      if (fromAll !== undefined && fromAll > 0) {
+        return Math.max(0, Math.round(fromAll));
+      }
+    }
+  } catch { /* ignore */ }
+
   // Try 'distance' property (regular ymaps.route)
   const distProp = readPropertyValue(entity, 'distance');
   const fromDistance = normalizeNumericValue(distProp?.value ?? distProp);
@@ -66,7 +79,8 @@ function readDistanceMeters(entity: any) {
     return Math.max(0, Math.round(fromProps));
   }
 
-  // Fallback: compute from segment geometry coordinates
+  // Last resort: compute from polyline geometry (straight-line approximation — inaccurate)
+  console.warn('[readDistanceMeters] falling back to haversine — properties did not contain distance');
   try {
     const rawCoords = entity?.geometry?.getCoordinates?.();
     if (Array.isArray(rawCoords) && rawCoords.length >= 2) {
@@ -361,12 +375,21 @@ export class LiveMultiRouteTracker {
       const route = this.multiRoute?.getActiveRoute();
       if (!route) return;
 
+      // Debug: log raw route properties to confirm key names
+      try {
+        console.log('[LiveMultiRouteTracker] route.properties.getAll():', route.properties?.getAll?.());
+      } catch { /* ignore */ }
+
       const polyline = extractRoutePolyline(route);
       if (polyline.length < 2) return;
 
+      const distanceMeters = readDistanceMeters(route);
+      const etaSeconds = readEtaSeconds(route);
+      console.log(`[LiveMultiRouteTracker] dist=${distanceMeters}m eta=${etaSeconds}s`);
+
       const info = createRouteInfoFromMeters(
-        readDistanceMeters(route),
-        readEtaSeconds(route),
+        distanceMeters,
+        etaSeconds,
         { polyline, source: 'yandex-multirouter', steps: extractRouteSteps(route) },
       );
 

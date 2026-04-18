@@ -38,13 +38,16 @@ export function useCompass() {
     const handler = (e: Event) => {
       const event = e as DeviceOrientationExtended;
 
-      // iOS: webkitCompassHeading — to'g'ridan-to'g'ri magnetic north dan
+      // iOS: webkitCompassHeading — to'g'ridan-to'g'ri magnetic north (0-360°).
+      // webkitCompassAccuracy tekshirilmaydi — -1 (kalibrsiz) holatda ham heading
+      // ishlaydi, accuracy filtri ko'pincha hech narsa o'tkazmaslikka olib keladi.
+      // MUHIM: (360 - alpha) formulasi ANDROID ONLY — webkitCompassHeading ga
+      // hech qanday transformatsiya qo'llanmaydi.
       if (
         typeof event.webkitCompassHeading === 'number' &&
-        Number.isFinite(event.webkitCompassHeading) &&
-        (typeof event.webkitCompassAccuracy !== 'number' || event.webkitCompassAccuracy >= 0)
+        Number.isFinite(event.webkitCompassHeading)
       ) {
-        setCompassHeading(webkitToHeading(event.webkitCompassHeading));
+        setCompassHeading(event.webkitCompassHeading); // to'g'ridan-to'g'ri, transform yo'q
         return;
       }
 

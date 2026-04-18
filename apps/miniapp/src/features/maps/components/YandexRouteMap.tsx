@@ -226,8 +226,16 @@ export default function YandexRouteMap({
         ymaps3Ref.current = ymaps3;
 
         // ── Create map ───────────────────────────────────────────────────────
+        // mode: 'vector' MAJBURIY — faqat vector modeda tilt (3D perspektiva) ishlaydi.
+        // tilt + azimuth constructor da berilishi shart — post-init update() ba'zan
+        // ignore qilinishi mumkin.
         const map = new ymaps3.YMap(mapContainerRef.current, {
           location: { center: toLngLat(pickup), zoom: 14 },
+          // tilt va azimuth constructor da berilishi shart (ba'zi versiyalarda
+          // keyingi update() da ignore qilinadi)
+          camera: { tilt: DEFAULT_NAV_TILT, azimuth: 0 },
+          // vector mode — 3D tilt, bino modellari va azimuth rotation uchun majburiy
+          mode: 'vector',
           behaviors: [
             'drag',
             'pinchZoom',
@@ -239,21 +247,16 @@ export default function YandexRouteMap({
             'mouseTilt',
           ],
         });
+        cameraAzimuthRef.current = 0;
+        cameraTiltRef.current = DEFAULT_NAV_TILT;
 
-        // Dark scheme layer for night-navigation look
+        // Dark scheme layer — vector theme bilan (raster da tilt ishlamas)
         map.addChild(new ymaps3.YMapDefaultSchemeLayer({ theme: 'dark' }));
 
-        // Features layer — required for YMapFeature (route polyline) to render
+        // Features layer — YMapFeature (route polyline) render uchun kerak
         if (ymaps3.YMapDefaultFeaturesLayer) {
           map.addChild(new ymaps3.YMapDefaultFeaturesLayer({}));
         }
-
-        // 3D camera (set after init to avoid constructor issues)
-        try {
-          map.update({ camera: { azimuth: 0, tilt: DEFAULT_NAV_TILT } });
-          cameraAzimuthRef.current = 0;
-          cameraTiltRef.current = DEFAULT_NAV_TILT;
-        } catch { /* non-fatal */ }
 
         // Zoom control
         try {
@@ -466,33 +469,37 @@ export default function YandexRouteMap({
     // Rotation comes from the smoothedHeading effect below — do not duplicate here
   }, [courierIconSvg]);
 
-  // ── Heading pipeline: smoothedHeading (from Zustand) → marker + camera ───────
-  // Both marker rotation and camera azimuth read from the SAME smoothedHeading
-  // value stored in courierStore, ensuring they are always in sync.
+  // ── Heading pipeline: smoothedHeading (Zustand) → marker rotation + camera azimuth
+  //
+  // Azimuth (kompas aylanishi) DOIM yangilanadi — followMode yoki isManual holatidan
+  // qat'i nazar. Faqat camera pan (markaz siljishi) followMode ga bog'liq.
+  // location: { azimuth, tilt } ishlatiladi — ba'zi ymaps3 versiyalarida
+  // camera: {} obyekti bilan update() tilt ni reset qilishi kuzatilgan.
   useEffect(() => {
+    if (!mapRef.current) return;
+
+    // 1. Marker relativ aylanishini sinxronlashtirish
+    cameraAzimuthRef.current = smoothedHeading;
+    cameraTiltRef.current = tiltRef.current;
     syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
-
-    if (mapRef.current && followModeRef.current && !isManualRef.current && hasValidHeading) {
-      try {
-        cameraAzimuthRef.current = smoothedHeading;
-        cameraTiltRef.current = tiltRef.current;
-
-        // Re-sync rotation after camera azimuth changed
-        syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
-        if (courierElRef.current) {
-          const rel = normalizeDegrees(smoothedHeading - cameraAzimuthRef.current);
-          courierElRef.current.style.transform = `translate(-50%,-50%) rotate(${rel}deg)`;
-        }
-
-        mapRef.current.update({
-          camera: {
-            azimuth: cameraAzimuthRef.current,
-            tilt: cameraTiltRef.current,
-          },
-        });
-      } catch { /* skip if camera not supported */ }
+    if (courierElRef.current) {
+      // Azimuth = heading bo'lganda relativ = 0 (marker doim "oldinga" qaradi)
+      courierElRef.current.style.transform = `translate(-50%,-50%) rotate(0deg)`;
     }
-  }, [smoothedHeading, hasValidHeading, tilt]);
+
+    // 2. Kamera azimutini yangilash — followMode yoki isManual ga bog'liq EMAS
+    //    (kompas doim jonli bo'lishi kerak; faqat camera.center followMode da o'zgaradi)
+    try {
+      mapRef.current.update({
+        location: {
+          azimuth: smoothedHeading,
+          tilt: tiltRef.current,   // tilt ni ham berish — update da reset bo'lmasligi uchun
+          duration: 150,
+        },
+      });
+      console.log('[CourierMap] azimuth update:', smoothedHeading.toFixed(1), '°');
+    } catch { /* skip if map not ready */ }
+  }, [smoothedHeading, tilt]);
 
   // ── Fallback: no API key or permanent failure ────────────────────────────
   if (hasFallback) {
