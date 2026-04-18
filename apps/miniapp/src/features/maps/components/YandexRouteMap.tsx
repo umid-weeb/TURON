@@ -3,6 +3,7 @@ import type { MapPin, RouteInfo, RouteMapProps } from '../MapProvider';
 import { LiveMultiRouteTracker } from '../yandex-routing';
 import { isYandexMaps3Enabled, loadYandexMaps3, toLngLat } from '../yandex3';
 import MockMapComponent from './MockMapComponent';
+import { useCourierStore } from '../../../store/courierStore';
 
 const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_KEY` ni sozlang.';
 const NAV_ZOOM = 17;
@@ -65,6 +66,14 @@ export default function YandexRouteMap({
   onRouteInfoChange,
   onNextStepChange,
 }: RouteMapProps) {
+  // ── Zustand: heading pipeline (compass → smoothedHeading → camera + marker) ──
+  // Spec: heading must flow through Zustand so marker rotation and map azimuth
+  // always use the same smoothed value regardless of prop changes.
+  const smoothedHeading = useCourierStore((s) => s.smoothedHeading);
+  const hasValidHeading = useCourierStore(
+    (s) => s.compassHeading !== null || s.gpsHeading !== null,
+  );
+
   const mapContainerRef  = useRef<HTMLDivElement | null>(null);
   const mapRef           = useRef<any>(null);
   const ymaps3Ref        = useRef<any>(null);
@@ -82,7 +91,8 @@ export default function YandexRouteMap({
   const lastRouteKeyRef       = useRef<string | null>(null);
   const followModeRef    = useRef(followMode);
   const courierPosRef    = useRef(courierPos);
-  const headingRef       = useRef(heading ?? 0);
+  // headingRef now mirrors smoothedHeading from store (not the `heading` prop)
+  const headingRef       = useRef(smoothedHeading);
   const tiltRef          = useRef(tilt ?? DEFAULT_NAV_TILT);
   const cameraAzimuthRef = useRef(0);
   const cameraTiltRef    = useRef(tilt ?? DEFAULT_NAV_TILT);
@@ -107,8 +117,9 @@ export default function YandexRouteMap({
 
   useEffect(() => { followModeRef.current = followMode; }, [followMode]);
   useEffect(() => { courierPosRef.current = courierPos; }, [courierPos]);
-  useEffect(() => { headingRef.current    = heading ?? 0; }, [heading]);
-  useEffect(() => { tiltRef.current       = tilt ?? DEFAULT_NAV_TILT; }, [tilt]);
+  // headingRef tracks smoothedHeading from store (single source of truth)
+  useEffect(() => { headingRef.current = smoothedHeading; }, [smoothedHeading]);
+  useEffect(() => { tiltRef.current    = tilt ?? DEFAULT_NAV_TILT; }, [tilt]);
 
   function syncCourierRotation(
     courierHeading = headingRef.current,
@@ -314,7 +325,7 @@ export default function YandexRouteMap({
             const cMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(courierPos), zIndex: 200 }, cEl);
             map.addChild(cMarker);
             courierMarkerRef.current = cMarker;
-            syncCourierRotation(heading ?? 0, cameraAzimuthRef.current);
+            syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
           } catch { /* skip */ }
         }
 
@@ -415,7 +426,7 @@ export default function YandexRouteMap({
         const cMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(courierPos), zIndex: 200 }, cEl);
         map.addChild(cMarker);
         courierMarkerRef.current = cMarker;
-        syncCourierRotation(headingRef.current, cameraAzimuthRef.current);
+        syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
       } catch { /* skip */ }
     } else {
       try { courierMarkerRef.current.update({ coordinates: toLngLat(courierPos) }); } catch { /* skip */ }
@@ -446,45 +457,33 @@ export default function YandexRouteMap({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierPos?.lat, courierPos?.lng]);
 
-  // ── Update courier icon SVG + rotation when heading or custom SVG changes ────────
+  // ── Courier icon SVG update (custom 3D SVG from heading tracking system) ─────
   useEffect(() => {
     if (!courierElRef.current) return;
-    
-    const currentHeading = headingRef.current;
-    
     if (courierIconSvg) {
-      // Use custom 3D SVG (e.g., from heading tracking system)
-      // Keep the container's centering CSS but update the rotation
       courierElRef.current.innerHTML = courierIconSvg;
     }
+    // Rotation comes from the smoothedHeading effect below — do not duplicate here
+  }, [courierIconSvg]);
 
-    // Update container's CSS transform with current heading rotation
-    // This rotates the entire element (SVG + centering transform)
-    const relativeRotation = normalizeDegrees(currentHeading - cameraAzimuthRef.current);
-    courierElRef.current.style.transform = `translate(-50%,-50%) rotate(${relativeRotation}deg)`;
-  }, [courierIconSvg, heading]);
-
-  // ── Heading + Tilt: rotate arrow icon + camera azimuth ───────────────────
+  // ── Heading pipeline: smoothedHeading (from Zustand) → marker + camera ───────
+  // Both marker rotation and camera azimuth read from the SAME smoothedHeading
+  // value stored in courierStore, ensuring they are always in sync.
   useEffect(() => {
-    syncCourierRotation(heading ?? headingRef.current, cameraAzimuthRef.current);
+    syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
 
-    if (
-      mapRef.current &&
-      followModeRef.current &&
-      !isManualRef.current &&
-      heading !== undefined
-    ) {
+    if (mapRef.current && followModeRef.current && !isManualRef.current && hasValidHeading) {
       try {
-        cameraAzimuthRef.current = heading;
+        cameraAzimuthRef.current = smoothedHeading;
         cameraTiltRef.current = tiltRef.current;
-        syncCourierRotation(heading, cameraAzimuthRef.current);
-        
-        // Also sync courier element rotation
+
+        // Re-sync rotation after camera azimuth changed
+        syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
         if (courierElRef.current) {
-          const relativeRotation = normalizeDegrees(heading - cameraAzimuthRef.current);
-          courierElRef.current.style.transform = `translate(-50%,-50%) rotate(${relativeRotation}deg)`;
+          const rel = normalizeDegrees(smoothedHeading - cameraAzimuthRef.current);
+          courierElRef.current.style.transform = `translate(-50%,-50%) rotate(${rel}deg)`;
         }
-        
+
         mapRef.current.update({
           camera: {
             azimuth: cameraAzimuthRef.current,
@@ -493,7 +492,7 @@ export default function YandexRouteMap({
         });
       } catch { /* skip if camera not supported */ }
     }
-  }, [heading, tilt]);
+  }, [smoothedHeading, hasValidHeading, tilt]);
 
   // ── Fallback: no API key or permanent failure ────────────────────────────
   if (hasFallback) {

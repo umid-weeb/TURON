@@ -11,7 +11,8 @@
       "Bash(DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5432/placeholder\" npx prisma generate)",
       "Bash(xargs grep:*)",
       "Bash(DIRECT_URL=\"postgresql://postgres:AQ38.h%2Cp%3FsrA%24*G@db.quhgjrpqjqaoalkthufu.supabase.co:5432/postgres?sslmode=require\" npx prisma migrate deploy)",
-      "Bash(DATABASE_URL=\"postgresql://postgres.quhgjrpqjqaoalkthufu:AQ38.h%2Cp%3FsrA%24*G@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require\" DIRECT_URL=\"postgresql://postgres:AQ38.h%2Cp%3FsrA%24*G@db.quhgjrpqjqaoalkthufu.supabase.co:5432/postgres?sslmode=require\" npx prisma migrate deploy)"
+      "Bash(DATABASE_URL=\"postgresql://postgres.quhgjrpqjqaoalkthufu:AQ38.h%2Cp%3FsrA%24*G@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require\" DIRECT_URL=\"postgresql://postgres:AQ38.h%2Cp%3FsrA%24*G@db.quhgjrpqjqaoalkthufu.supabase.co:5432/postgres?sslmode=require\" npx prisma migrate deploy)",
+      "Bash(grep -E \"\\\\.ts$|\\\\.tsx$\")"
     ]
   }
 }

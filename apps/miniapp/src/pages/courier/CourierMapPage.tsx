@@ -27,13 +27,10 @@ import {
   formatRouteDistance,
   type RouteMetrics,
 } from '../../features/maps/route';
-import {
-  getUserGeolocationErrorMessage,
-  stopWatchingBrowserGeolocation,
-  watchBrowserGeolocation,
-} from '../../features/maps/geolocation';
-import { useDeviceHeading } from '../../features/maps/deviceHeading';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
+import { useGPS } from '../../hooks/useGPS';
+import { useCompass } from '../../hooks/useCompass';
+import { useCourierStore } from '../../store/courierStore';
 import { api } from '../../lib/api';
 import {
   getDeliveryRouteMeta,
@@ -46,9 +43,7 @@ import {
 } from '../../features/maps/mapCameraStrategy';
 import {
   getAdvancedCameraConfig,
-  smoothHeadingTransition,
   create3DCourierIcon,
-  HEADING_UPDATE_CONFIG,
 } from '../../features/courier/courierHeadingTracking';
 
 // ─── Pure helpers (no hooks) ──────────────────────────────────────────────────
@@ -141,16 +136,25 @@ const CourierMapPage: React.FC = () => {
     },
   });
 
+  // ── New hooks: GPS + Compass → courierStore ───────────────────────────────
+  const { error: geolocationError } = useGPS();
+  const { requestPermission: requestCompassPermission, compassPermission } = useCompass();
+
+  // ── Zustand store reads ────────────────────────────────────────────────────
+  const storeCoords     = useCourierStore((s) => s.coords);
+  const smoothedHeading = useCourierStore((s) => s.smoothedHeading);
+
+  // Convert [lon, lat] → {lat, lng} for business logic (haversine, heartbeat, etc.)
+  const liveCourierPos: { lat: number; lng: number } | null = storeCoords
+    ? { lat: storeCoords[1], lng: storeCoords[0] }
+    : null;
+
   // ── UI state — ALL hooks before any conditional return ─────────────────────
-  const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
-  const [movementHeading, setMovementHeading]   = useState<number | undefined>(undefined);
-  const [smoothedHeading, setSmoothedHeading]   = useState<number>(0); // Smoothly animated heading
   const [courierIconSvg, setCourierIconSvg]    = useState<string>(''); // 3D pyramid SVG
   const [cameraConfig, setCameraConfig]         = useState<CameraConfig>({ tilt: 0, zoom: 15, updateFreqMs: 5000 });
   const [followMode, setFollowMode]             = useState(false); // Auto-enable after 4s
   const [routeInfo, setRouteInfo]               = useState<RouteInfo | null>(null);
   const [currentStep, setCurrentStep]           = useState<RouteStep | null>(null);
-  const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft]         = useState('');
   const [problemFeedback, setProblemFeedback]   = useState<{
     text: string;
@@ -165,8 +169,7 @@ const CourierMapPage: React.FC = () => {
   const approachingNotifiedRef  = useRef(false);
   const copiedTimerRef          = useRef<number | null>(null);
   const followModeTimerRef      = useRef<number | null>(null);
-  const headingAnimationRef     = useRef<number | null>(null);
-  const sensorHeading = useDeviceHeading(Boolean(order?.id));
+  // headingAnimationRef kept for cleanup safety (interval no longer started here)
 
   // ── Auto-enable follow mode after 4 seconds ────────────────────────────────
   useEffect(() => {
@@ -235,7 +238,8 @@ const CourierMapPage: React.FC = () => {
     currentStage !== DeliveryStage.IDLE && currentStage !== DeliveryStage.DELIVERED;
 
   const courierPos    = liveCourierPos ?? trackedCourierPos ?? restaurantPos;
-  const heading       = sensorHeading ?? movementHeading;
+  // heading = smoothedHeading from Zustand (compass primary, GPS fallback — filtered in store)
+  const heading       = smoothedHeading > 0 || liveCourierPos ? smoothedHeading : undefined;
   const currentTarget =
     currentState === 'ACCEPTED' || currentState === 'ARRIVED' ? restaurantPos : customerPos;
 
@@ -306,65 +310,38 @@ const CourierMapPage: React.FC = () => {
 
   // ── Smart camera configuration based on distance ────────────────────────────
   useEffect(() => {
-    // Update camera every 500ms to smoothly follow distance changes
     const cameraInterval = setInterval(() => {
       const distanceMeters = remainingMetrics.distanceKm * 1000;
       const optimalConfig = getOptimalCameraConfig({
         distanceMeters,
-        speedKmh: heading ? 28 : 0, // Courier moving when heading exists
+        speedKmh: liveCourierPos ? 28 : 0,
       });
       setCameraConfig(optimalConfig);
     }, 500);
 
     return () => clearInterval(cameraInterval);
-  }, [remainingMetrics.distanceKm, heading]);
+  }, [remainingMetrics.distanceKm, liveCourierPos]);
 
-  // ── 3D heading tracking: smooth heading transition every 100ms ────────────────
+  // ── 3D courier icon: smoothedHeading (from Zustand) + distance-based scaling ──
+  // smoothedHeading already filtered inside courierStore.setCompassHeading /
+  // setGpsHeading — no extra animation interval needed here.
   useEffect(() => {
-    if (!movementHeading && movementHeading !== 0) return;
-
-    headingAnimationRef.current = window.setInterval(() => {
-      setSmoothedHeading(prev => 
-        smoothHeadingTransition(prev, movementHeading, HEADING_UPDATE_CONFIG.maxHeadingChangePerUpdate)
-      );
-    }, HEADING_UPDATE_CONFIG.updateIntervalMs);
-
-    return () => {
-      if (headingAnimationRef.current) {
-        clearInterval(headingAnimationRef.current);
-        headingAnimationRef.current = null;
-      }
-    };
-  }, [movementHeading]);
-
-  // ── Update 3D courier icon: heading + distance-based scaling ──────────────────
-  useEffect(() => {
-    if (!smoothedHeading && smoothedHeading !== 0) return;
-
     const distanceMeters = remainingMetrics.distanceKm * 1000;
     const advancedConfig = getAdvancedCameraConfig(
       {
         heading: smoothedHeading,
         lat: liveCourierPos?.lat ?? 0,
         lng: liveCourierPos?.lng ?? 0,
-        speed: 20, // Estimated courier speed
+        speed: 20,
       },
       distanceMeters,
     );
 
-    // Generate 3D courier pyramid icon (rotation handled by container CSS, not SVG)
-    const svg = create3DCourierIcon(
-      0, // Pass 0 for heading - rotation will be applied via container CSS in map
-      advancedConfig.courierIconScale,
-      advancedConfig.courierIconColor,
-    );
+    // SVG rotation is handled by the container CSS in YandexRouteMap — pass 0 here
+    const svg = create3DCourierIcon(0, advancedConfig.courierIconScale, advancedConfig.courierIconColor);
     setCourierIconSvg(svg);
 
-    // Update camera tilt based on heading (advanced 3D config)
-    setCameraConfig(prev => ({
-      ...prev,
-      tilt: advancedConfig.tilt,
-    }));
+    setCameraConfig((prev) => ({ ...prev, tilt: advancedConfig.tilt }));
   }, [smoothedHeading, remainingMetrics.distanceKm, liveCourierPos]);
 
   // ── Stable callbacks ────────────────────────────────────────────────────────
@@ -380,29 +357,8 @@ const CourierMapPage: React.FC = () => {
     });
   }, [order?.customerAddress?.addressText]);
 
-  // ── GPS watch ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!order?.id) return;
-    let lastPos: { lat: number; lng: number } | null = null;
-    const watchId = watchBrowserGeolocation(
-      (location) => {
-        setGeolocationError(null);
-        if (typeof location.heading === 'number' && Number.isFinite(location.heading)) {
-          setMovementHeading(location.heading);
-        } else if (lastPos) {
-          const derivedHeading = getHeadingDegrees(lastPos, location.pin);
-          if (derivedHeading !== undefined) {
-            setMovementHeading(derivedHeading);
-          }
-        }
-        lastPos = location.pin;
-        setLiveCourierPos(location.pin);
-      },
-      (watchError) => setGeolocationError(getUserGeolocationErrorMessage(watchError)),
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 3000 },
-    );
-    return () => stopWatchingBrowserGeolocation(watchId);
-  }, [order?.id]);
+  // GPS and compass are now managed by useGPS() and useCompass() hooks above.
+  // They write directly to courierStore — no local GPS useEffect needed here.
 
   // ── Auto-fetch and select routes ────────────────────────────────────────────
   useEffect(() => {
@@ -489,7 +445,6 @@ const CourierMapPage: React.FC = () => {
     return () => {
       if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
       if (followModeTimerRef.current) window.clearTimeout(followModeTimerRef.current);
-      if (headingAnimationRef.current) window.clearInterval(headingAnimationRef.current);
     };
   }, []);
 
@@ -643,6 +598,20 @@ const CourierMapPage: React.FC = () => {
           <ArrowLeft size={19} />
         </button>
       </div>
+
+      {/* ── iOS compass permission button ───────────────────────────────── */}
+      {compassPermission === 'unknown' && (
+        <div className="pointer-events-auto absolute bottom-44 left-1/2 z-50 -translate-x-1/2">
+          <button
+            type="button"
+            onClick={() => void requestCompassPermission()}
+            className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl transition-transform active:scale-95"
+          >
+            <span>📡</span>
+            <span>Navigatsiyani boshlash</span>
+          </button>
+        </div>
+      )}
 
       {/* ── Bottom action panel ──────────────────────────────────────────── */}
       {activeStep || routes.length > 1 ? (
