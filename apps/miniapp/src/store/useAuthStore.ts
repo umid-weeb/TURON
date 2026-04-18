@@ -7,7 +7,7 @@ interface User {
   telegramId: string;
   telegramUsername?: string | null;
   fullName: string;
-  phoneNumber?: string;
+  phoneNumber?: string | null;
   role: UserRoleEnum;
   language: string;
 }

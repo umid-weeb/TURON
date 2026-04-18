@@ -36,10 +36,51 @@ function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const updateUser = useAuthStore((s) => s.updateUser);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    const syncKeyboardInset = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) {
+        setKeyboardInset(0);
+        return;
+      }
+      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyboardInset(inset);
+    };
+
+    syncKeyboardInset();
+    window.visualViewport?.addEventListener('resize', syncKeyboardInset);
+    window.visualViewport?.addEventListener('scroll', syncKeyboardInset);
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 250);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.visualViewport?.removeEventListener('resize', syncKeyboardInset);
+      window.visualViewport?.removeEventListener('scroll', syncKeyboardInset);
+    };
+  }, []);
+
+  const handleRequestTelegramPhone = () => {
+    const tg = window.Telegram?.WebApp;
+    if (!tg?.requestPhoneContact) {
+      setError("Telegram kontakt so'rashni qo'llab-quvvatlamadi. Raqamni qo'lda kiriting.");
+      return;
+    }
+
+    tg.requestPhoneContact((response: any) => {
+      const phone = response?.response_data?.contact?.phone_number;
+      const normalized = phone ? normalizePhone(phone) : null;
+      if (response?.status === 'sent' && normalized) {
+        setValue(normalized);
+        setError('');
+      } else {
+        setError("Telefon olinmadi. Raqamni qo'lda kiriting.");
+      }
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,16 +104,21 @@ function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[400] flex items-end justify-center"
-      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[400] flex items-end justify-center px-3"
+      style={{
+        background: 'rgba(2,6,23,0.62)',
+        backdropFilter: 'blur(8px)',
+        paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${keyboardInset}px + 10px)`,
+      }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-[390px] rounded-t-[28px] bg-white px-5 pt-6 pb-8 shadow-2xl">
+      <div className="max-h-[min(620px,calc(100dvh-24px))] w-full max-w-[430px] overflow-y-auto rounded-[24px] bg-white px-5 pb-5 pt-4 shadow-2xl">
+        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
         {/* Handle + close */}
-        <div className="mb-5 flex items-start justify-between">
+        <div className="mb-4 flex items-start justify-between">
           <div>
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
-              <Phone size={22} className="text-amber-500" />
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-[16px] bg-red-50">
+              <Phone size={22} className="text-[#C62020]" />
             </div>
             <h2 className="text-[18px] font-black text-slate-900">Telefon raqam kerak</h2>
             <p className="mt-1 text-[13px] font-medium text-slate-500">
@@ -87,15 +133,25 @@ function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
           </button>
         </div>
 
+        <button
+          type="button"
+          onClick={handleRequestTelegramPhone}
+          className="mb-3 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-red-100 bg-red-50 text-[13px] font-black text-[#C62020] active:scale-[0.98]"
+        >
+          <Phone size={17} />
+          <span>Telegramdan raqamni olish</span>
+        </button>
+
         <form onSubmit={(e) => void handleSubmit(e)}>
           <div className="mb-4">
             <input
               ref={inputRef}
               type="tel"
+              inputMode="tel"
               value={value}
               onChange={(e) => { setValue(e.target.value); setError(''); }}
               placeholder="+998 90 123 45 67"
-              className={`h-14 w-full rounded-[14px] border px-4 text-[15px] font-bold outline-none transition-colors ${error
+              className={`h-14 w-full rounded-[14px] border px-4 text-[16px] font-bold outline-none transition-colors ${error
                 ? 'border-red-300 bg-red-50 text-red-700 placeholder:text-red-300'
                 : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white'
                 }`}
@@ -108,7 +164,7 @@ function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
           <button
             type="submit"
             disabled={saving || !value.trim()}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-amber-500 text-[14px] font-black text-white shadow-lg shadow-amber-200 transition-all active:scale-[0.98] disabled:opacity-50"
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-[#C62020] text-[14px] font-black text-white shadow-lg shadow-red-200 transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {saving ? <Loader2 size={18} className="animate-spin" /> : null}
             {saving ? 'Saqlanmoqda...' : 'Tasdiqlash va buyurtma berish'}

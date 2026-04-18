@@ -43,7 +43,7 @@ function normalizeUzbekPhone(raw: string): string | null {
  * Returns { phoneNumber } so the client can update its auth store.
  */
 export async function saveUserPhone(
-  request: FastifyRequest<{ Body: { phone: string } }>,
+  request: FastifyRequest<{ Body: { phone: string | null } }>,
   reply: FastifyReply,
 ) {
   const user = request.user as any;
@@ -63,6 +63,27 @@ export async function saveUserPhone(
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: { phoneNumber: normalized },
+    select: { id: true, phoneNumber: true },
+  });
+
+  return reply.send({ phoneNumber: updated.phoneNumber });
+}
+
+/**
+ * DELETE /users/me/phone
+ *
+ * Temporarily allows customers to remove a saved phone number. New orders still
+ * require a phone, so checkout will ask again when needed.
+ */
+export async function deleteUserPhone(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const user = request.user as any;
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { phoneNumber: null },
     select: { id: true, phoneNumber: true },
   });
 
