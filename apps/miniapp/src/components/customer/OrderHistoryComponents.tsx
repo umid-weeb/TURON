@@ -100,11 +100,6 @@ export const OrderCard: React.FC<{ order: Order; onClick: () => void }> = ({ ord
   );
 };
 
-export const OrderTimeline: React.FC<{ status: OrderStatus }> = ({ status }) => {
-  const { language } = useCustomerLanguage();
-  const currentStep = getStatusStep(status);
-  const steps = getLocalizedTrackingSteps(language);
-
 export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () => void }> = ({ status, onCallCourier }) => {
   const { language } = useCustomerLanguage();
   const currentStep = getStatusStep(status);
