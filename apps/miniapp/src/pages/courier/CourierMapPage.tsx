@@ -135,7 +135,7 @@ const CourierMapPage: React.FC = () => {
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
   const [movementHeading, setMovementHeading]   = useState<number | undefined>(undefined);
   const tilt                                    = 40; // 0-60 degrees, closer view
-  const [followMode, setFollowMode]             = useState(false); // Disabled for gesture control
+  const [followMode, setFollowMode]             = useState(false); // Auto-enable after 4s
   const [routeInfo, setRouteInfo]               = useState<RouteInfo | null>(null);
   const [currentStep, setCurrentStep]           = useState<RouteStep | null>(null);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
@@ -152,7 +152,30 @@ const CourierMapPage: React.FC = () => {
   const previousCourierPosRef   = useRef<{ lat: number; lng: number } | null>(null);
   const approachingNotifiedRef  = useRef(false);
   const copiedTimerRef          = useRef<number | null>(null);
+  const followModeTimerRef      = useRef<number | null>(null);
   const sensorHeading = useDeviceHeading(Boolean(order?.id));
+
+  // ── Auto-enable follow mode after 4 seconds ────────────────────────────────
+  useEffect(() => {
+    if (!order?.id || followMode) return; // Already enabled or no order
+    
+    // Enable follow mode after 4 seconds for safer driving
+    followModeTimerRef.current = window.setTimeout(() => {
+      setFollowMode(true);
+    }, 4000);
+
+    return () => {
+      if (followModeTimerRef.current) {
+        window.clearTimeout(followModeTimerRef.current);
+        followModeTimerRef.current = null;
+      }
+    };
+  }, [order?.id, followMode]);
+
+  // ── Reset follow mode when order changes ───────────────────────────────────
+  useEffect(() => {
+    setFollowMode(false);
+  }, [order?.id]);
 
   // ── Derived positions (memoised) ───────────────────────────────────────────
   const restaurantPos = useMemo(
@@ -389,6 +412,7 @@ const CourierMapPage: React.FC = () => {
   useEffect(() => {
     return () => {
       if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+      if (followModeTimerRef.current) window.clearTimeout(followModeTimerRef.current);
     };
   }, []);
 
@@ -522,6 +546,7 @@ const CourierMapPage: React.FC = () => {
           onMapInteraction={() => {
             setFollowMode(false);
           }}
+          onFollowModeChange={setFollowMode}
         />
         {/* Subtle bottom gradient for panel legibility */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-slate-950/70 to-transparent" />
