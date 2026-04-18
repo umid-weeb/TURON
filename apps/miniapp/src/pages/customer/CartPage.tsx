@@ -64,14 +64,14 @@ const CartProductCard: React.FC<{
             <Minus size={16} strokeWidth={2.5} />
           </button>
           <span className="min-w-5 text-center text-[17px] font-black text-[#202020]">{item.quantity}</span>
-          <button
-            type="button"
-            onClick={() => onUpdateQuantity(item.id, 1)}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[#202020] transition active:scale-90 active:bg-white"
-            aria-label="Miqdorni oshirish"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-          </button>
+           <button
+             type="button"
+             onClick={() => onUpdateQuantity(item.id, 1)}
+             className="flex h-7 w-7 items-center justify-center rounded-full bg-[#C62020] text-white transition active:scale-90 active:bg-[#b01c1c]"
+             aria-label="Miqdorni oshirish"
+           >
+             <Plus size={16} strokeWidth={2.5} />
+           </button>
         </div>
       </div>
 

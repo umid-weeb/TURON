@@ -245,7 +245,7 @@ const ProductPage: React.FC = () => {
               type="button"
               onClick={() => setQuantity((q) => q + 1)}
               disabled={!isAvailable}
-              className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#f4f4f5] text-[#202020] transition active:scale-95 disabled:opacity-40"
+              className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#C62020] text-white transition active:scale-95 disabled:opacity-40"
             >
               <span className="text-[22px] font-medium leading-none pb-[2px]">+</span>
             </button>

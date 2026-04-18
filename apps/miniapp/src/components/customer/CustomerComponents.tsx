@@ -291,7 +291,9 @@ export const HomeProductRailCard: React.FC<{ product: DisplayProduct }> = ({ pro
           type="button"
           onClick={handleAdd}
           disabled={!isAvailable}
-          className={`absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.22)] ${isAvailable ? 'bg-white text-slate-950' : 'bg-slate-500/60 text-white/60'
+          className={`absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.22)] ${!isAvailable
+            ? 'bg-slate-500/60 text-white/65'
+            : 'bg-[#C62020] text-white'
             }`}
         >
           <Plus size={16} strokeWidth={2.8} />
@@ -442,7 +444,7 @@ export const ProductCard: React.FC<{ product: DisplayProduct }> = ({ product }) 
           disabled={!isAvailable}
           className={`absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.32)] transition-transform active:scale-95 ${!isAvailable
             ? 'bg-slate-500/60 text-white/65'
-            : 'bg-white text-slate-950'
+            : 'bg-[#C62020] text-white'
             }`}
         >
           <Plus size={20} strokeWidth={2.7} />
@@ -499,7 +501,7 @@ export const QuantitySelector: React.FC<{
     <button
       type="button"
       onClick={onIncrease}
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-950 transition-transform active:scale-90"
+      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#C62020] text-white transition-transform active:scale-90"
     >
       <Plus size={18} />
     </button>
@@ -653,7 +655,7 @@ export const CartItemCard: React.FC<{
           <button
             type="button"
             onClick={() => onUpdateQuantity(item.id, 1)}
-            className="flex h-6 w-6 items-center justify-center text-[#FFFFFF] transition-opacity hover:opacity-80 active:scale-90"
+            className="flex h-6 w-6 items-center justify-center bg-[#C62020] text-white transition-opacity hover:opacity-80 active:scale-90"
           >
             <Plus size={16} strokeWidth={2.5} />
           </button>
