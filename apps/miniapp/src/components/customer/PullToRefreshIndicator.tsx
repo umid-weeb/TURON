@@ -65,7 +65,9 @@ export const PullToRefreshIndicator: React.FC = () => {
     // Haptic — like native iOS
     try {
       const tg = (window as any).Telegram?.WebApp;
-      if (tg?.HapticFeedback?.impactOccurred) {
+      if (tg?.HapticFeedback?.notificationOccurred) {
+        tg.HapticFeedback.notificationOccurred('success');
+      } else if (tg?.HapticFeedback?.impactOccurred) {
         tg.HapticFeedback.impactOccurred('medium');
       } else if (navigator.vibrate) {
         navigator.vibrate([30, 20, 60]);
@@ -73,26 +75,8 @@ export const PullToRefreshIndicator: React.FC = () => {
     } catch { /* noop */ }
 
     try {
-      // First try to refresh queries
       await queryClient.invalidateQueries();
-
-      // If queries are stale or app seems frozen, force a hard refresh
-      // Check if we have any failed queries or if the app has been running too long
-      const now = Date.now();
-      const lastRefresh = localStorage.getItem('turon-last-refresh');
-      const timeSinceLastRefresh = lastRefresh ? now - parseInt(lastRefresh) : Infinity;
-
-      // Force hard refresh if it's been more than 5 minutes or if queries failed
-      if (timeSinceLastRefresh > 5 * 60 * 1000) {
-        localStorage.setItem('turon-last-refresh', now.toString());
-        // Small delay to show the refresh animation, then reload
-        setTimeout(() => {
-          window.location.reload();
-        }, 800);
-        return;
-      }
-
-      localStorage.setItem('turon-last-refresh', now.toString());
+      await queryClient.refetchQueries({ type: 'active' });
     } finally {
       setPhaseSync('done');
       window.setTimeout(() => {

@@ -27,7 +27,7 @@ let cleanupZoomGuard: (() => void) | null = null;
 let lastFullscreenRequestAt = 0;
 const FULLSCREEN_COOLDOWN_MS = 3_000;
 
-const PULL_TO_REFRESH_THRESHOLD_PX = 60;
+const PULL_TO_REFRESH_THRESHOLD_PX = 75;
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return window.Telegram?.WebApp;
@@ -101,14 +101,14 @@ function installIosOverscrollGuard() {
   let startY = 0;
   let startX = 0;
   let pullStartedAtTop = false;
-  let pullRefreshTriggered = false;
+  let pullRefreshArmed = false;
 
   const onTouchStart = (event: TouchEvent) => {
     startY = event.touches[0]?.clientY ?? 0;
     startX = event.touches[0]?.clientX ?? 0;
     const scrollTarget = getScrollableParent(event.target);
     pullStartedAtTop = scrollTarget.scrollTop <= 0;
-    pullRefreshTriggered = false;
+    pullRefreshArmed = false;
   };
 
   const onTouchMove = (event: TouchEvent) => {
@@ -126,13 +126,12 @@ function installIosOverscrollGuard() {
     const isSwipingDown = deltaY > 0;
     const atTop = scrollTarget.scrollTop <= 0;
 
-    if (isSwipingDown && atTop && pullStartedAtTop && !pullRefreshTriggered) {
+    if (isSwipingDown && atTop && pullStartedAtTop) {
       const progress = Math.min(deltaY / PULL_TO_REFRESH_THRESHOLD_PX, 1.15);
       window.dispatchEvent(new CustomEvent('turon:pull-progress', { detail: { progress } }));
 
       if (deltaY >= PULL_TO_REFRESH_THRESHOLD_PX) {
-        pullRefreshTriggered = true;
-        window.dispatchEvent(new CustomEvent('turon:pull-refresh'));
+        pullRefreshArmed = true;
       }
     }
 
@@ -140,11 +139,16 @@ function installIosOverscrollGuard() {
   };
 
   const resetTouchState = () => {
+    if (pullRefreshArmed) {
+      window.dispatchEvent(new CustomEvent('turon:pull-refresh'));
+    } else {
+      window.dispatchEvent(new CustomEvent('turon:pull-cancel'));
+    }
+
     startY = 0;
     startX = 0;
     pullStartedAtTop = false;
-    pullRefreshTriggered = false;
-    window.dispatchEvent(new CustomEvent('turon:pull-cancel'));
+    pullRefreshArmed = false;
   };
 
   document.addEventListener('touchstart', onTouchStart, { passive: true });
