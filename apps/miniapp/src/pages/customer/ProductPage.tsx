@@ -98,19 +98,20 @@ const ProductPage: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-white text-[#202020] animate-in fade-in duration-300 overflow-x-hidden">
+    <div className="relative min-h-screen bg-white text-[#202020] animate-in fade-in duration-300 pb-[100px]">
+      
       {/* ── Product Header Image ── */}
-      <div className="relative w-full overflow-hidden bg-[#f4f4f5]" style={{ height: '42vh', minHeight: 320 }}>
+      <div className="relative w-full overflow-hidden bg-gray-100 aspect-square max-h-[420px]">
         <img
           src={imageSrc}
           alt={formatText(product.name)}
-          className="h-full w-full object-cover animate-in fade-in duration-700"
+          className="h-full w-full object-cover"
           onError={() => {
             if (imageSrc !== posterSrc) setImageSrc(posterSrc);
           }}
         />
         {/* Subtle top gradient for icons */}
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/50 to-transparent pointer-events-none" />
 
         {/* Top Controls */}
         <div 
@@ -120,73 +121,76 @@ const ProductPage: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md transition active:scale-90 text-[#202020]"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md shadow-sm transition active:scale-90 text-white"
           >
             <ArrowLeft size={22} strokeWidth={2.5} />
           </button>
           <button
             type="button"
             onClick={() => toggleProductFavorite(product.id)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md transition active:scale-90 text-[#202020]"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md shadow-sm transition active:scale-90 text-white"
           >
             <Heart size={20} strokeWidth={2.5} className={isFavorite ? 'fill-[#C62020] text-[#C62020]' : ''} />
           </button>
         </div>
+
+        {/* Badges on Top Left (under Back button) */}
+        <div className="absolute left-5 flex flex-col gap-2 items-start pointer-events-none" 
+             style={{ top: 'calc(env(safe-area-inset-top, 0px) + 72px)', zIndex: 10 }}>
+           {promotion?.kind === 'new' && (
+              <span className="rounded-[8px] bg-sky-500 px-3 py-1 text-[13px] font-black uppercase tracking-wider text-white shadow-md">
+                Yangi
+              </span>
+           )}
+           {promotion?.discountPercent && (
+              <span className="rounded-[8px] bg-[#C62020] px-3 py-1 text-[14px] font-black tracking-wider text-white shadow-md">
+                -{promotion.discountPercent}%
+              </span>
+           )}
+        </div>
       </div>
 
-      {/* ── Main Content Card ── */}
-      <main className="relative z-10 mx-auto -mt-6 max-w-[430px] min-h-[60vh] rounded-t-[24px] bg-white px-6 pb-[120px] pt-7 shadow-[0_-8px_20px_rgba(0,0,0,0.04)]">
+      {/* ── Main Content (Pure Flow, No Container overlapping) ── */}
+      <main className="px-5 pt-6 pb-6">
         
-        {/* Brand and Stars */}
-        <div className="flex items-center gap-4">
-          <span className="text-[15px] font-bold text-gray-700">Turon Kafe</span>
-          <div className="flex items-center gap-[2px]">
-            {[1, 2, 3, 4].map((i) => (
-              <Star key={i} size={14} className="fill-[#C62020] text-[#C62020]" />
-            ))}
-            <Star size={14} className="fill-gray-200 text-gray-200" />
-          </div>
-        </div>
-
-        {/* Title and Price */}
-        <div className="mt-2 flex items-start justify-between gap-4">
+        {/* Title and Price Row */}
+        <div className="flex items-start justify-between gap-4">
           <h1 className="text-[26px] font-black leading-tight tracking-tight text-[#202020] flex-1">
             {formatText(product.name)}
           </h1>
-          <div className="mt-1 flex shrink-0 items-start">
-            <span className="text-[24px] font-black tracking-tight text-[#202020]">
-              {product.price.toLocaleString()} s.
-            </span>
+          <div className="flex flex-col items-end shrink-0 pt-1">
+             {promotion?.oldPrice ? (
+               <>
+                 <span className="text-[14px] font-bold text-gray-500 line-through decoration-[#C62020] decoration-[2px] mb-0.5">
+                   {promotion.oldPrice.toLocaleString()} s.
+                 </span>
+                 <span className="text-[22px] font-black text-[#202020]">
+                   {product.price.toLocaleString()} s.
+                 </span>
+               </>
+             ) : (
+                <span className="text-[22px] font-black text-[#202020]">
+                  {product.price.toLocaleString()} s.
+                </span>
+             )}
           </div>
         </div>
 
-        {/* Description */}
-        <div className="mt-5">
-          <p className="text-[15px] leading-[1.6] text-gray-600 font-medium">
+        {/* Description Row */}
+        <div className="mt-4">
+          <p className="text-[15px] leading-[1.6] text-gray-500 font-medium whitespace-pre-wrap">
             {formatText(product.description) || getProductSecondaryText(product)}
             {product.weight && <span className="block mt-1">Vazni: {formatText(product.weight)}</span>}
           </p>
         </div>
 
-        {/* Delivery Time Info */}
-        <div className="mt-6 flex items-center gap-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full border-[2px] border-[#202020]">
-            <div className="h-[2px] w-[2px] bg-[#202020] rounded-full relative">
-              <div className="absolute bottom-0 left-0 w-[1px] h-[6px] bg-[#202020]" />
-              <div className="absolute top-0 left-0 h-[1px] w-[6px] bg-[#202020]" />
-            </div>
-          </div>
-          <span className="text-[14px] font-bold text-[#202020]">Yetkazish vaqti:</span>
-          <span className="text-[14px] font-bold text-gray-400">30 Daq</span>
-        </div>
-
         {/* Similar Products */}
         {similarProducts.length > 0 && (
-          <div className="mt-10 border-t border-dashed border-gray-200 pt-8 mt-12">
-            <h3 className="text-[16px] font-black tracking-tight text-[#202020]">
+          <div className="mt-12 border-t border-gray-100 pt-8">
+            <h3 className="text-[18px] font-black tracking-tight text-[#202020]">
               Shunga o'xshash taomlar
             </h3>
-            <div className="scrollbar-hide mt-4 flex gap-4 overflow-x-auto pb-4 px-1" style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
+            <div className="scrollbar-hide mt-5 flex gap-4 overflow-x-auto pb-4 px-1" style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
               {similarProducts.map((simProd) => {
                 const simImg = getProductImageUrl({
                   id: simProd.id, name: simProd.name, imageUrl: simProd.imageUrl, categoryId: simProd.categoryId
@@ -196,11 +200,11 @@ const ProductPage: React.FC = () => {
                   <div
                     key={simProd.id}
                     onClick={() => navigate(`/customer/product/${simProd.id}`)}
-                    className="w-[124px] shrink-0 active:scale-95 transition-transform"
+                    className="w-[130px] shrink-0 active:scale-95 transition-transform"
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="h-[124px] w-full overflow-hidden rounded-[20px] bg-[#f8f8f9] shadow-sm">
+                    <div className="h-[130px] w-full overflow-hidden rounded-[20px] bg-[#f8f8f9] shadow-sm">
                       <img src={simImg} alt={formatText(simProd.name)} className="h-full w-full object-cover" />
                     </div>
                     <p className="mt-3 line-clamp-1 text-[14px] font-bold tracking-tight text-[#202020]">
@@ -217,30 +221,30 @@ const ProductPage: React.FC = () => {
         )}
       </main>
 
-      {/* ── Sticky Bottom Checkout ── */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_30px_rgba(0,0,0,0.06)] rounded-t-[24px]">
-        <div className="mx-auto flex h-[88px] w-full max-w-[430px] items-center justify-between px-5 gap-3">
+      {/* ── Cart Controls (Bottom of Page, Flow Layout so it comes AFTER similar products as requested) ── */}
+      <div className="px-5 pb-[env(safe-area-inset-bottom,20px)] mt-4">
+        <div className="flex h-[60px] w-full rounded-[20px] bg-[#f8f8f9] border border-gray-100 shadow-sm overflow-hidden p-1.5">
           
           {/* Quantity Controls */}
-          <div className="flex h-[52px] items-center justify-between rounded-full bg-red-50/80 px-2 min-w-[124px]">
+          <div className="flex h-full items-center justify-between rounded-[16px] bg-white shadow-sm px-2 min-w-[130px]">
             <button
               type="button"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={!isAvailable || quantity <= 1}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C62020] text-white shadow-sm transition active:scale-95 disabled:opacity-30 disabled:active:scale-100"
+              className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-gray-100 text-[#202020] transition active:scale-95 disabled:opacity-40"
             >
-              <span className="text-[20px] font-medium leading-none pb-[2px]">-</span>
+              <span className="text-[20px] font-bold leading-none pb-[2px]">-</span>
             </button>
-            <span className="w-8 text-center text-[16px] font-black text-[#C62020]">
+            <span className="w-8 text-center text-[18px] font-black text-[#C62020]">
               {quantity}
             </span>
             <button
               type="button"
               onClick={() => setQuantity((q) => q + 1)}
               disabled={!isAvailable}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C62020] text-white shadow-sm transition active:scale-95 disabled:opacity-30 disabled:active:scale-100"
+              className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-gray-100 text-[#202020] transition active:scale-95 disabled:opacity-40"
             >
-              <span className="text-[20px] font-medium leading-none pb-[2px]">+</span>
+              <span className="text-[20px] font-bold leading-none pb-[2px]">+</span>
             </button>
           </div>
 
@@ -249,13 +253,13 @@ const ProductPage: React.FC = () => {
             type="button"
             onClick={handleAddToCart}
             disabled={!isAvailable}
-            className={`flex h-[52px] flex-1 cursor-pointer items-center justify-center rounded-full font-black text-[16px] transition-transform active:scale-[0.97] ${
+            className={`flex h-full flex-1 cursor-pointer items-center justify-center rounded-[16px] font-black text-[15px] transition-transform active:scale-[0.98] ml-1.5 ${
               isAvailable
-                ? 'bg-[#C62020] text-white shadow-[0_8px_20px_rgba(198,32,32,0.25)]'
-                : 'bg-[#e5e7eb] text-[#8c8c96] shadow-none'
+                ? 'bg-[#C62020] text-white'
+                : 'bg-gray-200 text-gray-400'
             }`}
           >
-            {isAvailable ? `Savatga - ${(product.price * quantity).toLocaleString()} s.` : 'Tugagan'}
+            {isAvailable ? `Savatga • ${(product.price * quantity).toLocaleString()} s.` : 'Tugagan'}
           </button>
         </div>
       </div>
