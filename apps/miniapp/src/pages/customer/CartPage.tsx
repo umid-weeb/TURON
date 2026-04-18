@@ -55,19 +55,19 @@ const CartProductCard: React.FC<{
           {formatMoney(item.price)}
         </p>
 
-        <div className="mt-2 flex items-center gap-2 rounded-full bg-[#F4F4F5] px-1.5 py-1 shadow-sm">
+        <div className="mt-2 flex items-center justify-between rounded-full bg-[#F4F4F5] px-1.5 py-1 shadow-sm">
           <button
             type="button"
             onClick={() => onUpdateQuantity(item.id, -1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
           >
             <Minus size={16} />
           </button>
-          <span className="text-[14px] font-bold text-[#202020]">{item.quantity}</span>
+          <span className="flex-1 text-center text-[15px] font-bold text-[#202020]">{item.quantity}</span>
           <button
             type="button"
             onClick={() => onUpdateQuantity(item.id, 1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
           >
             <Plus size={16} />
           </button>
