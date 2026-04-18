@@ -491,6 +491,18 @@ function formatMoney(value: number): string {
   return Number(value || 0).toLocaleString('uz-UZ');
 }
 
+function formatDistanceMeters(value?: number | null): string | null {
+  if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) {
+    return null;
+  }
+
+  if (value < 1000) {
+    return `${Math.round(value)} m`;
+  }
+
+  return `${(value / 1000).toFixed(1)} km`;
+}
+
 function formatTelegramOrderDisplayNumber(orderNumber: string | number | bigint): string {
   const normalized = String(orderNumber).replace(/[^\d]/g, '');
   const numeric = Number.parseInt(normalized, 10);
@@ -545,6 +557,7 @@ function buildAdminOrderNotificationText(order: {
   customerPhone?: string | null;
   customerAddress: string;
   customerAddressNote?: string | null;
+  deliveryDistanceMeters?: number | null;
   paymentMethod: string;
   items: Array<{ name: string; quantity: number; totalPrice: number }>;
   subtotal: number;
@@ -562,6 +575,7 @@ function buildAdminOrderNotificationText(order: {
   const itemLines = order.items
     .map((item) => `${item.quantity}x ${escapeHtml(item.name)} - ${formatMoney(item.totalPrice)} so'm`)
     .join('\n');
+  const deliveryDistance = formatDistanceMeters(order.deliveryDistanceMeters);
 
   return [
     `<b>Buyurtma ${escapeHtml(formatTelegramOrderDisplayNumber(order.orderNumber))}</b>`,
@@ -573,6 +587,7 @@ function buildAdminOrderNotificationText(order: {
     `Ism: ${escapeHtml(order.customerName)}`,
     order.customerPhone ? `Telefon: ${escapeHtml(order.customerPhone)}` : null,
     `Manzil: ${escapeHtml(order.customerAddress)}`,
+    deliveryDistance ? `Buyurtmagacha masofa: ${escapeHtml(deliveryDistance)}` : null,
     order.customerAddressNote ? `Izoh: ${escapeHtml(order.customerAddressNote)}` : null,
     '',
     `<b>Buyurtma tarkibi</b>`,
@@ -1377,6 +1392,7 @@ export async function sendOrderNotificationToAdmin(payload: {
   customerPhone?: string | null;
   customerAddress: string;
   customerAddressNote?: string | null;
+  deliveryDistanceMeters?: number | null;
   paymentMethod: string;
   items: Array<{ name: string; quantity: number; totalPrice: number }>;
   subtotal: number;

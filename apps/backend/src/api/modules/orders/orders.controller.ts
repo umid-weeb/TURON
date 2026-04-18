@@ -664,6 +664,10 @@ export async function handleCreateOrder(
       customerPhone: serializedOrder.customerPhone ?? user.phoneNumber ?? null,
       customerAddress: serializedOrder.customerAddress?.addressText ?? 'Manzil yo\'q',
       customerAddressNote: serializedOrder.customerAddress?.note ?? null,
+      deliveryDistanceMeters:
+        typeof serializedOrder.deliveryDistanceMeters === 'number'
+          ? serializedOrder.deliveryDistanceMeters
+          : null,
       paymentMethod,
       items: (serializedOrder.items ?? []).map((item: any) => ({
         name: item.name ?? item.itemName ?? 'Taom',
