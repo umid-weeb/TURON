@@ -99,6 +99,7 @@ const CartPage: React.FC = () => {
     appliedPromo,
     setPromo,
     syncWithProducts,
+    clearCart,
   } = useCartStore();
   const { selectedAddressId } = useAddressStore();
   const { data: addresses = [] } = useAddresses();
@@ -217,7 +218,19 @@ const CartPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
-      <main className="mx-auto max-w-[430px] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+190px)] pt-4">
+      <main className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+190px)] pt-4">
+        
+        <div className="mb-4 flex items-center justify-end">
+          <button 
+            type="button" 
+            onClick={() => clearCart()}
+            className="flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-[14px] font-black tracking-[-0.02em] text-[#C62020] transition active:scale-[0.97]"
+          >
+            <Trash2 size={16} strokeWidth={2.5} />
+            Savatni tozalash
+          </button>
+        </div>
+
         <section className="space-y-3">
           {items.map((item) => (
             <CartProductCard
@@ -321,7 +334,7 @@ const CartPage: React.FC = () => {
         className="fixed inset-x-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 py-3 shadow-[0_-16px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl"
         style={{ bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))' }}
       >
-        <div className="mx-auto max-w-[430px]">
+        <div className="mx-auto">
           <button
             type="button"
             onClick={() => navigate('/customer/checkout')}
