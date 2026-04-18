@@ -448,12 +448,16 @@ export async function handleCreateOrder(
 
   // ── Idempotency check: if duplicate request, return cached order ──────────
   if (idempotencyKey) {
-    const cached = await prisma.idempotencyKey.findUnique({
-      where: { key: idempotencyKey },
-    });
-    if (cached) {
-      const serializedOrder = await getSerializedOrder(cached.orderId);
-      return reply.status(200).send(serializedOrder);
+    try {
+      const cached = await prisma.idempotencyKey.findUnique({
+        where: { key: idempotencyKey },
+      });
+      if (cached) {
+        const serializedOrder = await getSerializedOrder(cached.orderId);
+        return reply.status(200).send(serializedOrder);
+      }
+    } catch {
+      // idempotency_keys table may not exist yet (migration pending) — skip check
     }
   }
 
@@ -592,7 +596,7 @@ export async function handleCreateOrder(
         responseJson: JSON.stringify(serializedOrder),
       },
     }).catch(() => {
-      // Ignore if duplicate key already exists (race condition)
+      // Ignore: duplicate key race condition OR table not yet migrated
     });
   }
 

@@ -587,10 +587,11 @@ export async function getNextAvailableOrder(
   const serialized = serializeOrder(nextOrder);
   const destinationAddress = serialized.customerAddress?.addressText || '';
 
+  const ra = relevantAssignment as any;
   return reply.send({
     order: {
       id: serialized.id,
-      assignmentId: relevantAssignment?.id ?? null,
+      assignmentId: ra?.id ?? null,
       orderNumber: serialized.orderNumber,
       orderStatus: serialized.orderStatus,
       deliveryStage: serialized.deliveryStage,
@@ -600,17 +601,15 @@ export async function getNextAvailableOrder(
       paymentMethod: serialized.paymentMethod,
       restaurantName: RESTAURANT_COORDINATES.name,
       distanceToRestaurantMeters:
-        typeof relevantAssignment?.distanceMeters === 'number'
-          ? relevantAssignment.distanceMeters
-          : null,
+        typeof ra?.distanceMeters === 'number' ? ra.distanceMeters : null,
       etaToRestaurantMinutes:
-        typeof relevantAssignment?.etaMinutes === 'number' ? relevantAssignment.etaMinutes : null,
+        typeof ra?.etaMinutes === 'number' ? ra.etaMinutes : null,
       customerName: serialized.customerName || 'Mijoz',
       destinationAddress,
       destinationArea: getDestinationAreaLabel(destinationAddress),
       createdAt: serialized.createdAt,
-      assignedAt: relevantAssignment?.assignedAt?.toISOString?.() ?? null,
-      acceptedAt: relevantAssignment?.acceptedAt?.toISOString?.() ?? null,
+      assignedAt: ra?.assignedAt?.toISOString?.() ?? null,
+      acceptedAt: ra?.acceptedAt?.toISOString?.() ?? null,
       itemCount: serialized.items.length,
       latestCourierEventType: null,
     },

@@ -158,6 +158,95 @@ export function formatGeolocationAccuracy(accuracy?: number) {
   return `${Math.round(accuracy)} m`;
 }
 
+/**
+ * Check and request geolocation permission using modern Permissions API
+ * @returns 'granted' | 'denied' | 'prompt' | 'unsupported'
+ */
+export async function checkAndRequestLocationPermission(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {
+  if (!isBrowserGeolocationSupported()) {
+    return 'unsupported';
+  }
+
+  // Check if Permissions API is available
+  if (!navigator.permissions || !navigator.permissions.query) {
+    // Fallback: try to get location which will trigger permission prompt
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        () => resolve('granted'),
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            resolve('denied');
+          } else {
+            resolve('prompt');
+          }
+        },
+        { timeout: 1000 }, // Quick timeout for permission check
+      );
+    });
+  }
+
+  try {
+    // Check current permission status
+    const permission = (await navigator.permissions.query({ name: 'geolocation' } as PermissionDescriptor)) as any;
+
+    if (permission.status === 'granted') {
+      return 'granted';
+    }
+
+    if (permission.status === 'denied') {
+      return 'denied';
+    }
+
+    // Status is 'prompt' - request permission by attempting to get location
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        () => resolve('granted'),
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            resolve('denied');
+          } else {
+            resolve('prompt');
+          }
+        },
+        { timeout: 5000 },
+      );
+    });
+  } catch {
+    // If Permissions API fails, try to get location directly
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        () => resolve('granted'),
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            resolve('denied');
+          } else {
+            resolve('prompt');
+          }
+        },
+        { timeout: 1000 },
+      );
+    });
+  }
+}
+
+/**
+ * Get human-readable message for permission status
+ */
+export function getPermissionStatusMessage(status: 'granted' | 'denied' | 'prompt' | 'unsupported'): string {
+  switch (status) {
+    case 'granted':
+      return 'Joylashuvga ruxsat berildi.';
+    case 'denied':
+      return 'Joylashuvga ruxsat berilmadi. Sozlamalardan ruxsat bering.';
+    case 'prompt':
+      return 'Joylashuvga ruxsat sorashi kerak.';
+    case 'unsupported':
+      return 'Geolokatsiya qo\'llab-quvvatlanmaydi.';
+    default:
+      return 'Noma\'lum holat.';
+  }
+}
+
 export function getUserGeolocationErrorMessage(error: unknown) {
   if (error instanceof UserGeolocationError) {
     switch (error.code) {
