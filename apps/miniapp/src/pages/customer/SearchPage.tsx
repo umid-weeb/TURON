@@ -53,7 +53,7 @@ const productIsAvailable = (p: MenuProduct) =>
 const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
   const navigate = useNavigate();
   const { formatText } = useCustomerLanguage();
-  const addToCart = useCartStore((s) => s.addToCart);
+  const { addToCart, updateQuantity, items } = useCartStore();
   const posterSrc = React.useMemo(() => getProductPosterUrl(product), [product]);
   const [imageSrc, setImageSrc] = React.useState(() =>
     getProductImageUrl(
@@ -63,6 +63,7 @@ const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
   );
   const promotion = React.useMemo(() => getProductPromotion(product), [product]);
   const available = productIsAvailable(product);
+  const quantityInCart = items.find((item) => item.id === product.id)?.quantity || 0;
 
   React.useEffect(() => {
     setImageSrc(
@@ -129,19 +130,43 @@ const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
               </p>
             ) : null}
           </div>
-          <button type="button" onClick={handleAdd} disabled={!available}
-            style={{
-              width: 34, height: 34, borderRadius: '50%', border: 'none',
-              cursor: available ? 'pointer' : 'not-allowed',
-              background: available ? '#C62020' : '#e5e7eb',
-              color: available ? 'white' : '#9ca3af',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.18)', flexShrink: 0,
-            }}
-            aria-label="Savatga qo'shish"
-          >
-            <Plus size={18} strokeWidth={2.7} />
-          </button>
+          {quantityInCart > 0 && available ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#ffffffee', borderRadius: 999, padding: '4px 6px' }}>
+              <button type="button" onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                updateQuantity(product.id, -1);
+              }}
+                style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#F4F4F5', color: '#202020', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <Minus size={16} />
+              </button>
+              <span style={{ minWidth: 24, textAlign: 'center', fontWeight: 900, color: '#202020' }}>{quantityInCart}</span>
+              <button type="button" onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAdd(e);
+              }}
+                style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#C62020', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <Plus size={16} strokeWidth={2.7} />
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={handleAdd} disabled={!available}
+              style={{
+                width: 34, height: 34, borderRadius: '50%', border: 'none',
+                cursor: available ? 'pointer' : 'not-allowed',
+                background: available ? '#C62020' : '#e5e7eb',
+                color: available ? 'white' : '#9ca3af',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.18)', flexShrink: 0,
+              }}
+              aria-label="Savatga qo'shish"
+            >
+              <Plus size={18} strokeWidth={2.7} />
+            </button>
+          )}
         </div>
       </div>
     </article>

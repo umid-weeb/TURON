@@ -317,6 +317,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
   );
   const promotion = React.useMemo(() => getProductPromotion(product), [product]);
   const available = productIsAvailable(product);
+  const quantityInCart = items.find((item) => item.id === product.id)?.quantity || 0;
 
   React.useEffect(() => {
     setImageSrc(getProductImageUrl(
@@ -378,13 +379,43 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
               </p>
             ) : null}
           </div>
-          <button
-            type="button" onClick={handleAdd} disabled={!available}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[0_12px_20px_rgba(15,23,42,0.22)] transition active:scale-90 ${available ? 'bg-[#C62020] text-white' : 'bg-slate-200 text-slate-400'}`}
-            aria-label="Savatga qo'shish"
-          >
-            <Plus size={22} strokeWidth={2.7} />
-          </button>
+          {quantityInCart > 0 && available ? (
+            <div className="flex items-center gap-2 rounded-full bg-white/90 p-1 shadow-[0_10px_18px_rgba(15,23,42,0.18)]">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  updateQuantity(product.id, -1);
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 hover:bg-[#e5e5e5]"
+              >
+                <Minus size={16} />
+              </button>
+              <span className="min-w-[24px] text-center text-[13px] font-black text-[#202020]">
+                {quantityInCart}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAdd(e);
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C62020] text-white transition active:scale-95 hover:bg-[#a01b1b]"
+              >
+                <Plus size={16} strokeWidth={2.7} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button" onClick={handleAdd} disabled={!available}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[0_12px_20px_rgba(15,23,42,0.22)] transition active:scale-90 ${available ? 'bg-[#C62020] text-white' : 'bg-slate-200 text-slate-400'}`}
+              aria-label="Savatga qo'shish"
+            >
+              <Plus size={22} strokeWidth={2.7} />
+            </button>
+          )}
         </div>
       </div>
     </article>

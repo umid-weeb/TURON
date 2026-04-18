@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNavbar } from '../customer/CustomerComponents';
 import { CustomerErrorBoundary } from '../ui/CustomerErrorBoundary';
+import { useCartStore } from '../../store/useCartStore';
+import { ShoppingCart } from 'lucide-react';
 
 const RED = '#C62020';
 const HOME_PATH = '/customer';
@@ -67,6 +69,7 @@ const AppHeader: React.FC<{ pathname: string }> = ({ pathname }) => (
 const CustomerLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const cartCount = useCartStore((s) => s.getTotalItems());
 
   const layoutVars: React.CSSProperties & Record<string, string> = {
     '--customer-nav-height': '72px',
@@ -125,6 +128,24 @@ const CustomerLayout: React.FC = () => {
 
       {!hideBottomNav ? <BottomNavbar /> : null}
 
+      {cartCount > 0 && !location.pathname.includes('/customer/cart') ? (
+        <button
+          type="button"
+          onClick={() => navigate('/customer/cart')}
+          className="fixed right-4 top-[calc(env(safe-area-inset-top,16px)+86px)] z-50 flex h-12 w-12 items-center justify-center rounded-full bg-[#C62020] text-white shadow-[0_12px_20px_rgba(198,32,32,0.32)] transition-transform duration-200 hover:scale-[1.04] active:scale-95"
+          aria-label="Savatga o'tish"
+          title="Savatga o'tish"
+        >
+          <ShoppingCart size={20} strokeWidth={2.2} />
+          <span
+            className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white text-[10px] font-black text-[#C62020]"
+            style={{ padding: '0 4px' }}
+          >
+            {cartCount}
+          </span>
+        </button>
+      ) : null}
+
       {/* Floating refresh button - always accessible */}
       <button
         type="button"
@@ -134,10 +155,10 @@ const CustomerLayout: React.FC = () => {
         title="Sahifani yangilash"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-          <path d="M21 3v5h-5"/>
-          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-          <path d="M8 16H3v5"/>
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+          <path d="M8 16H3v5" />
         </svg>
       </button>
     </div>

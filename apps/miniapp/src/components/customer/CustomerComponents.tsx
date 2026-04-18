@@ -334,7 +334,7 @@ export const HomeProductRail: React.FC<{ products: DisplayProduct[] }> = ({ prod
 
 export const ProductCard: React.FC<{ product: DisplayProduct }> = ({ product }) => {
   const navigate = useNavigate();
-  const { addToCart, items } = useCartStore();
+  const { addToCart, updateQuantity, items } = useCartStore();
   const { formatText } = useCustomerLanguage();
   const rawImage = getDisplayProductImage(product);
   const posterSrc = React.useMemo(() => getProductPosterUrl(product), [product]);
@@ -349,7 +349,8 @@ export const ProductCard: React.FC<{ product: DisplayProduct }> = ({ product }) 
       product.categoryId,
     ),
   );
-  const quantityInCart = items.find((item) => item.id === product.id)?.quantity || 0;
+  const cartItemId = 'menuItemId' in product ? product.menuItemId ?? product.id : product.id;
+  const quantityInCart = items.find((item) => item.id === cartItemId)?.quantity || 0;
   const availabilityLabel = getProductAvailabilityLabel(product);
   const badgeLabel = isMenuProduct(product) ? getBadgeLabel(product.badge) : null;
   const isAvailable = isMenuProduct(product)
@@ -438,23 +439,58 @@ export const ProductCard: React.FC<{ product: DisplayProduct }> = ({ product }) 
           ) : null}
         </div>
 
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!isAvailable}
-          className={`absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.32)] transition-transform active:scale-95 ${!isAvailable
-            ? 'bg-slate-500/60 text-white/65'
-            : 'bg-[#C62020] text-white'
-            }`}
-        >
-          <Plus size={20} strokeWidth={2.7} />
-        </button>
-
         {quantityInCart > 0 && isAvailable ? (
-          <div className="absolute bottom-3 left-3 rounded-full border border-amber-300/20 bg-amber-400/14 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-amber-100 backdrop-blur-md">
-            Savatda {quantityInCart}
+          <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full border border-white/10 bg-[#0f1720]/95 px-2.5 py-1 shadow-[0_10px_18px_rgba(2,6,23,0.32)]">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                updateQuantity(cartItemId, -1);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 hover:bg-[#E5E5E5]"
+            >
+              <Minus size={16} />
+            </button>
+            <span className="min-w-[24px] text-center text-[13px] font-black text-white">{quantityInCart}</span>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                addToCart({
+                  id: product.id,
+                  menuItemId: 'menuItemId' in product ? product.menuItemId ?? product.id : product.id,
+                  categoryId: product.categoryId,
+                  name: product.name,
+                  description: product.description,
+                  price: product.price,
+                  image: imageSrc,
+                  isAvailable: true,
+                }, 1);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C62020] text-white transition active:scale-95 hover:bg-[#a01b1b]"
+            >
+              <Plus size={16} strokeWidth={2.7} />
+            </button>
           </div>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleAdd(event);
+            }}
+            disabled={!isAvailable}
+            className={`absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.32)] transition-transform active:scale-95 ${!isAvailable
+              ? 'bg-slate-500/60 text-white/65'
+              : 'bg-[#C62020] text-white'
+              }`}
+          >
+            <Plus size={20} strokeWidth={2.7} />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col p-3">
