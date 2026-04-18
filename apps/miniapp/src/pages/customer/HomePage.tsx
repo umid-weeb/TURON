@@ -248,7 +248,7 @@ const PromoBannerCard: React.FC<{
             boxShadow: '0 4px 12px rgba(194, 255, 0, 0.25)',
             transform: 'translateZ(0)'
           }}>
-            Savatga qo'shish
+            Buyurtma berish
           </button>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
