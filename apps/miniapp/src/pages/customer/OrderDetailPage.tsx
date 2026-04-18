@@ -8,6 +8,7 @@ import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '../../data/types';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { getCustomerTrackingMeta } from '../../features/tracking/customerTracking';
+import { estimateRouteMetrics, formatRouteDistance } from '../../features/maps/route';
 import { useProducts } from '../../hooks/queries/useMenu';
 import { useOrderDetails, useOrderTrackingStream } from '../../hooks/queries/useOrders';
 import { useCartStore } from '../../store/useCartStore';
@@ -25,6 +26,32 @@ function getPaymentStatusLabel(status: PaymentStatus) {
   if (status === PaymentStatus.FAILED) return 'Rad etilgan';
   return 'Tekshiruvda';
 }
+
+const OrderDistanceDisplay: React.FC<{ order: any }> = ({ order }) => {
+  const courier = order?.tracking?.courierLocation;
+  const destLat = order?.destinationLat ?? order?.customerAddress?.latitude;
+  const destLng = order?.destinationLng ?? order?.customerAddress?.longitude;
+
+  if (!courier || typeof destLat !== 'number' || typeof destLng !== 'number') {
+    return (
+      <p className="mt-1 text-xs text-white/48">
+        Buyurtmagacha masofa: <span className="italic">Hisoblanmoqda...</span>
+      </p>
+    );
+  }
+
+  const { distanceKm } = estimateRouteMetrics(
+    { lat: courier.latitude, lng: courier.longitude },
+    { lat: destLat, lng: destLng },
+    { minimumDistanceKm: 0 },
+  );
+
+  return (
+    <p className="mt-1 text-xs text-white/48">
+      Buyurtmagacha masofa: <span className="font-bold">{formatRouteDistance(distanceKm)}</span>
+    </p>
+  );
+};
 
 const OrderDetailPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
@@ -352,35 +379,6 @@ const OrderDetailPage: React.FC = () => {
               {/* Buyurtmagacha masofa */}
               <OrderDistanceDisplay order={order} />
             </div>
-            // --- Distance display component ---
-            import { estimateRouteMetrics, formatRouteDistance } from '../../features/maps/route';
-
-            const OrderDistanceDisplay: React.FC<{ order: any }> = ({ order }) => {
-              // Try to get courier and destination coordinates
-              const courier = order?.tracking?.courierLocation;
-              const destLat = order?.destinationLat ?? order?.customerAddress?.latitude;
-              const destLng = order?.destinationLng ?? order?.customerAddress?.longitude;
-
-              if (!courier || typeof destLat !== 'number' || typeof destLng !== 'number') {
-                return (
-                  <p className="mt-1 text-xs text-white/48">
-                    Buyurtmagacha masofa: <span className="italic">Hisoblanmoqda...</span>
-                  </p>
-                );
-              }
-
-              const { distanceKm } = estimateRouteMetrics(
-                { lat: courier.latitude, lng: courier.longitude },
-                { lat: destLat, lng: destLng },
-                { minimumDistanceKm: 0 }
-              );
-
-              return (
-                <p className="mt-1 text-xs text-white/48">
-                  Buyurtmagacha masofa: <span className="font-bold">{formatRouteDistance(distanceKm)}</span>
-                </p>
-              );
-            };
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">Izoh</p>
               <p className="mt-1.5 text-sm font-semibold leading-6 text-white/76">
