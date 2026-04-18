@@ -24,6 +24,7 @@ const ProductPage: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const posterSrc = useMemo(() => (product ? getProductPosterUrl(product) : ''), [product]);
   const [imageSrc, setImageSrc] = useState('');
+  const [activeButton, setActiveButton] = useState<string | null>(null);
 
   const similarProducts = useMemo(() => {
     if (!product || allProducts.length === 0) return [];
@@ -96,8 +97,6 @@ const ProductPage: React.FC = () => {
 
     navigate('/customer/cart');
   };
-
-  const [activeButton, setActiveButton] = useState<string | null>(null);
 
   return (
     <div className="relative min-h-screen bg-white text-[#202020] animate-in fade-in duration-300 pb-[100px]">

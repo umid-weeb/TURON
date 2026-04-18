@@ -41,14 +41,14 @@ export class CustomerErrorBoundary extends React.Component<Props, State> {
         <div className="mb-5 flex h-18 w-18 items-center justify-center rounded-[24px] border border-rose-400/20 bg-rose-400/10 text-rose-400">
           <AlertTriangle size={36} />
         </div>
-        <h2 className="text-xl font-black tracking-tight text-white">Sahifada xatolik</h2>
-        <p className="mt-2 max-w-[280px] text-sm leading-relaxed text-white/50">
+        <h2 className="text-xl font-black tracking-tight text-slate-900">Sahifada xatolik</h2>
+        <p className="mt-2 max-w-[280px] text-sm leading-relaxed text-slate-500">
           {this.state.errorMessage}
         </p>
         <button
           type="button"
           onClick={this.handleReset}
-          className="mt-7 flex h-12 w-full max-w-[260px] items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-white/[0.07] text-sm font-black text-white transition-transform active:scale-[0.98]"
+          className="mt-7 flex h-12 w-full max-w-[260px] items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-slate-100 text-sm font-black text-slate-900 transition-transform active:scale-[0.98]"
         >
           <RefreshCw size={16} />
           Qayta urinish
@@ -56,7 +56,7 @@ export class CustomerErrorBoundary extends React.Component<Props, State> {
         <button
           type="button"
           onClick={() => { window.location.href = '/customer'; }}
-          className="mt-3 text-[12px] font-semibold text-white/35 underline underline-offset-4"
+          className="mt-3 text-[12px] font-semibold text-slate-500 underline underline-offset-4 hover:text-slate-800"
         >
           Bosh sahifaga qaytish
         </button>
