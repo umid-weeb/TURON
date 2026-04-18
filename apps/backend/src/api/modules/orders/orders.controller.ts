@@ -12,7 +12,11 @@ import { CourierAssignmentService } from '../../../services/courier-assignment.s
 import { DeliveryQuoteService } from '../../../services/delivery-quote.service.js';
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { orderTrackingService, sseConnectionRegistry } from '../../../services/order-tracking.service.js';
-import { sendAdminAlert, sendOrderNotificationToAdmin } from '../../../services/telegram-bot.service.js';
+import {
+  sendAdminAlert,
+  sendOrderNotificationToAdmin,
+  syncTelegramOrderStatus,
+} from '../../../services/telegram-bot.service.js';
 import { StatusService } from '../../../services/status.service.js';
 import { SpecialEventsService } from '../../../services/special-events.service.js';
 import {
@@ -74,6 +78,16 @@ async function publishOrderSnapshot(orderId: string) {
   }
 
   return serializedOrder;
+}
+
+function syncTelegramOrderStatusInBackground(orderId: string, status?: string | null) {
+  void syncTelegramOrderStatus(orderId, status).catch((error) => {
+    console.warn('[Orders] Failed to sync Telegram order status.', {
+      orderId,
+      status,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 }
 
 function recordOrderCreatedAudit(params: {
@@ -1007,6 +1021,7 @@ export async function handleUpdateStatus(
   });
 
   const serializedOrder = await publishOrderSnapshot(order.id);
+  syncTelegramOrderStatusInBackground(order.id, serializedOrder?.orderStatus ?? status);
   return reply.send(serializedOrder);
 }
 
@@ -1184,6 +1199,7 @@ export async function handleApprovePayment(
   });
 
   const serializedOrder = await publishOrderSnapshot(order.id);
+  syncTelegramOrderStatusInBackground(order.id, serializedOrder?.orderStatus ?? order.status);
 
   await AuditService.record({
     userId: admin.id,
@@ -1318,6 +1334,10 @@ export async function handleRejectPayment(
   });
 
   const serializedOrder = await publishOrderSnapshot(order.id);
+  syncTelegramOrderStatusInBackground(
+    order.id,
+    serializedOrder?.orderStatus ?? (shouldCancelOrder ? OrderStatusEnum.CANCELLED : order.status),
+  );
 
   await AuditService.record({
     userId: admin.id,

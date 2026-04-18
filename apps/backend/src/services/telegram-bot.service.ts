@@ -9,7 +9,9 @@ import {
 import { env } from '../config.js';
 import { prisma } from '../lib/prisma.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
+import { orderTrackingService } from './order-tracking.service.js';
 import { SupportService } from './support.service.js';
+import { ORDER_INCLUDE, serializeOrder } from '../api/modules/orders/order-helpers.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -629,20 +631,38 @@ function updateTelegramOrderStatusLine(messageText: string, statusLabel: string)
   );
 }
 
-async function syncTelegramOrderMessages(orderId: string, statusLabel: string) {
-  const baseText = await getStoredOrderMessageText(orderId);
-  if (!baseText) {
-    return;
+function buildStatusOnlyMessage(statusLabel: string) {
+  return [
+    '<b>Buyurtma holati yangilandi</b>',
+    '',
+    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
+  ].join('\n');
+}
+
+function buildStatusFallbackForOrder(orderId: string, statusLabel: string) {
+  return [
+    `<b>Buyurtma ${escapeHtml(orderId)}</b>`,
+    '',
+    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
+  ].join('\n');
+}
+
+async function syncTelegramOrderMessages(orderId: string, statusLabel: string): Promise<number> {
+  const messageTargets = await listOrderMessages(orderId);
+  if (messageTargets.length === 0) {
+    return 0;
   }
 
-  const nextText = updateTelegramOrderStatusLine(baseText, statusLabel);
-  const messageTargets = await listOrderMessages(orderId);
+  const baseText = await getStoredOrderMessageText(orderId);
+  const sourceText = baseText || buildStatusFallbackForOrder(orderId, statusLabel);
+  const nextText = updateTelegramOrderStatusLine(sourceText, statusLabel);
   const state = getBotState();
+  let successCount = 0;
 
   await Promise.all(
     messageTargets.map(async (target) => {
       try {
-        // Try photo caption first (receipt+caption messages), fall back to text
+        // Try photo caption first (receipt+caption messages), fall back to text.
         try {
           await state.bot.telegram.editMessageCaption(
             target.chatId,
@@ -660,6 +680,7 @@ async function syncTelegramOrderMessages(orderId: string, statusLabel: string) {
             { parse_mode: 'HTML', reply_markup: { inline_keyboard: [] } },
           );
         }
+        successCount += 1;
       } catch (error) {
         console.warn('[Bot] Could not sync order message state:', {
           orderId,
@@ -670,19 +691,128 @@ async function syncTelegramOrderMessages(orderId: string, statusLabel: string) {
       }
     }),
   );
+
+  if (successCount > 0) {
+    await storeOrderMessageText(orderId, nextText);
+  }
+
+  return successCount;
 }
 
-function deriveStatusLabelFromTelegramResultLine(resultLine: string): string {
-  if (resultLine.toLowerCase().includes('bekor')) {
-    return 'Bekor qilindi';
+async function publishRealtimeOrderSnapshot(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: ORDER_INCLUDE,
+    });
+
+    if (!order) return;
+
+    const serializedOrder = {
+      ...serializeOrder(order),
+      tracking: await orderTrackingService.getSnapshot(orderId),
+    };
+
+    orderTrackingService.publishOrderUpdate(orderId, serializedOrder);
+  } catch (error) {
+    console.error('[Bot] Failed to publish order snapshot to realtime stream:', {
+      orderId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
-  if (resultLine.toLowerCase().includes('tasdiq')) {
-    return 'Qabul qilindi';
+}
+
+async function syncCallbackMessageStatus(
+  ctx: any,
+  orderId: string,
+  statusLabel: string,
+): Promise<void> {
+  const message = (ctx.callbackQuery as any)?.message;
+  const chatId = message?.chat?.id;
+  const messageId = message?.message_id;
+
+  if (!chatId || !messageId) return;
+
+  const hasPhoto = Boolean(message.photo?.length);
+  const currentText = hasPhoto ? (message.caption ?? '') : (message.text ?? '');
+  const storedText = await getStoredOrderMessageText(orderId);
+  const sourceText = storedText || currentText || buildStatusOnlyMessage(statusLabel);
+  const nextText = updateTelegramOrderStatusLine(sourceText, statusLabel);
+
+  try {
+    if (hasPhoto) {
+      await ctx.telegram.editMessageCaption(chatId, messageId, undefined, nextText, {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [] },
+      });
+    } else {
+      await ctx.telegram.editMessageText(chatId, messageId, undefined, nextText, {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [] },
+      });
+    }
+
+    await Promise.all([
+      storeOrderMessageText(orderId, nextText),
+      storeOrderMessageId(orderId, chatId, messageId),
+    ]);
+  } catch {
+    // Non-critical. Primary sync path may still edit other targets from DB map.
   }
-  if (resultLine.toLowerCase().includes('topilmadi')) {
-    return 'Topilmadi';
+}
+
+export async function syncTelegramOrderStatus(
+  orderId: string,
+  status?: string | null,
+): Promise<void> {
+  const statusLabel = getTelegramOrderStatusLabel(status);
+  const updatedCount = await syncTelegramOrderMessages(orderId, statusLabel);
+  if (updatedCount > 0) {
+    return;
   }
-  return 'Kutilmoqda';
+
+  const recipientChatIds = resolveOrderNotificationRecipientChatIds();
+  if (recipientChatIds.length === 0) {
+    return;
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { orderNumber: true },
+  });
+
+  const displayNumber = order?.orderNumber
+    ? formatTelegramOrderDisplayNumber(order.orderNumber)
+    : orderId;
+
+  const text = [
+    `<b>Buyurtma ${escapeHtml(displayNumber)}</b>`,
+    '',
+    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
+  ].join('\n');
+
+  const state = getBotState();
+
+  await Promise.all(
+    recipientChatIds.map(async (chatId) => {
+      try {
+        const sent = await state.bot.telegram.sendMessage(chatId, text, {
+          parse_mode: 'HTML',
+        });
+        await Promise.all([
+          storeOrderMessageText(orderId, text),
+          storeOrderMessageId(orderId, chatId, sent.message_id),
+        ]);
+      } catch (error) {
+        console.warn('[Bot] Failed to send fallback status message:', {
+          orderId,
+          chatId,
+          statusLabel,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }),
+  );
 }
 
 async function applyTelegramOrderAction(params: {
@@ -700,6 +830,7 @@ async function applyTelegramOrderAction(params: {
     return {
       answerText: 'Buyurtma topilmadi',
       resultLine: '❌ Buyurtma topilmadi',
+      statusLabel: 'Topilmadi',
     };
   }
 
@@ -709,16 +840,24 @@ async function applyTelegramOrderAction(params: {
     order.status === OrderStatusEnum.DELIVERED;
 
   if (isTerminal) {
+    await syncTelegramOrderStatus(order.id, order.status);
+
     const isCancelled = order.status === OrderStatusEnum.CANCELLED;
     return {
       answerText: isCancelled ? 'Buyurtma allaqachon bekor qilingan' : 'Buyurtma yakunlangan',
       resultLine: isCancelled ? '❌ Bekor qilingan' : '✅ Tasdiqlangan',
+      statusLabel: getTelegramOrderStatusLabel(order.status),
     };
   }
 
   const now = new Date();
 
   if (params.isApprove) {
+    const nextOrderStatus =
+      order.status === OrderStatusEnum.PENDING
+        ? OrderStatusEnum.PREPARING
+        : order.status;
+
     const shouldCompleteManualPayment =
       order.paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER &&
       order.paymentStatus === PaymentStatusEnum.PENDING;
@@ -727,10 +866,7 @@ async function applyTelegramOrderAction(params: {
       await tx.order.update({
         where: { id: order.id },
         data: {
-          status:
-            order.status === OrderStatusEnum.PENDING
-              ? (OrderStatusEnum.PREPARING as any)
-              : order.status,
+          status: nextOrderStatus as any,
           approvedByUserId: adminUserId ?? undefined,
           approvedAt: now,
           paymentStatus: shouldCompleteManualPayment
@@ -760,10 +896,15 @@ async function applyTelegramOrderAction(params: {
       message: `#${orderNumber} buyurtma tasdiqlandi`,
       relatedOrderId: order.id,
     });
+    await Promise.all([
+      publishRealtimeOrderSnapshot(order.id),
+      syncTelegramOrderStatus(order.id, nextOrderStatus),
+    ]);
 
     return {
       answerText: 'Tasdiqlandi',
       resultLine: '✅ Tasdiqlangan',
+      statusLabel: getTelegramOrderStatusLabel(nextOrderStatus),
     };
   }
 
@@ -802,10 +943,15 @@ async function applyTelegramOrderAction(params: {
     message: `#${orderNumber} buyurtma bekor qilindi`,
     relatedOrderId: order.id,
   });
+  await Promise.all([
+    publishRealtimeOrderSnapshot(order.id),
+    syncTelegramOrderStatus(order.id, OrderStatusEnum.CANCELLED),
+  ]);
 
   return {
     answerText: 'Bekor qilindi',
     resultLine: '❌ Bekor qilingan',
+    statusLabel: getTelegramOrderStatusLabel(OrderStatusEnum.CANCELLED),
   };
 }
 
@@ -962,10 +1108,7 @@ function bindHandlers(bot: Telegraf) {
           isApprove,
           telegramUserId: ctx.from?.id,
         });
-        await syncTelegramOrderMessages(
-          orderId,
-          deriveStatusLabelFromTelegramResultLine(result.resultLine),
-        );
+        await syncCallbackMessageStatus(ctx, orderId, result.statusLabel);
         await ctx.answerCbQuery(result.answerText);
       } catch (err) {
         console.error('[Bot] Order callback error:', err);
@@ -1243,7 +1386,7 @@ export async function sendOrderNotificationToAdmin(payload: {
     ...payload,
     hasReceipt: Boolean(payload.receiptImageBase64),
   });
-  void storeOrderMessageText(payload.orderId, text);
+  await storeOrderMessageText(payload.orderId, text);
 
   const orderKeyboard = buildOrderInitialKeyboard(payload.orderId);
 
@@ -1269,14 +1412,14 @@ export async function sendOrderNotificationToAdmin(payload: {
               ...orderKeyboard,
             },
           );
-          void storeOrderMessageId(payload.orderId, recipientChatId, sent.message_id);
+          await storeOrderMessageId(payload.orderId, recipientChatId, sent.message_id);
         } else {
           // No receipt — plain text message
           const sent = await state.bot.telegram.sendMessage(recipientChatId, text, {
             parse_mode: 'HTML',
             ...orderKeyboard,
           });
-          void storeOrderMessageId(payload.orderId, recipientChatId, sent.message_id);
+          await storeOrderMessageId(payload.orderId, recipientChatId, sent.message_id);
         }
       } catch (error) {
         console.warn('[Bot] Could not send order notification to recipient:', {
