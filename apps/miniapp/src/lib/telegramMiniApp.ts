@@ -13,6 +13,7 @@ type TelegramWebApp = {
 
 let isInitialized = false;
 let cleanupTouchGuard: (() => void) | null = null;
+let cleanupZoomGuard: (() => void) | null = null;
 
 /**
  * CRITICAL: requestFullscreen() causes Telegram to fire viewportChanged.
@@ -162,6 +163,35 @@ function installIosOverscrollGuard() {
   return cleanupTouchGuard;
 }
 
+function installIosZoomGuard() {
+  if (cleanupZoomGuard) return cleanupZoomGuard;
+
+  const preventMultiTouchZoom = (event: TouchEvent) => {
+    if (event.touches.length > 1) {
+      event.preventDefault();
+    }
+  };
+
+  const preventGestureZoom = (event: Event) => {
+    event.preventDefault();
+  };
+
+  document.addEventListener('touchmove', preventMultiTouchZoom, { passive: false });
+  document.addEventListener('gesturestart', preventGestureZoom, { passive: false });
+  document.addEventListener('gesturechange', preventGestureZoom, { passive: false });
+  document.addEventListener('gestureend', preventGestureZoom, { passive: false });
+
+  cleanupZoomGuard = () => {
+    document.removeEventListener('touchmove', preventMultiTouchZoom);
+    document.removeEventListener('gesturestart', preventGestureZoom);
+    document.removeEventListener('gesturechange', preventGestureZoom);
+    document.removeEventListener('gestureend', preventGestureZoom);
+    cleanupZoomGuard = null;
+  };
+
+  return cleanupZoomGuard;
+}
+
 /** Update --tg-header-safe CSS var so content doesn't hide under Telegram's buttons */
 function updateHeaderSafeArea() {
   const wa = window.Telegram?.WebApp as any;
@@ -268,6 +298,7 @@ export function initializeTelegramMiniApp() {
   });
 
   installIosOverscrollGuard();
+  installIosZoomGuard();
 }
 
 export function closeTelegramMiniApp() {
