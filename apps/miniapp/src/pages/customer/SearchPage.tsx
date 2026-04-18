@@ -240,10 +240,10 @@ const SearchPage: React.FC = () => {
       }}>
         <label style={{
           display: 'flex', alignItems: 'center', gap: 10,
-          height: 46, background: 'var(--app-input-bg, #F0F0F3)',
+          height: 46, background: '#f4f4f5', // explicitly light
           borderRadius: 14, padding: '0 14px', cursor: 'text',
         }}>
-          <Search size={19} strokeWidth={2.2} style={{ color: 'var(--app-muted)', flexShrink: 0 }} />
+          <Search size={19} strokeWidth={2.2} style={{ color: '#8c8c96', flexShrink: 0 }} />
           <input
             ref={inputRef}
             value={query}
@@ -253,14 +253,14 @@ const SearchPage: React.FC = () => {
             style={{
               flex: 1, minWidth: 0, height: '100%',
               background: 'transparent', border: 'none', outline: 'none',
-              fontSize: 15, fontWeight: 600, color: 'var(--app-text)',
+              fontSize: 15, fontWeight: 600, color: '#202020', // explicitly dark
             }}
             autoComplete="off"
             autoFocus
           />
           {query ? (
             <button type="button" onClick={() => setQuery('')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--app-muted)', padding: 0, display: 'flex' }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8c8c96', padding: 0, display: 'flex' }}>
               <X size={16} />
             </button>
           ) : null}
