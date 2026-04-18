@@ -5,15 +5,11 @@ import { useToast } from '../components/ui/Toast';
 export type LocationPermissionStatus = 'granted' | 'denied' | 'prompt' | 'unsupported' | 'checking';
 
 interface UseLocationPermissionOptions {
-  autoRequest?: boolean; // Auto-request on mount
+  autoRequest?: boolean;
   onGranted?: () => void;
   onDenied?: () => void;
 }
 
-/**
- * Hook to request and track location permission status
- * Usage: Typically called once when app initializes
- */
 export const useLocationPermission = (options: UseLocationPermissionOptions = {}) => {
   const { autoRequest = true, onGranted, onDenied } = options;
   const { showToast } = useToast();
@@ -22,6 +18,26 @@ export const useLocationPermission = (options: UseLocationPermissionOptions = {}
   const requestPermission = async () => {
     setStatus('checking');
     try {
+      // Check current state first — if already granted, set silently (no toast)
+      if (navigator.permissions?.query) {
+        try {
+          const perm = await navigator.permissions.query({ name: 'geolocation' } as PermissionDescriptor);
+          if (perm.state === 'granted') {
+            setStatus('granted');
+            onGranted?.();
+            return;
+          }
+          if (perm.state === 'denied') {
+            setStatus('denied');
+            onDenied?.();
+            return;
+          }
+        } catch {
+          // Permissions API not available, fall through
+        }
+      }
+
+      // State is 'prompt' — trigger native dialog, show toast only on result
       const permissionStatus = await checkAndRequestLocationPermission();
       setStatus(permissionStatus);
 
@@ -29,14 +45,10 @@ export const useLocationPermission = (options: UseLocationPermissionOptions = {}
         showToast('Joylashuvga ruxsat berildi ✓', 'success');
         onGranted?.();
       } else if (permissionStatus === 'denied') {
-        showToast(
-          'Joylashuvga ruxsat berilmadi. Sozlamalardan ruxsat bering.',
-          'error',
-        );
         onDenied?.();
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ruxsat so\'rashda xatolik yuz berdi';
+      const message = error instanceof Error ? error.message : "Ruxsat so'rashda xatolik yuz berdi";
       showToast(message, 'error');
       setStatus('prompt');
     }
@@ -44,9 +56,10 @@ export const useLocationPermission = (options: UseLocationPermissionOptions = {}
 
   useEffect(() => {
     if (autoRequest) {
-      requestPermission();
+      void requestPermission();
     }
-  }, [autoRequest]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     status,

@@ -6,7 +6,7 @@ import NotificationBadge from '../../features/notifications/components/Notificat
 import { isActiveDeliveryStage } from '../../features/courier/deliveryStage';
 import { useCourierOrders, useCourierStatus, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 import { OrderInterruptModal } from '../courier/OrderInterruptModal';
-import { LocationPermissionPrompt } from '../LocationPermissionPrompt';
+import { useLocationPermission } from '../../hooks/useLocationPermission';
 import { useOrderInterruptStore } from '../../store/useOrderInterruptStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { AppErrorBoundary } from '../ui/AppErrorBoundary';
@@ -45,6 +45,8 @@ const CourierLayout: React.FC = () => {
   const user = useAuthStore((state) => state.user);
 
   useCourierNewOrderDetection();
+  // Silently request location on mount — toast shows briefly if granted for first time
+  useLocationPermission({ autoRequest: true });
 
   const isMapPage = location.pathname.includes('/map/');
   const activeDelivery = orders.find((o) => isActiveDeliveryStage(o.deliveryStage));
@@ -65,9 +67,6 @@ const CourierLayout: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-900">
-      {/* Location permission prompt — shown on first load */}
-      <LocationPermissionPrompt autoRequest={true} />
-
       {/* Global interrupt — renders above all content including map */}
       <OrderInterruptModal />
 
