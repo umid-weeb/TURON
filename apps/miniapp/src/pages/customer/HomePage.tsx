@@ -75,7 +75,7 @@ const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
     const el = scrollRef.current;
     if (!el) return;
 
-    let intervalId: NodeJS.Timeout;
+    let intervalId: ReturnType<typeof setInterval>;
     
     const startAutoPlay = () => {
       // Clear any existing intervals to prevent duplicate triggers
