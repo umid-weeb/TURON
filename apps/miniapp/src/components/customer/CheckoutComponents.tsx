@@ -9,9 +9,9 @@ export const CheckoutSectionCard: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ title, children, actionLabel, onAction }) => (
-  <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+  <section className="py-5 border-b border-slate-100 last:border-none">
     <div className="flex items-center justify-between gap-4">
-      <h3 className="text-[15px] font-black tracking-tight text-slate-950">{title}</h3>
+      <h3 className="text-[18px] font-black tracking-tight text-[#202020]">{title}</h3>
       {actionLabel ? (
         <button
           type="button"
@@ -22,7 +22,7 @@ export const CheckoutSectionCard: React.FC<{
         </button>
       ) : null}
     </div>
-    <div className="pt-2">{children}</div>
+    <div className="pt-3">{children}</div>
   </section>
 );
 

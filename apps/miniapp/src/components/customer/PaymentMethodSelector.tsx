@@ -113,15 +113,15 @@ const PaymentMethodSelector: React.FC = () => {
       <button
         type="button"
         onClick={() => setPaymentMethod(PaymentMethod.CASH)}
-        className={`relative flex w-full items-center gap-3 rounded-[16px] border p-3 text-left transition-all active:scale-[0.97] ${paymentMethod === PaymentMethod.CASH
-            ? 'border-[#C62020]/30 bg-red-50/40 shadow-sm'
-            : 'border-slate-200 bg-white'
+        className={`relative flex w-full items-center gap-3 rounded-[20px] border p-4 text-left transition-all active:scale-[0.97] ${paymentMethod === PaymentMethod.CASH
+            ? 'border-[#C62020]/30 bg-red-50 shadow-[0_2px_12px_rgba(198,32,32,0.06)]'
+            : 'border-transparent bg-[#f4f4f5]'
           }`}
       >
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] transition-colors ${paymentMethod === PaymentMethod.CASH
-              ? 'bg-[#C62020] text-white'
-              : 'bg-[#f4f4f5] text-slate-600'
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] transition-colors ${paymentMethod === PaymentMethod.CASH
+              ? 'bg-[#C62020] text-white shadow-md shadow-[#C62020]/20'
+              : 'bg-white text-[#202020] shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
             }`}
         >
           <Banknote size={20} />
@@ -140,21 +140,21 @@ const PaymentMethodSelector: React.FC = () => {
 
       {/* ── Karta orqali to'lov ── */}
       <div
-        className={`rounded-[16px] border transition-all ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
-            ? 'border-[#C62020]/30 bg-red-50/40 shadow-sm'
-            : 'border-slate-200 bg-white'
+        className={`rounded-[20px] border transition-all ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
+            ? 'border-[#C62020]/30 bg-red-50 shadow-[0_2px_12px_rgba(198,32,32,0.06)]'
+            : 'border-transparent bg-[#f4f4f5]'
           }`}
       >
         {/* Method row */}
         <button
           type="button"
           onClick={() => setPaymentMethod(PaymentMethod.MANUAL_TRANSFER)}
-          className="relative flex w-full items-center gap-3 p-3 text-left transition-all active:scale-[0.97]"
+          className="relative flex w-full items-center gap-3 p-4 text-left transition-all active:scale-[0.97]"
         >
           <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] transition-colors ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
-                ? 'bg-[#C62020] text-white'
-                : 'bg-[#f4f4f5] text-slate-600'
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] transition-colors ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
+                ? 'bg-[#C62020] text-white shadow-md shadow-[#C62020]/20'
+                : 'bg-white text-[#202020] shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
               }`}
           >
             <CreditCard size={20} />
@@ -177,7 +177,7 @@ const PaymentMethodSelector: React.FC = () => {
 
         {/* Expanded card info — visible when selected */}
         {paymentMethod === PaymentMethod.MANUAL_TRANSFER && (
-          <div className="border-t border-slate-200 px-3 pb-3 pt-2 space-y-3">
+          <div className="border-t border-slate-200/50 px-4 pb-4 pt-3 space-y-3">
             {/* Card number — tap to copy */}
             <div>
               <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
@@ -186,9 +186,9 @@ const PaymentMethodSelector: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void handleCopyCard()}
-                className={`flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 py-3 text-left transition-all active:scale-[0.97] ${copiedCard
-                    ? 'border-red-300/40 bg-red-50/40'
-                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                className={`flex w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition-all active:scale-[0.97] ${copiedCard
+                    ? 'border-red-300/40 bg-red-50'
+                    : 'border-transparent bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:bg-slate-50'
                   }`}
               >
                 <span className="font-mono text-[16px] font-black tracking-[0.15em] text-slate-950">
@@ -268,8 +268,8 @@ const PaymentMethodSelector: React.FC = () => {
       </div>
 
       {/* ── Click / Payme — tez kunda ── */}
-      <div className="relative flex w-full items-center gap-3 cursor-not-allowed rounded-[16px] border border-slate-200 bg-slate-50 p-3 opacity-60">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#e5e7eb] text-slate-400">
+      <div className="relative flex w-full items-center gap-3 cursor-not-allowed rounded-[20px] border border-transparent bg-[#f4f4f5] p-4 opacity-70">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-white text-slate-400 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
           <Smartphone size={20} />
         </div>
         <div className="min-w-0 flex-1">

@@ -309,14 +309,14 @@ const CheckoutPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen bg-[#f6f6f7] text-[#202020] animate-in slide-in-from-right duration-300"
+      className="bg-white min-h-screen text-[#202020] animate-in slide-in-from-right duration-300"
       style={{ paddingBottom: '140px' }}
     >
 
 
-      <main className="mx-auto max-w-[430px] px-4 pb-6 pt-4 space-y-3">
+      <main className="mx-auto max-w-[430px] px-5 pb-6 pt-2">
         {/* Delivery Address Section */}
-        <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+        <section className="py-5 border-b border-slate-100 last:border-none">
           <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#202020]">Yetkazish manzili</h3>
 
           {selectedAddress ? (
@@ -330,7 +330,7 @@ const CheckoutPage: React.FC = () => {
             <button
               type="button"
               onClick={handleSelectAddress}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-[16px] border border-slate-200 bg-white text-sm font-bold text-slate-950 transition-all active:scale-[0.97]"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-[#f4f4f5] text-sm font-bold text-[#202020] transition-colors active:bg-slate-200"
             >
               <MapPin size={18} />
               <span>Manzil tanlash</span>
@@ -342,7 +342,7 @@ const CheckoutPage: React.FC = () => {
               type="button"
               onClick={() => { void handleAutoDetectAddress(); }}
               disabled={autoDetectAddressMutation.isPending}
-              className="flex h-10 items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-white px-3 text-[11px] font-black text-slate-950 transition-transform active:scale-[0.97] disabled:opacity-60"
+              className="flex h-12 items-center justify-center gap-2 rounded-[16px] bg-[#f4f4f5] px-3 text-[12px] font-black text-[#202020] transition-colors active:bg-slate-200 disabled:opacity-60"
             >
               {autoDetectAddressMutation.isPending ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -355,7 +355,7 @@ const CheckoutPage: React.FC = () => {
             <button
               type="button"
               onClick={handleMapSelection}
-              className="flex h-10 items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-white px-3 text-[11px] font-black text-slate-950 transition-transform active:scale-[0.97]"
+              className="flex h-12 items-center justify-center gap-2 rounded-[16px] bg-[#f4f4f5] px-3 text-[12px] font-black text-[#202020] transition-colors active:bg-slate-200"
             >
               <MapPin size={14} />
               <span>Xaritada</span>
@@ -393,7 +393,7 @@ const CheckoutPage: React.FC = () => {
         ) : null}
 
         {/* Order Summary Section */}
-        <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+        <section className="py-5 border-b border-slate-100 last:border-none">
           <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#202020]">Buyurtma xulosasi</h3>
           <OrderSummaryCard
             routeInfo={routeInfo}
@@ -404,7 +404,7 @@ const CheckoutPage: React.FC = () => {
         </section>
 
         {/* Payment Method Section */}
-        <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+        <section className="py-5 border-b border-slate-100 last:border-none">
           <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#202020]">To'lov usuli</h3>
           <PaymentMethodSelector />
         </section>

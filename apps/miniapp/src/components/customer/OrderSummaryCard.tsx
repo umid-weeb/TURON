@@ -58,7 +58,7 @@ const OrderSummaryCard: React.FC<{
         : "Qo'lda o'tkazma";
 
   return (
-    <section className="rounded-[16px] border border-slate-200 bg-slate-50">
+    <section className="rounded-[20px] bg-[#f4f4f5] overflow-hidden">
       {!compact ? (
         <div className="flex items-center gap-3 border-b border-slate-200 p-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600">
@@ -71,7 +71,7 @@ const OrderSummaryCard: React.FC<{
         </div>
       ) : null}
 
-      <div className={`${compact ? 'space-y-2 ' : 'mt-2 space-y-3 '}border-b border-slate-200 p-2.5`}>
+      <div className={`${compact ? 'space-y-2 ' : 'mt-2 space-y-3 '}border-b border-slate-200/60 p-4`}>
         <div className="flex items-center justify-between text-[13px] font-semibold text-slate-700">
           <div className="flex items-center gap-2">
             <ShoppingBag size={14} className="text-slate-400" />
@@ -110,15 +110,15 @@ const OrderSummaryCard: React.FC<{
       </div>
 
       {resolvedRouteInfo ? (
-        <div className="grid grid-cols-2 gap-2 border-b border-slate-200 p-2.5">
-          <div className="rounded-[12px] border border-slate-200 bg-white p-2.5">
+        <div className="grid grid-cols-2 gap-3 border-b border-slate-200/60 p-4">
+          <div className="rounded-[16px] bg-white p-3 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
             <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
               <Route size={12} />
               <span>Masofa</span>
             </div>
             <p className="mt-1 text-sm font-black text-slate-950">{resolvedRouteInfo.distance}</p>
           </div>
-          <div className="rounded-[12px] border border-slate-200 bg-white p-2.5">
+          <div className="rounded-[16px] bg-white p-3 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
             <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
               <Truck size={12} />
               <span>ETA</span>
@@ -128,7 +128,7 @@ const OrderSummaryCard: React.FC<{
         </div>
       ) : null}
 
-      <div className={`flex items-center justify-between p-3 ${compact ? 'py-2.5' : 'py-3'}`}>
+      <div className={`flex items-center justify-between p-4`}>
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
             {quote ? 'Jami summa' : 'Taomlar jami'}

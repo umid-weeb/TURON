@@ -96,7 +96,7 @@ export const SelectedAddressCard: React.FC<{
   const { formatText } = useCustomerLanguage();
 
   return (
-    <div className="rounded-[16px] border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="rounded-[20px] bg-[#f4f4f5] p-4">
       <div className="flex items-start gap-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-red-50 text-[#C62020]">
           <MapPin size={20} />
@@ -135,7 +135,7 @@ export const SelectedAddressCard: React.FC<{
           onClick={onAction}
           aria-label={actionLabel}
           title={actionLabel}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f4f4f5] text-[#202020] transition-colors active:scale-95 active:bg-[#C62020] active:text-white"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#202020] shadow-sm transition-colors active:scale-95 active:bg-[#C62020] active:text-white"
         >
           <Edit2 size={16} />
         </button>
