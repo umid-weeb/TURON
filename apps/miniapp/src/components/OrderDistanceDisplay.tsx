@@ -1,5 +1,5 @@
 import React from 'react';
-import { estimateRouteMetrics, formatRouteDistance } from '../../features/maps/route';
+import { estimateRouteMetrics, formatRouteDistance } from '../features/maps/route';
 
 /**
  * OrderDistanceDisplay

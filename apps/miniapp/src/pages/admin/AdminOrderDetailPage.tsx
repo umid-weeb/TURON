@@ -344,6 +344,13 @@ const AdminOrderDetailPage: React.FC = () => {
         lng: order.tracking.courierLocation.longitude,
       }
     : undefined;
+  const courierLocation = order.tracking?.courierLocation;
+  const destinationLocation =
+    order.destinationLat != null && order.destinationLng != null
+      ? { latitude: order.destinationLat, longitude: order.destinationLng }
+      : order.customerAddress?.latitude != null && order.customerAddress?.longitude != null
+      ? { latitude: order.customerAddress.latitude, longitude: order.customerAddress.longitude }
+      : undefined;
   // Use shared component for distance
   const remainingEta =
     typeof order.tracking?.courierLocation?.remainingEtaMinutes === 'number'
@@ -529,11 +536,8 @@ const AdminOrderDetailPage: React.FC = () => {
                 <span>Qolgan masofa</span>
               </div>
               <OrderDistanceDisplay
-                courier={order.tracking?.courierLocation}
-                destination={{
-                  latitude: order.destinationLat ?? order.customerAddress?.latitude,
-                  longitude: order.destinationLng ?? order.customerAddress?.longitude,
-                }}
+                courier={courierLocation}
+                destination={destinationLocation}
                 label="Qolgan masofa"
                 className="mt-2 text-lg font-black text-slate-900"
               />

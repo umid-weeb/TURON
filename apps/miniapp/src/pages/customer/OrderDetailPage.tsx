@@ -9,7 +9,6 @@ import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '../../data/types';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { getCustomerTrackingMeta } from '../../features/tracking/customerTracking';
-import { estimateRouteMetrics, formatRouteDistance } from '../../features/maps/route';
 import { useProducts } from '../../hooks/queries/useMenu';
 import { useOrderDetails, useOrderTrackingStream } from '../../hooks/queries/useOrders';
 import { useCartStore } from '../../store/useCartStore';
@@ -98,6 +97,13 @@ const OrderDetailPage: React.FC = () => {
   const isActiveOrder =
     order.orderStatus !== OrderStatus.DELIVERED && order.orderStatus !== OrderStatus.CANCELLED;
   const trackingMeta = getCustomerTrackingMeta(order, language);
+  const courierLocation = order.tracking?.courierLocation;
+  const destinationLocation =
+    order.destinationLat != null && order.destinationLng != null
+      ? { latitude: order.destinationLat, longitude: order.destinationLng }
+      : order.customerAddress?.latitude != null && order.customerAddress?.longitude != null
+      ? { latitude: order.customerAddress.latitude, longitude: order.customerAddress.longitude }
+      : undefined;
 
   const handleCopyOrderNumber = async () => {
     try {
@@ -355,11 +361,8 @@ const OrderDetailPage: React.FC = () => {
               </p>
               {/* Buyurtmagacha masofa */}
               <OrderDistanceDisplay
-                courier={order?.tracking?.courierLocation}
-                destination={{
-                  latitude: order?.destinationLat ?? order?.customerAddress?.latitude,
-                  longitude: order?.destinationLng ?? order?.customerAddress?.longitude,
-                }}
+                courier={courierLocation}
+                destination={destinationLocation}
                 label="Buyurtmagacha masofa"
                 className="mt-1 text-xs text-white/48"
               />
