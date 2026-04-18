@@ -17,6 +17,8 @@ import {
   Timer,
   TimerReset,
   TriangleAlert,
+  Send,
+  AlertTriangle,
 } from 'lucide-react';
 import { useCountdown } from '../../hooks/useCountdown';
 import { OrderChatPanel } from '../chat/OrderChatPanel';
@@ -167,10 +169,10 @@ export function CourierStageButtons({
     <div className="grid grid-cols-2 gap-2">
       {COURIER_STAGE_BUTTONS.map((button, index) => {
         const isCompleted = currentIndex > index;
-        const isCurrent   = currentIndex === index;
+        const isCurrent = currentIndex === index;
         const isAvailable = nextStage === button.target;
-        const isLast      = index === COURIER_STAGE_BUTTONS.length - 1;
-        const canClick    = interactive && isAvailable && !isUpdating;
+        const isLast = index === COURIER_STAGE_BUTTONS.length - 1;
+        const canClick = interactive && isAvailable && !isUpdating;
 
         // ── Surface styles per state ──────────────────────────────────
         let cardCls = '';
@@ -179,32 +181,32 @@ export function CourierStageButtons({
         let statusCls = '';
 
         if (isCompleted) {
-          cardCls   = isDark
+          cardCls = isDark
             ? 'border-emerald-400/30 bg-emerald-500/12'
             : 'border-emerald-200 bg-emerald-50';
-          badgeCls  = 'bg-emerald-500 text-white';
-          labelCls  = isDark ? 'text-emerald-200' : 'text-emerald-700';
+          badgeCls = 'bg-emerald-500 text-white';
+          labelCls = isDark ? 'text-emerald-200' : 'text-emerald-700';
           statusCls = isDark ? 'text-emerald-400/70' : 'text-emerald-500';
         } else if (isAvailable && interactive) {
-          cardCls   = isDark
+          cardCls = isDark
             ? 'border-amber-400/40 bg-gradient-to-br from-amber-400/20 to-orange-500/10 shadow-lg shadow-amber-900/20 ring-1 ring-amber-400/20'
             : 'border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md shadow-amber-100 ring-1 ring-amber-200/60';
-          badgeCls  = 'bg-amber-400 text-slate-900';
-          labelCls  = isDark ? 'text-amber-100' : 'text-amber-900';
+          badgeCls = 'bg-amber-400 text-slate-900';
+          labelCls = isDark ? 'text-amber-100' : 'text-amber-900';
           statusCls = isDark ? 'text-amber-300/80' : 'text-amber-600';
         } else if (isCurrent) {
-          cardCls   = isDark
+          cardCls = isDark
             ? 'border-sky-400/25 bg-sky-500/10'
             : 'border-sky-200 bg-sky-50';
-          badgeCls  = 'bg-sky-500 text-white';
-          labelCls  = isDark ? 'text-sky-200' : 'text-sky-700';
+          badgeCls = 'bg-sky-500 text-white';
+          labelCls = isDark ? 'text-sky-200' : 'text-sky-700';
           statusCls = isDark ? 'text-sky-400/70' : 'text-sky-500';
         } else {
-          cardCls   = isDark
+          cardCls = isDark
             ? 'border-white/8 bg-white/[0.04]'
             : 'border-slate-100 bg-slate-50/80';
-          badgeCls  = isDark ? 'bg-white/10 text-white/40' : 'bg-slate-100 text-slate-400';
-          labelCls  = isDark ? 'text-white/35' : 'text-slate-400';
+          badgeCls = isDark ? 'bg-white/10 text-white/40' : 'bg-slate-100 text-slate-400';
+          labelCls = isDark ? 'text-white/35' : 'text-slate-400';
           statusCls = isDark ? 'text-white/25' : 'text-slate-300';
         }
 
@@ -309,8 +311,8 @@ export function SlideToConfirmAction({
   const CONFIRM_DURATION = '0.25s ease-out';
 
   const trackRef = React.useRef<HTMLDivElement | null>(null);
-  const knobRef  = React.useRef<HTMLButtonElement | null>(null);
-  const fillRef  = React.useRef<HTMLDivElement | null>(null);
+  const knobRef = React.useRef<HTMLButtonElement | null>(null);
+  const fillRef = React.useRef<HTMLDivElement | null>(null);
   const maxOffsetRef = React.useRef(0);
   const dragging = React.useRef(false);
 
@@ -365,7 +367,7 @@ export function SlideToConfirmAction({
 
       const knob = knobRef.current;
       const fill = fillRef.current;
-      const max  = maxOffsetRef.current;
+      const max = maxOffsetRef.current;
       const current = knob ? parseFloat(knob.style.transform.replace('translateX(', '')) || 0 : 0;
       const progress = max > 0 ? current / max : 0;
 
@@ -486,103 +488,100 @@ export const CourierProblemReporter: React.FC<{
   feedbackText,
   feedbackTone = 'neutral',
 }) => {
-  const isDark = theme === 'dark';
-  const isReady = value.trim().length >= 5 && !disabled && !isSubmitting;
-  const wrapperClass = isDark
-    ? 'border-white/8 bg-white/[0.05]'
-    : 'border-slate-200 bg-slate-50';
-  const textareaClass = isDark
-    ? 'border-white/8 bg-slate-950/50 text-white placeholder:text-white/35'
-    : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400';
-  const helperClass = isDark ? 'text-white/55' : 'text-slate-500';
-  const feedbackClass =
-    feedbackTone === 'success'
-      ? isDark
-        ? 'text-emerald-200'
-        : 'text-emerald-700'
-      : feedbackTone === 'error'
+    const isDark = theme === 'dark';
+    const isReady = value.trim().length >= 5 && !disabled && !isSubmitting;
+    const wrapperClass = isDark
+      ? 'border-white/8 bg-white/[0.05]'
+      : 'border-slate-200 bg-slate-50';
+    const textareaClass = isDark
+      ? 'border-white/8 bg-slate-950/50 text-white placeholder:text-white/35'
+      : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400';
+    const helperClass = isDark ? 'text-white/55' : 'text-slate-500';
+    const feedbackClass =
+      feedbackTone === 'success'
         ? isDark
-          ? 'text-rose-200'
-          : 'text-rose-700'
-        : helperClass;
+          ? 'text-emerald-200'
+          : 'text-emerald-700'
+        : feedbackTone === 'error'
+          ? isDark
+            ? 'text-rose-200'
+            : 'text-rose-700'
+          : helperClass;
 
-  return (
-    <div className={`rounded-[24px] border p-4 ${wrapperClass}`}>
-      <div className="flex items-center gap-3">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-            isDark ? 'bg-rose-400/12 text-rose-200' : 'bg-rose-50 text-rose-600'
-          }`}
-        >
-          <TriangleAlert size={18} />
-        </div>
-        <div>
-          <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${helperClass}`}>Muammo haqida</p>
-          <p className={`mt-1 text-sm font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Operatorga qisqa va aniq izoh yuboring
-          </p>
-        </div>
-      </div>
-
-      {/* Quick-chip shortcuts */}
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {['Mijoz javob bermayapti', 'Manzil topilmadi', 'Restoran tayyor emas', 'Boshqa muammo'].map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            onClick={() => onChange(chip)}
-            disabled={disabled || isSubmitting}
-            className={`rounded-full px-3 py-1.5 text-[11px] font-black transition-all active:scale-95 disabled:opacity-40 ${
-              value === chip
-                ? isDark
-                  ? 'bg-amber-400 text-slate-950'
-                  : 'bg-amber-400 text-slate-950'
-                : isDark
-                  ? 'border border-white/10 bg-white/[0.06] text-white/60 hover:bg-white/10'
-                  : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-            }`}
+    return (
+      <div className={`rounded-[24px] border p-4 ${wrapperClass}`}>
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-2xl ${isDark ? 'bg-rose-400/12 text-rose-200' : 'bg-rose-50 text-rose-600'
+              }`}
           >
-            {chip}
-          </button>
-        ))}
-      </div>
-
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Masalan: mijoz javob bermayapti yoki manzil topilmadi"
-        rows={3}
-        maxLength={500}
-        disabled={disabled || isSubmitting}
-        className={`mt-3 w-full rounded-[20px] border px-4 py-3 text-sm font-semibold outline-none transition focus:border-amber-400 ${textareaClass}`}
-      />
-
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <div className={`min-w-0 text-xs font-semibold ${feedbackClass}`}>
-          {feedbackText || helperText || "Kamida 5 ta belgi bilan yozing."}
+            <TriangleAlert size={18} />
+          </div>
+          <div>
+            <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${helperClass}`}>Muammo haqida</p>
+            <p className={`mt-1 text-sm font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Operatorga qisqa va aniq izoh yuboring
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={!isReady}
-          className={`inline-flex h-11 shrink-0 items-center justify-center rounded-full px-4 text-[11px] font-black uppercase tracking-[0.18em] transition-transform active:scale-[0.98] ${
-            isReady
-              ? 'bg-amber-400 text-slate-950'
-              : isDark
-                ? 'bg-white/10 text-white/35'
-                : 'bg-slate-200 text-slate-400'
-          }`}
-        >
-          {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Yuborish'}
-        </button>
+
+        {/* Quick-chip shortcuts */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {['Mijoz javob bermayapti', 'Manzil topilmadi', 'Restoran tayyor emas', 'Boshqa muammo'].map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => onChange(chip)}
+              disabled={disabled || isSubmitting}
+              className={`rounded-full px-3 py-1.5 text-[11px] font-black transition-all active:scale-95 disabled:opacity-40 ${value === chip
+                  ? isDark
+                    ? 'bg-amber-400 text-slate-950'
+                    : 'bg-amber-400 text-slate-950'
+                  : isDark
+                    ? 'border border-white/10 bg-white/[0.06] text-white/60 hover:bg-white/10'
+                    : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Masalan: mijoz javob bermayapti yoki manzil topilmadi"
+          rows={3}
+          maxLength={500}
+          disabled={disabled || isSubmitting}
+          className={`mt-3 w-full rounded-[20px] border px-4 py-3 text-sm font-semibold outline-none transition focus:border-amber-400 ${textareaClass}`}
+        />
+
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <div className={`min-w-0 text-xs font-semibold ${feedbackClass}`}>
+            {feedbackText || helperText || "Kamida 5 ta belgi bilan yozing."}
+          </div>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={!isReady}
+            className={`inline-flex h-11 shrink-0 items-center justify-center rounded-full px-4 text-[11px] font-black uppercase tracking-[0.18em] transition-transform active:scale-[0.98] ${isReady
+                ? 'bg-amber-400 text-slate-950'
+                : isDark
+                  ? 'bg-white/10 text-white/35'
+                  : 'bg-slate-200 text-slate-400'
+              }`}
+          >
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Yuborish'}
+          </button>
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 // ── Countdown badge ──────────────────────────────────────────────────────────
 
-const ACCEPT_LIMIT_MS   = 5 * 60 * 60 * 1000; // 5 h — matches backend expiry
+const ACCEPT_LIMIT_MS = 5 * 60 * 60 * 1000; // 5 h — matches backend expiry
 const DELIVERY_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 h — matches backend expiry
 
 function CountdownBadge({ deadlineIso, label }: { deadlineIso: string; label: string }) {
@@ -627,7 +626,7 @@ export const CourierOrderCard: React.FC<{
 
   const deliveryDeadline =
     ['ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(order.courierAssignmentStatus ?? '') &&
-    order.acceptedAt
+      order.acceptedAt
       ? new Date(new Date(order.acceptedAt).getTime() + DELIVERY_LIMIT_MS).toISOString()
       : null;
 
@@ -778,77 +777,77 @@ export const DeliveryBottomPanel: React.FC<{
   onCopyAddress,
   copySuccess = false,
 }) => {
-  const [isExpanded, setIsExpanded] = React.useState(true);
-  const [isProblemOpen, setIsProblemOpen] = React.useState(false);
-  const [isChatOpen, setIsChatOpen] = React.useState(false);
-  const { data: unreadCount = 0 } = useOrderChatUnread(order.id, 'courier');
-  const stageMeta = getDeliveryStageMeta(currentStage);
-  const primaryAction = getDeliveryStageAction(currentStage);
-  const hasProblemPanel = Boolean(problemPanel);
-  const isDelivered = currentStage === DeliveryStage.DELIVERED;
-  const prevStageRef = React.useRef(currentStage);
+    const [isExpanded, setIsExpanded] = React.useState(true);
+    const [isProblemOpen, setIsProblemOpen] = React.useState(false);
+    const [isChatOpen, setIsChatOpen] = React.useState(false);
+    const { data: unreadCount = 0 } = useOrderChatUnread(order.id, 'courier');
+    const stageMeta = getDeliveryStageMeta(currentStage);
+    const primaryAction = getDeliveryStageAction(currentStage);
+    const hasProblemPanel = Boolean(problemPanel);
+    const isDelivered = currentStage === DeliveryStage.DELIVERED;
+    const prevStageRef = React.useRef(currentStage);
 
-  const goingToRestaurant =
-    currentStage === DeliveryStage.GOING_TO_RESTAURANT ||
-    currentStage === DeliveryStage.ARRIVED_AT_RESTAURANT;
-  const navLat = goingToRestaurant ? order.pickupLat : order.destinationLat;
-  const navLng = goingToRestaurant ? order.pickupLng : order.destinationLng;
-  const navLabel = goingToRestaurant ? 'Restoran' : 'Mijoz manzili';
-  const hasNavTarget = typeof navLat === 'number' && typeof navLng === 'number';
+    const goingToRestaurant =
+      currentStage === DeliveryStage.GOING_TO_RESTAURANT ||
+      currentStage === DeliveryStage.ARRIVED_AT_RESTAURANT;
+    const navLat = goingToRestaurant ? order.pickupLat : order.destinationLat;
+    const navLng = goingToRestaurant ? order.pickupLng : order.destinationLng;
+    const navLabel = goingToRestaurant ? 'Restoran' : 'Mijoz manzili';
+    const hasNavTarget = typeof navLat === 'number' && typeof navLng === 'number';
 
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 text-white p-4 rounded-t-3xl shadow-lg">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-emerald-400 font-bold text-lg">{stageMeta.label}</span>
-          <div className="flex items-center gap-1">
-            {[...Array(3)].map((_, index) => (
-              <span
-                key={index}
-                className={`h-2 w-2 rounded-full ${index < stageMeta.progress ? 'bg-emerald-400' : 'bg-slate-600'}`}
-              ></span>
-            ))}
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 text-white p-4 rounded-t-3xl shadow-lg">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-400 font-bold text-lg">{stageMeta.label}</span>
+            <div className="flex items-center gap-1">
+              {[...Array(3)].map((_, index) => (
+                <span
+                  key={index}
+                  className={`h-2 w-2 rounded-full ${index < stageMeta.progress ? 'bg-emerald-400' : 'bg-slate-600'}`}
+                ></span>
+              ))}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-bold">{distance} km</p>
+            <p className="text-xs text-slate-400">{eta} daq</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-sm font-bold">{distance} km</p>
-          <p className="text-xs text-slate-400">{eta} daq</p>
+
+        <div className="flex justify-around items-center">
+          <button
+            onClick={onCall}
+            className="flex flex-col items-center justify-center text-yellow-400 hover:text-yellow-500 transition-colors"
+          >
+            <Phone size={24} />
+            <span className="text-xs">Qo'ng'iroq</span>
+          </button>
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className="flex flex-col items-center justify-center text-blue-400 hover:text-blue-500 transition-colors"
+          >
+            <Send size={24} />
+            <span className="text-xs">Chat</span>
+          </button>
+          <button
+            onClick={onOpenDetails}
+            className="flex flex-col items-center justify-center text-green-400 hover:text-green-500 transition-colors"
+          >
+            <Package size={24} />
+            <span className="text-xs">Buyurtma</span>
+          </button>
+          <button
+            onClick={() => setIsProblemOpen(true)}
+            className="flex flex-col items-center justify-center text-red-400 hover:text-red-500 transition-colors"
+          >
+            <AlertTriangle size={24} />
+            <span className="text-xs">Muammo</span>
+          </button>
         </div>
       </div>
-
-      <div className="flex justify-around items-center">
-        <button
-          onClick={onCall}
-          className="flex flex-col items-center justify-center text-yellow-400 hover:text-yellow-500 transition-colors"
-        >
-          <Phone size={24} />
-          <span className="text-xs">Qo'ng'iroq</span>
-        </button>
-        <button
-          onClick={() => setIsChatOpen(true)}
-          className="flex flex-col items-center justify-center text-blue-400 hover:text-blue-500 transition-colors"
-        >
-          <Send size={24} />
-          <span className="text-xs">Chat</span>
-        </button>
-        <button
-          onClick={onOpenDetails}
-          className="flex flex-col items-center justify-center text-green-400 hover:text-green-500 transition-colors"
-        >
-          <Package size={24} />
-          <span className="text-xs">Buyurtma</span>
-        </button>
-        <button
-          onClick={() => setIsProblemOpen(true)}
-          className="flex flex-col items-center justify-center text-red-400 hover:text-red-500 transition-colors"
-        >
-          <AlertTriangle size={24} />
-          <span className="text-xs">Muammo</span>
-        </button>
-      </div>
-    </div>
-  );
-};
+    );
+  };
 
 export const RouteInfoPanel: React.FC<{
   title: string;
@@ -873,42 +872,42 @@ export const RouteInfoPanel: React.FC<{
   etaLabel = 'ETA',
   isEtaLive = false,
 }) => (
-  <div className="absolute left-4 right-4 top-24 z-40 rounded-[30px] border border-white/10 bg-slate-950/80 p-4 text-white shadow-[0_24px_64px_rgba(2,6,23,0.5)] backdrop-blur-xl">
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">Faol marshrut</p>
-        <p className="mt-2 text-lg font-black text-white">{title}</p>
-        <p className="mt-2 text-sm font-semibold leading-relaxed text-white/68">{subtitle}</p>
+    <div className="absolute left-4 right-4 top-24 z-40 rounded-[30px] border border-white/10 bg-slate-950/80 p-4 text-white shadow-[0_24px_64px_rgba(2,6,23,0.5)] backdrop-blur-xl">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">Faol marshrut</p>
+          <p className="mt-2 text-lg font-black text-white">{title}</p>
+          <p className="mt-2 text-sm font-semibold leading-relaxed text-white/68">{subtitle}</p>
+        </div>
+        <div className="rounded-[18px] border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85">
+          {stageLabel}
+        </div>
       </div>
-      <div className="rounded-[18px] border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/85">
-        {stageLabel}
-      </div>
-    </div>
 
-    <div className="mt-4 rounded-[22px] border border-white/8 bg-white/[0.05] px-4 py-3">
-      <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
-        <span>Yo'nalish</span>
-        <span className="text-white/72">
-          {fromLabel} <ArrowRight size={12} className="inline" /> {toLabel}
-        </span>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-[18px] bg-slate-950/50 px-4 py-3">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
-            <Route size={13} className="text-sky-300" />
-            <span>{distanceLabel}</span>
-          </div>
-          <p className="mt-2 text-base font-black text-white">{distance}</p>
+      <div className="mt-4 rounded-[22px] border border-white/8 bg-white/[0.05] px-4 py-3">
+        <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
+          <span>Yo'nalish</span>
+          <span className="text-white/72">
+            {fromLabel} <ArrowRight size={12} className="inline" /> {toLabel}
+          </span>
         </div>
-        <div className="rounded-[18px] bg-slate-950/50 px-4 py-3">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
-            <TimerReset size={13} className="text-amber-300" />
-            <span>{etaLabel}</span>
-            {isEtaLive ? <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" /> : null}
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="rounded-[18px] bg-slate-950/50 px-4 py-3">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
+              <Route size={13} className="text-sky-300" />
+              <span>{distanceLabel}</span>
+            </div>
+            <p className="mt-2 text-base font-black text-white">{distance}</p>
           </div>
-          <p className="mt-2 text-base font-black text-white">{eta}</p>
+          <div className="rounded-[18px] bg-slate-950/50 px-4 py-3">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
+              <TimerReset size={13} className="text-amber-300" />
+              <span>{etaLabel}</span>
+              {isEtaLive ? <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" /> : null}
+            </div>
+            <p className="mt-2 text-base font-black text-white">{eta}</p>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );

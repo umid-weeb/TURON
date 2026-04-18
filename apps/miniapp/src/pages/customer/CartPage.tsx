@@ -217,11 +217,11 @@ const CartPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
       <main className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+190px)] pt-4">
-        
+
         <div className="mb-4 mt-2 flex items-center justify-between px-1">
           <h2 className="text-[22px] font-black tracking-tight text-[#202020]">Savatingiz</h2>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => clearCart()}
             className="flex items-center gap-1.5 rounded-full bg-red-50/50 px-3 py-1.5 text-[13px] font-black tracking-[-0.02em] text-[#C62020] transition active:scale-[0.97]"
           >
@@ -263,11 +263,10 @@ const CartPage: React.FC = () => {
             <button
               type="submit"
               disabled={(!promoCode.trim() && !appliedPromo) || validatePromoMutation.isPending}
-              className={`flex h-full min-w-[106px] items-center justify-center rounded-[16px] px-4 text-[15px] font-black transition active:scale-95 ${
-                validatePromoMutation.isPending || (!promoCode.trim() && !appliedPromo)
+              className={`flex h-full min-w-[106px] items-center justify-center rounded-[16px] px-4 text-[15px] font-black transition active:scale-95 ${validatePromoMutation.isPending || (!promoCode.trim() && !appliedPromo)
                   ? 'bg-[#e5e7eb] text-[#9a9aa3]'
                   : 'bg-[#C62020] text-white shadow-sm'
-              }`}
+                }`}
             >
               {validatePromoMutation.isPending ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -280,9 +279,8 @@ const CartPage: React.FC = () => {
           </div>
           {promoFeedback ? (
             <p
-              className={`mt-3 rounded-[14px] px-3 py-2 text-[12px] font-bold ${
-                promoFeedback.success ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'
-              }`}
+              className={`mt-3 rounded-[14px] px-3 py-2 text-[12px] font-bold ${promoFeedback.success ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'
+                }`}
             >
               {formatText(promoFeedback.message)}
             </p>
