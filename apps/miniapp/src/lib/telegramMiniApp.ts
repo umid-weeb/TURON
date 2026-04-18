@@ -26,7 +26,7 @@ let cleanupTouchGuard: (() => void) | null = null;
 let lastFullscreenRequestAt = 0;
 const FULLSCREEN_COOLDOWN_MS = 3_000;
 
-const PULL_TO_REFRESH_THRESHOLD_PX = 88;
+const PULL_TO_REFRESH_THRESHOLD_PX = 60;
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return window.Telegram?.WebApp;

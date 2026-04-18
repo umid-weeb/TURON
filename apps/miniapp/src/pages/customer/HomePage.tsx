@@ -76,7 +76,7 @@ const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
     if (!el) return;
 
     let intervalId: ReturnType<typeof setInterval>;
-    
+
     const startAutoPlay = () => {
       // Clear any existing intervals to prevent duplicate triggers
       clearInterval(intervalId);
@@ -84,22 +84,22 @@ const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
         if (!el) return;
         const itemWidth = el.clientWidth;
         const originalSetWidth = itemWidth * items.length;
-        
+
         // Endless loop logic: jump backwards silently if scrolled too far
         if (el.scrollLeft >= originalSetWidth * 10) {
-           el.style.scrollBehavior = 'auto'; // Turn off smooth scroll instantly
-           el.scrollLeft -= originalSetWidth * 5; // Jump back 5 sets
-           
-           // Force a browser reflow/layout so scrollBehavior applies instantly
-           // eslint-disable-next-line @typescript-eslint/no-unused-expressions, no-void
-           void el.offsetWidth; 
-           
-           el.style.scrollBehavior = 'smooth'; // Turn smooth scroll back on
+          el.style.scrollBehavior = 'auto'; // Turn off smooth scroll instantly
+          el.scrollLeft -= originalSetWidth * 5; // Jump back 5 sets
+
+          // Force a browser reflow/layout so scrollBehavior applies instantly
+          // eslint-disable-next-line @typescript-eslint/no-unused-expressions, no-void
+          void el.offsetWidth;
+
+          el.style.scrollBehavior = 'smooth'; // Turn smooth scroll back on
         }
-        
+
         // Advance exactly one item
         el.scrollLeft += itemWidth;
-      }, 3500); 
+      }, 3500);
     };
 
     startAutoPlay();
@@ -205,29 +205,29 @@ const PromoBannerCard: React.FC<{
     >
       {/* Left side text content */}
       <div style={{ flex: 1, padding: '20px 20px 20px 24px', zIndex: 10, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
-        <h2 style={{ 
-          color: '#ffffff', 
-          fontSize: 21, 
-          fontWeight: 800, 
-          lineHeight: 1.15, 
-          margin: 0, 
-          display: '-webkit-box', 
-          WebkitLineClamp: 2, 
-          WebkitBoxOrient: 'vertical', 
+        <h2 style={{
+          color: '#ffffff',
+          fontSize: 21,
+          fontWeight: 800,
+          lineHeight: 1.15,
+          margin: 0,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
           textShadow: '0 2px 8px rgba(0,0,0,0.4)',
           maxWidth: '180px'
         }}>
           {promotion.discountPercent ? `Chegirma: ${formatText(product.name)}` : formatText(product.name)}
         </h2>
-        
-        <p style={{ 
-          color: '#a0a0a0', 
-          fontSize: 13, 
-          marginTop: 6, 
-          display: '-webkit-box', 
-          WebkitLineClamp: 1, 
-          WebkitBoxOrient: 'vertical', 
+
+        <p style={{
+          color: '#a0a0a0',
+          fontSize: 13,
+          marginTop: 6,
+          display: '-webkit-box',
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
           maxWidth: '160px',
           fontWeight: 500
@@ -237,20 +237,20 @@ const PromoBannerCard: React.FC<{
 
         {/* Price & Order Button Area */}
         <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button style={{ 
+          <button style={{
             background: '#C2FF00', // Lime green like the reference image
-            color: '#111', 
-            border: 'none', 
-            borderRadius: 20, 
-            padding: '7px 18px', 
-            fontSize: 13, 
+            color: '#111',
+            border: 'none',
+            borderRadius: 20,
+            padding: '7px 18px',
+            fontSize: 13,
             fontWeight: 800,
             boxShadow: '0 4px 12px rgba(194, 255, 0, 0.25)',
             transform: 'translateZ(0)'
           }}>
             Buyurtma
           </button>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1 }}>
               {product.price.toLocaleString()} s.
@@ -266,24 +266,24 @@ const PromoBannerCard: React.FC<{
 
       {/* Right side Image (masked as circle) */}
       <div style={{
-         position: 'absolute',
-         right: -25,
-         top: '50%',
-         transform: 'translateY(-50%)',
-         width: 175,
-         height: 175,
-         borderRadius: '50%',
-         overflow: 'hidden',
-         boxShadow: '-10px 0 35px rgba(0,0,0,0.6)', 
-         zIndex: 5,
-         backgroundColor: '#333'
+        position: 'absolute',
+        right: -25,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        width: 175,
+        height: 175,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        boxShadow: '-10px 0 35px rgba(0,0,0,0.6)',
+        zIndex: 5,
+        backgroundColor: '#333'
       }}>
-         <img
-           src={imgSrc}
-           alt={formatText(product.name)}
-           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-           onError={() => { if (imgSrc !== posterSrc) setImgSrc(posterSrc); }}
-         />
+        <img
+          src={imgSrc}
+          alt={formatText(product.name)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={() => { if (imgSrc !== posterSrc) setImgSrc(posterSrc); }}
+        />
       </div>
 
       {/* Decorative gradient behind image */}
@@ -296,11 +296,11 @@ const PromoBannerCard: React.FC<{
 
       {/* Discount Badge */}
       {promotion.discountPercent && (
-         <div style={{ position: 'absolute', top: 12, right: 'auto', left: 24, zIndex: 15 }}>
-            <span style={{ background: '#C62020', color: '#fff', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 900 }}>
-               -{promotion.discountPercent}%
-            </span>
-         </div>
+        <div style={{ position: 'absolute', top: 12, right: 'auto', left: 24, zIndex: 15 }}>
+          <span style={{ background: '#C62020', color: '#fff', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 900 }}>
+            -{promotion.discountPercent}%
+          </span>
+        </div>
       )}
     </div>
   );
@@ -339,7 +339,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
     <article
       role="button" tabIndex={0}
       onClick={() => navigate(`/customer/product/${product.id}`)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/customer/product/${product.id}`); }}}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/customer/product/${product.id}`); } }}
       className={`group relative overflow-hidden rounded-[18px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.035] transition duration-200 active:scale-[0.985] ${available ? '' : 'opacity-60 grayscale'}`}
       style={{ minHeight: 266 }}
     >

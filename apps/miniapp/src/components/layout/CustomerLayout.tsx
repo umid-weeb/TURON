@@ -124,6 +124,22 @@ const CustomerLayout: React.FC = () => {
       </div>
 
       {!hideBottomNav ? <BottomNavbar /> : null}
+
+      {/* Floating refresh button - always accessible */}
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="fixed bottom-20 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-lg backdrop-blur-sm transition-all active:scale-90 hover:bg-white"
+        aria-label="Sahifani yangilash"
+        title="Sahifani yangilash"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+          <path d="M8 16H3v5"/>
+        </svg>
+      </button>
     </div>
   );
 };
