@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCourierStore } from '../store/courierStore';
 
 /**
@@ -7,10 +7,13 @@ import { useCourierStore } from '../store/courierStore';
  */
 export function useGPS() {
   const setGpsData = useCourierStore((s) => s.setGpsData);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
-      console.warn('Geolocation not supported by this device.');
+      const msg = 'Geolocation not supported by this device.';
+      console.warn(msg);
+      setError(msg);
       return;
     }
 
@@ -20,9 +23,11 @@ export function useGPS() {
         const { latitude, longitude, speed, heading } = position.coords;
         // Speed is in m/s, heading is true north bearing if speed > 0
         setGpsData(latitude, longitude, speed, heading);
+        setError(null);
       },
-      (error) => {
-        console.error('GPS Watch Error:', error.message);
+      (err) => {
+        console.error('GPS Watch Error:', err.message);
+        setError(err.message);
       },
       {
         enableHighAccuracy: true,
@@ -35,4 +40,6 @@ export function useGPS() {
       navigator.geolocation.clearWatch(watchId);
     };
   }, [setGpsData]);
+
+  return { error };
 }

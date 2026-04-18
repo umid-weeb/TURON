@@ -1,30 +1,67 @@
 /**
- * Low-pass filter — kompas "titrab-sakrashini" yumshatish.
- * alpha: 0.1 = juda sekin, 0.2 = tavsiya, 0.4 = tez
- * 359° → 1° o'tishda qisqaroq yo'lni tanlaydi.
+ * Safely fetches the current screen orientation angle.
+ * Handles both modern browsers and legacy iOS Safari APIs.
  */
-export function lowPassFilter(newVal: number, oldVal: number, alpha = 0.2): number {
-  let diff = newVal - oldVal;
-  if (diff > 180) diff -= 360;
-  if (diff < -180) diff += 360;
-  let result = oldVal + diff * alpha;
-  if (result < 0) result += 360;
-  if (result >= 360) result -= 360;
-  return result;
+export function getScreenOrientation(): number {
+  if (typeof window === 'undefined') return 0;
+  
+  // Modern standard (Android / Desktop)
+  const screenAngle = window.screen?.orientation?.angle;
+  if (typeof screenAngle === 'number') return screenAngle;
+  
+  // Legacy iOS fallback
+  const windowOrientation = window.orientation;
+  if (typeof windowOrientation === 'number') return windowOrientation;
+  
+  return 0;
+}
+
+/**
+ * Normalizes any degree to a clean 0-359.9 range.
+ */
+export function normalizeHeading(heading: number): number {
+  let h = heading % 360;
+  if (h < 0) h += 360;
+  return h;
+}
+
+export function applyOrientationOffset(rawHeading: number, orientation: number): number {
+  return normalizeHeading(rawHeading + orientation);
 }
 
 /**
  * Android: deviceorientationabsolute.alpha → heading (magnetic north = 0)
  */
-export function alphaToHeading(alpha: number): number {
-  return (360 - alpha + 360) % 360;
+export function alphaToHeading(alpha: number, orientation: number = 0): number {
+  const heading = 360 - alpha;
+  return applyOrientationOffset(heading, orientation);
 }
 
 /**
  * iOS: webkitCompassHeading to'g'ridan-to'g'ri heading sifatida keladi
  */
-export function webkitToHeading(webkitCompassHeading: number): number {
-  return webkitCompassHeading;
+export function webkitToHeading(webkitCompassHeading: number, orientation: number = 0): number {
+  return applyOrientationOffset(webkitCompassHeading, orientation);
+}
+
+/**
+ * CRITICAL: Low-pass filter for circular data (degrees).
+ * Prevents the marker from wildly spinning backwards when crossing the 360 -> 0 threshold.
+ */
+export function lowPassFilterCircular(current: number, target: number, factor: number = 0.15): number {
+  let diff = target - current;
+  // Normalize the difference to the shortest path: [-180, 180]
+  diff = ((diff + 540) % 360) - 180;
+  return normalizeHeading(current + diff * factor);
+}
+
+/**
+ * Low-pass filter — kompas "titrab-sakrashini" yumshatish.
+ * alpha: 0.1 = juda sekin, 0.2 = tavsiya, 0.4 = tez
+ * 359° → 1° o'tishda qisqaroq yo'lni tanlaydi.
+ */
+export function lowPassFilter(newVal: number, oldVal: number, alpha = 0.2): number {
+  return lowPassFilterCircular(oldVal, newVal, alpha);
 }
 
 /**

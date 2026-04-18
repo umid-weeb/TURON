@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import { lowPassFilter } from '../lib/headingUtils';
+import { lowPassFilterCircular } from '../lib/headingUtils';
 
 interface CourierState {
   // ── GPS ────────────────────────────────────────────────────────────────────
   /** [longitude, latitude] — GeoJSON / ymaps3 format */
   coords: [number, number] | null;
   accuracy: number | null;
+  speed: number | null;
   /** Raw heading from GPS (faqat harakatda ishlaydi, zaxira) */
   gpsHeading: number | null;
 
@@ -26,16 +27,19 @@ interface CourierState {
 
   // ── Actions ────────────────────────────────────────────────────────────────
   setCoords: (coords: [number, number], accuracy: number) => void;
+  setGpsData: (lat: number, lng: number, speed: number | null, heading: number | null) => void;
   setGpsHeading: (heading: number) => void;
   setCompassHeading: (raw: number) => void;
   setCompassPermission: (status: 'granted' | 'denied') => void;
   setRouteInfo: (distance: number, time: number, points: [number, number][]) => void;
   resetCourierState: () => void;
+  _updateSmoothedHeading: () => void;
 }
 
 export const useCourierStore = create<CourierState>((set, get) => ({
   coords: null,
   accuracy: null,
+  speed: null,
   gpsHeading: null,
   compassHeading: null,
   smoothedHeading: 0,
@@ -46,28 +50,27 @@ export const useCourierStore = create<CourierState>((set, get) => ({
 
   setCoords: (coords, accuracy) => set({ coords, accuracy }),
 
+  setGpsData: (lat, lng, speed, heading) => {
+    set({ coords: [lng, lat], speed, gpsHeading: heading });
+    get()._updateSmoothedHeading();
+  },
+
   /**
    * GPS heading — compass yo'q bo'lganda smoothedHeading ni ham yangilaydi
    * (sekinroq filtr: 0.15 — GPS heading kompasdan ko'ra o'zgaruvchan)
    */
   setGpsHeading: (heading) => {
-    const { compassHeading, smoothedHeading } = get();
-    set({
-      gpsHeading: heading,
-      ...(compassHeading === null
-        ? { smoothedHeading: lowPassFilter(heading, smoothedHeading, 0.15) }
-        : {}),
-    });
+    set({ gpsHeading: heading });
+    get()._updateSmoothedHeading();
   },
 
   /**
    * Compass heading — asosiy manba.
-   * Low-pass filter (0.2) bilan silliqlangan smoothedHeading ni yangilaydi.
+   * Low-pass filter (0.15) bilan silliqlangan smoothedHeading ni yangilaydi.
    */
   setCompassHeading: (raw) => {
-    const { smoothedHeading } = get();
-    const next = lowPassFilter(raw, smoothedHeading, 0.2);
-    set({ compassHeading: raw, smoothedHeading: next });
+    set({ compassHeading: raw });
+    get()._updateSmoothedHeading();
   },
 
   setCompassPermission: (status) => set({ compassPermission: status }),
@@ -79,6 +82,7 @@ export const useCourierStore = create<CourierState>((set, get) => ({
     set({
       coords: null,
       accuracy: null,
+      speed: null,
       gpsHeading: null,
       compassHeading: null,
       smoothedHeading: 0,
@@ -87,4 +91,20 @@ export const useCourierStore = create<CourierState>((set, get) => ({
       timeLeft: null,
       routePoints: [],
     }),
+
+  _updateSmoothedHeading: () => {
+    const { speed, gpsHeading, compassHeading, smoothedHeading } = get();
+    
+    let targetHeading = compassHeading;
+    
+    // Speed > 1.5 m/s (~5.4 km/h) = override with highly accurate GPS bearing
+    if (speed !== null && speed > 1.5 && gpsHeading !== null) {
+      targetHeading = gpsHeading;
+    }
+
+    if (targetHeading === null) return;
+    
+    const newSmoothed = lowPassFilterCircular(smoothedHeading, targetHeading, 0.15);
+    set({ smoothedHeading: newSmoothed });
+  }
 }));
