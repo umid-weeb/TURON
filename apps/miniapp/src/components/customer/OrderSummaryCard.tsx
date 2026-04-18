@@ -133,7 +133,7 @@ const OrderSummaryCard: React.FC<{
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
             {quote ? 'Jami summa' : 'Taomlar jami'}
           </p>
-          <p className={`mt-1 font-black tracking-tight text-slate-950 ${compact ? 'text-[22px]' : 'text-[28px]'}`}>{total.toLocaleString()} so'm</p>
+          <p className={`mt-1 font-black tracking-tight text-[#C62020] ${compact ? 'text-[22px]' : 'text-[28px]'}`}>{total.toLocaleString()} so'm</p>
         </div>
         {!compact ? (
           <div className="text-right">

@@ -98,7 +98,7 @@ export const SelectedAddressCard: React.FC<{
   return (
     <div className="rounded-[16px] border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-amber-100 text-amber-600">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-red-50 text-[#C62020]">
           <MapPin size={20} />
         </div>
         <div className="min-w-0 flex-1">
@@ -135,9 +135,9 @@ export const SelectedAddressCard: React.FC<{
           onClick={onAction}
           aria-label={actionLabel}
           title={actionLabel}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-400 text-white shadow-sm active:scale-95 transition-transform"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f4f4f5] text-[#202020] transition-colors active:scale-95 active:bg-[#C62020] active:text-white"
         >
-          <Edit2 size={18} />
+          <Edit2 size={16} />
         </button>
       </div>
     </div>

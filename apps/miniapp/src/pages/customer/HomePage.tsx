@@ -248,7 +248,7 @@ const PromoBannerCard: React.FC<{
             boxShadow: '0 4px 12px rgba(194, 255, 0, 0.25)',
             transform: 'translateZ(0)'
           }}>
-            Savatga qo'shish
+            Buyurtma berish
           </button>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -341,8 +341,8 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
       role="button" tabIndex={0}
       onClick={() => navigate(`/customer/product/${product.id}`)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/customer/product/${product.id}`); } }}
-      className={`group relative overflow-hidden rounded-[18px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.035] transition duration-200 active:scale-[0.985] ${available ? '' : 'opacity-60 grayscale'}`}
-      style={{ minHeight: 266 }}
+      className={`group relative flex flex-col overflow-hidden rounded-[18px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.035] transition duration-200 active:scale-[0.985] ${available ? '' : 'opacity-60 grayscale'}`}
+      style={{ minHeight: 266, height: '100%' }}
     >
       <div className="relative overflow-hidden bg-slate-100" style={{ height: 142 }}>
         <img
@@ -361,7 +361,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
         ) : null}
       </div>
 
-      <div className="flex flex-col px-3.5 pb-3.5 pt-3" style={{ minHeight: 124 }}>
+      <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-3" style={{ minHeight: 124 }}>
         <h3 className="line-clamp-1 text-[17px] font-black leading-tight tracking-[-0.03em] text-[#202020]">
           {formatText(product.name)}
         </h3>
@@ -413,7 +413,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
               className={`flex h-10 w-full shrink-0 items-center justify-center rounded-[14px] shadow-sm transition active:scale-95 ${available ? 'bg-[#C62020] text-white' : 'bg-slate-200 text-slate-400'}`}
               aria-label="Savatga qo'shish"
             >
-              <span className="font-bold text-[14px]">Qo'shish</span>
+              <span className="font-bold text-[14px]">Buyurtma berish</span>
             </button>
           )}
         </div>

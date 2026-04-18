@@ -72,6 +72,44 @@ const CustomerLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const cartCount = useCartStore((s) => s.getTotalItems());
+  const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
+
+  useEffect(() => {
+    const handleFocus = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        setIsKeyboardOpen(true);
+      }
+    };
+    const handleBlur = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        setTimeout(() => setIsKeyboardOpen(false), 50); // slight delay to prevent flicker
+      }
+    };
+
+    let lastHeight = window.innerHeight;
+    const handleResize = () => {
+      if (window.innerHeight > lastHeight + 100) {
+        setIsKeyboardOpen(false);
+      } else if (window.innerHeight < lastHeight - 100) {
+        setIsKeyboardOpen(true);
+      }
+      lastHeight = window.innerHeight;
+    };
+
+    window.addEventListener('focusin', handleFocus);
+    window.addEventListener('focusout', handleBlur);
+    window.addEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('focusin', handleFocus);
+      window.removeEventListener('focusout', handleBlur);
+      window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const layoutVars: React.CSSProperties & Record<string, string> = {
     '--customer-nav-height': '72px',
@@ -120,7 +158,7 @@ const CustomerLayout: React.FC = () => {
           style={{
             position: 'relative',
             minHeight: '100dvh',
-            paddingBottom: !hideBottomNav ? '88px' : 'env(safe-area-inset-bottom, 20px)',
+            paddingBottom: !hideBottomNav && !isKeyboardOpen ? '88px' : 'env(safe-area-inset-bottom, 20px)',
           }}
         >
           <CustomerErrorBoundary>
@@ -129,29 +167,31 @@ const CustomerLayout: React.FC = () => {
         </main>
       </div>
 
-      {!hideBottomNav ? <BottomNavbar /> : null}
+      {!hideBottomNav && !isKeyboardOpen ? <BottomNavbar /> : null}
 
-      {/* Floating refresh button - always accessible */}
-      <button
-        type="button"
-        onClick={() => {
-          playSound.buttonClick();
-          if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-          }
-          window.location.reload();
-        }}
-        className="fixed bottom-20 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-lg backdrop-blur-sm transition-all active:scale-90 hover:bg-white"
-        aria-label="Sahifani yangilash"
-        title="Sahifani yangilash"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-          <path d="M21 3v5h-5" />
-          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-          <path d="M8 16H3v5" />
-        </svg>
-      </button>
+      {/* Floating refresh button - always accessible unless keyboard opens */}
+      {!isKeyboardOpen && (
+        <button
+          type="button"
+          onClick={() => {
+            playSound.buttonClick();
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+              window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+            window.location.reload();
+          }}
+          className="fixed bottom-20 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-lg backdrop-blur-sm transition-all active:scale-90 hover:bg-white"
+          aria-label="Sahifani yangilash"
+          title="Sahifani yangilash"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M8 16H3v5" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 };

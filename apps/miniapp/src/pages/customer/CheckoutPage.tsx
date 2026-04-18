@@ -312,29 +312,12 @@ const CheckoutPage: React.FC = () => {
       className="min-h-screen bg-[#f6f6f7] text-[#202020] animate-in slide-in-from-right duration-300"
       style={{ paddingBottom: '140px' }}
     >
-      <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/95 px-4 backdrop-blur-xl">
-        <div className="mx-auto flex h-[56px] w-full max-w-[430px] items-center justify-between">
-          <button
-            type="button"
-            onClick={() => navigate('/customer/cart')}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 active:scale-95 transition-transform"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex-1 px-3 text-center">
-            <h1 className="text-[17px] font-black tracking-tight text-slate-950">Buyurtma yakuni</h1>
-          </div>
-          <div className="w-10" />
-        </div>
-      </header>
+
 
       <main className="mx-auto max-w-[430px] px-4 pb-6 pt-4 space-y-3">
         {/* Delivery Address Section */}
         <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
-          <div className="mb-3">
-            <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">Yetkazish</p>
-            <h3 className="mt-1.5 text-[18px] font-black text-slate-950">Manzilni tanlang</h3>
-          </div>
+          <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#202020]">Yetkazish manzili</h3>
 
           {selectedAddress ? (
             <SelectedAddressCard
@@ -411,10 +394,7 @@ const CheckoutPage: React.FC = () => {
 
         {/* Order Summary Section */}
         <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
-          <div className="mb-3">
-            <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">Hisob-kitob</p>
-            <h3 className="mt-1.5 text-[18px] font-black text-slate-950">Buyurtma xulosasi</h3>
-          </div>
+          <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#202020]">Buyurtma xulosasi</h3>
           <OrderSummaryCard
             routeInfo={routeInfo}
             quote={orderQuote}
@@ -425,10 +405,7 @@ const CheckoutPage: React.FC = () => {
 
         {/* Payment Method Section */}
         <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
-          <div className="mb-3">
-            <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">To'lov</p>
-            <h3 className="mt-1.5 text-[18px] font-black text-slate-950">To'lov usuli</h3>
-          </div>
+          <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#202020]">To'lov usuli</h3>
           <PaymentMethodSelector />
         </section>
       </main>
@@ -477,7 +454,7 @@ const CheckoutPage: React.FC = () => {
               !orderQuote ||
               (paymentMethod === 'MANUAL_TRANSFER' && !receiptImage)
             }
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black text-white shadow-sm transition-transform active:scale-[0.97] disabled:opacity-50"
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-[#C62020] text-[15px] font-black text-white shadow-md transition-transform active:scale-[0.97] disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
           >
             {createOrderMutation.isPending ? (
               <>

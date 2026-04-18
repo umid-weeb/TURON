@@ -114,14 +114,14 @@ const PaymentMethodSelector: React.FC = () => {
         type="button"
         onClick={() => setPaymentMethod(PaymentMethod.CASH)}
         className={`relative flex w-full items-center gap-3 rounded-[16px] border p-3 text-left transition-all active:scale-[0.97] ${paymentMethod === PaymentMethod.CASH
-            ? 'border-emerald-300/40 bg-emerald-50 shadow-sm shadow-emerald-100'
+            ? 'border-[#C62020]/30 bg-red-50/40 shadow-sm'
             : 'border-slate-200 bg-white'
           }`}
       >
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br ${paymentMethod === PaymentMethod.CASH
-              ? 'from-emerald-400 to-emerald-500 text-white'
-              : 'from-emerald-300 to-emerald-400 text-white'
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] transition-colors ${paymentMethod === PaymentMethod.CASH
+              ? 'bg-[#C62020] text-white'
+              : 'bg-[#f4f4f5] text-slate-600'
             }`}
         >
           <Banknote size={20} />
@@ -132,7 +132,7 @@ const PaymentMethodSelector: React.FC = () => {
           <p className="mt-1.5 text-[11px] font-semibold text-slate-500">Eng sodda va ishonchli usul</p>
         </div>
         {paymentMethod === PaymentMethod.CASH && (
-          <div className="absolute right-4 top-4 text-emerald-500">
+          <div className="absolute right-4 top-4 text-[#C62020]">
             <CheckCircle2 size={22} />
           </div>
         )}
@@ -141,7 +141,7 @@ const PaymentMethodSelector: React.FC = () => {
       {/* ── Karta orqali to'lov ── */}
       <div
         className={`rounded-[16px] border transition-all ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
-            ? 'border-sky-300/40 bg-sky-50 shadow-sm shadow-sky-100'
+            ? 'border-[#C62020]/30 bg-red-50/40 shadow-sm'
             : 'border-slate-200 bg-white'
           }`}
       >
@@ -152,9 +152,9 @@ const PaymentMethodSelector: React.FC = () => {
           className="relative flex w-full items-center gap-3 p-3 text-left transition-all active:scale-[0.97]"
         >
           <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
-                ? 'from-sky-400 to-blue-500 text-white'
-                : 'from-sky-300 to-blue-400 text-white'
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] transition-colors ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
+                ? 'bg-[#C62020] text-white'
+                : 'bg-[#f4f4f5] text-slate-600'
               }`}
           >
             <CreditCard size={20} />
@@ -169,7 +169,7 @@ const PaymentMethodSelector: React.FC = () => {
             </p>
           </div>
           {paymentMethod === PaymentMethod.MANUAL_TRANSFER && (
-            <div className="absolute right-4 top-4 text-sky-500">
+            <div className="absolute right-4 top-4 text-[#C62020]">
               <CheckCircle2 size={22} />
             </div>
           )}
@@ -187,7 +187,7 @@ const PaymentMethodSelector: React.FC = () => {
                 type="button"
                 onClick={() => void handleCopyCard()}
                 className={`flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 py-3 text-left transition-all active:scale-[0.97] ${copiedCard
-                    ? 'border-emerald-300/40 bg-emerald-50'
+                    ? 'border-red-300/40 bg-red-50/40'
                     : 'border-slate-200 bg-white hover:bg-slate-50'
                   }`}
               >
@@ -196,15 +196,15 @@ const PaymentMethodSelector: React.FC = () => {
                 </span>
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${copiedCard
-                      ? 'bg-emerald-100 text-emerald-600'
-                      : 'bg-slate-100 text-slate-600'
+                      ? 'bg-red-100 text-[#C62020]'
+                      : 'bg-[#f4f4f5] text-slate-600'
                     }`}
                 >
                   {copiedCard ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                 </span>
               </button>
               {copiedCard && (
-                <p className="mt-1.5 text-[11px] font-semibold text-emerald-600">
+                <p className="mt-1.5 text-[11px] font-semibold text-[#C62020]">
                   Karta raqami nusxalandi ✓
                 </p>
               )}
@@ -230,7 +230,7 @@ const PaymentMethodSelector: React.FC = () => {
                   >
                     <X size={14} />
                   </button>
-                  <div className="absolute bottom-2 left-2 rounded-full bg-emerald-500 px-3 py-1 text-[10px] font-black text-white">
+                  <div className="absolute bottom-2 left-2 rounded-full bg-[#C62020] px-3 py-1 text-[10px] font-black text-white">
                     ✓ Chek yuklandi
                   </div>
                 </div>
@@ -240,7 +240,7 @@ const PaymentMethodSelector: React.FC = () => {
                   onClick={() => fileInputRef.current?.click()}
                   className="flex w-full flex-col items-center justify-center gap-2 rounded-[12px] border-2 border-dashed border-slate-300 bg-slate-50 py-5 transition-colors active:bg-slate-100"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f4f4f5] text-slate-600">
                     <Camera size={20} />
                   </div>
                   <div className="text-center">
@@ -269,7 +269,7 @@ const PaymentMethodSelector: React.FC = () => {
 
       {/* ── Click / Payme — tez kunda ── */}
       <div className="relative flex w-full items-center gap-3 cursor-not-allowed rounded-[16px] border border-slate-200 bg-slate-50 p-3 opacity-60">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br from-slate-400 to-slate-500 text-white">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#e5e7eb] text-slate-400">
           <Smartphone size={20} />
         </div>
         <div className="min-w-0 flex-1">
