@@ -210,7 +210,16 @@ export function isOrderVisibleToRequester(order: any, requester: any) {
   }
 
   if (requester.role === UserRoleEnum.COURIER) {
-    return isActiveAssignmentForCourier(order, requester.id);
+    // Raw DB order (includes courierAssignments array) — use active assignment lookup
+    if (Array.isArray(order.courierAssignments)) {
+      return isActiveAssignmentForCourier(order, requester.id);
+    }
+    // Serialized order (no courierAssignments array) — check courierId + assignment status directly.
+    // This path is hit by the SSE stream handler when publishOrderUpdate fires after auto-assignment.
+    return (
+      order.courierId === requester.id &&
+      ACTIVE_ASSIGNMENT_STATUSES.includes(order.courierAssignmentStatus)
+    );
   }
 
   return order.userId === requester.id;

@@ -12,7 +12,7 @@ import { CourierAssignmentService } from '../../../services/courier-assignment.s
 import { DeliveryQuoteService } from '../../../services/delivery-quote.service.js';
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
-import { sendOrderNotificationToAdmin } from '../../../services/telegram-bot.service.js';
+import { sendAdminAlert, sendOrderNotificationToAdmin } from '../../../services/telegram-bot.service.js';
 import { StatusService } from '../../../services/status.service.js';
 import { SpecialEventsService } from '../../../services/special-events.service.js';
 import {
@@ -115,9 +115,19 @@ async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
       });
 
       await publishOrderSnapshot(orderId);
+    } else {
+      // No eligible courier found — notify admins so they can assign manually
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { orderNumber: true },
+      });
+      void sendAdminAlert(
+        `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${order?.orderNumber ?? orderId}</b> uchun avtomatik tayinlash amalga oshmadi — onlayn kuryerlar yo'q.\n\nAdminlar panel orqali qo'lda tayinlang.`,
+      );
     }
   } catch (error) {
     console.error(`Auto courier assignment failed for order ${orderId}:`, error);
+    void sendAdminAlert(`⚠️ Buyurtma <b>${orderId}</b> uchun kuryer tayinlashda xatolik: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -636,7 +646,7 @@ export async function handleCreateOrder(
       items: (serializedOrder.items ?? []).map((item: any) => ({
         name: item.name ?? item.itemName ?? 'Taom',
         quantity: item.quantity,
-        totalPrice: item.totalPrice ?? 0,
+        totalPrice: (item.price ?? item.priceAtOrder ?? 0) * item.quantity,
       })),
       subtotal: Number(serializedOrder.subtotal ?? 0),
       deliveryFee: Number(serializedOrder.deliveryFee ?? 0),

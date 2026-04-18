@@ -412,6 +412,9 @@ export const useCourierOrders = () => {
   return useQuery<CourierOrderPreview[]>({
     queryKey: ['courier-orders'],
     queryFn: async () => (await api.get('/courier/orders')) as CourierOrderPreview[],
+    // Poll every 30 s as a fallback in case an SSE push is missed
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 };
 
