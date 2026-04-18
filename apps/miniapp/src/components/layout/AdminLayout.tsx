@@ -61,7 +61,7 @@ const AdminLayout: React.FC = () => {
   const { flashActive } = useAdminNewOrderAlert(newOrdersCount);
 
   const layoutVars: React.CSSProperties & Record<string, string> = {
-    '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 122px)',
+    '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 60px)',
     '--admin-nav-clearance': 'calc(env(safe-area-inset-bottom, 0px) + 108px)',
     '--admin-fab-offset': 'calc(env(safe-area-inset-bottom, 0px) + 110px)',
   };
@@ -123,39 +123,18 @@ const AdminLayout: React.FC = () => {
       style={layoutVars}
     >
       <header
-        className="fixed inset-x-0 top-0 z-50 px-3"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+        className="fixed inset-x-0 top-0 z-50 px-3 flex justify-end"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)', paddingRight: '12px' }}
       >
-        <div className="mx-auto w-full max-w-[430px] overflow-hidden rounded-[28px] border border-white/80 bg-white/92 shadow-[0_20px_50px_rgba(15,23,42,0.14)] backdrop-blur-xl">
-          <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 via-sky-400 to-cyan-300" />
-          <div className="flex items-center justify-between gap-3 px-4 py-4">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-lg font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)]">
-                T
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-[18px] font-black leading-none tracking-tight text-slate-950">TURON</h2>
-                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${syncBadgeClass}`}>
-                    <span className={`h-2 w-2 rounded-full ${syncDotClass}`} />
-                    <span>{syncLabel}</span>
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-xs font-semibold text-slate-500">Admin Panel boshqaruvi</p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate('/admin/notifications')}
-              aria-label="Bildirishnomalar"
-              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition-transform active:scale-95"
-            >
-              <Bell size={20} />
-              <NotificationBadge role={UserRoleEnum.ADMIN} />
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/admin/notifications')}
+          aria-label="Bildirishnomalar"
+          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition-transform active:scale-95"
+        >
+          <Bell size={20} />
+          <NotificationBadge role={UserRoleEnum.ADMIN} />
+        </button>
       </header>
 
       <main
