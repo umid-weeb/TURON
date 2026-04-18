@@ -220,14 +220,15 @@ const CartPage: React.FC = () => {
     <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
       <main className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+190px)] pt-4">
         
-        <div className="mb-4 flex items-center justify-end">
+        <div className="mb-4 mt-2 flex items-center justify-between px-1">
+          <h2 className="text-[22px] font-black tracking-tight text-[#202020]">Savatingiz</h2>
           <button 
             type="button" 
             onClick={() => clearCart()}
-            className="flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-[14px] font-black tracking-[-0.02em] text-[#C62020] transition active:scale-[0.97]"
+            className="flex items-center gap-1.5 rounded-full bg-red-50/50 px-3 py-1.5 text-[13px] font-black tracking-[-0.02em] text-[#C62020] transition active:scale-[0.97]"
           >
             <Trash2 size={16} strokeWidth={2.5} />
-            Savatni tozalash
+            O'chirish
           </button>
         </div>
 
@@ -264,7 +265,11 @@ const CartPage: React.FC = () => {
             <button
               type="submit"
               disabled={(!promoCode.trim() && !appliedPromo) || validatePromoMutation.isPending}
-              className="flex h-full min-w-[106px] items-center justify-center rounded-[16px] bg-[#e5e7eb] px-4 text-[15px] font-black text-[#202020] transition active:scale-95 disabled:text-[#9a9aa3]"
+              className={`flex h-full min-w-[106px] items-center justify-center rounded-[16px] px-4 text-[15px] font-black transition active:scale-95 ${
+                validatePromoMutation.isPending || (!promoCode.trim() && !appliedPromo)
+                  ? 'bg-[#e5e7eb] text-[#9a9aa3]'
+                  : 'bg-[#C62020] text-white shadow-sm'
+              }`}
             >
               {validatePromoMutation.isPending ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -339,7 +344,7 @@ const CartPage: React.FC = () => {
             type="button"
             onClick={() => navigate('/customer/checkout')}
             disabled={items.some((item) => item.isAvailable === false)}
-            className="flex h-[58px] w-full items-center justify-center rounded-[18px] bg-[#202124] text-[16px] font-black text-white shadow-[0_16px_28px_rgba(15,23,42,0.2)] transition active:scale-[0.985] disabled:bg-slate-300 disabled:text-slate-500"
+            className="flex h-[58px] w-full items-center justify-center rounded-[18px] bg-[#C62020] text-[16px] font-black text-white shadow-[0_16px_28px_rgba(198,32,32,0.25)] transition active:scale-[0.985] disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
           >
             Buyurtma berish
           </button>
