@@ -122,20 +122,22 @@ const AdminLayout: React.FC = () => {
       className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_28%),linear-gradient(180deg,#eef4ff_0%,#f7f9fc_44%,#eef3fb_100%)] font-sans text-slate-950"
       style={layoutVars}
     >
-      <header
-        className="fixed inset-x-0 top-0 z-50 px-3 flex justify-end"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)', paddingRight: '12px' }}
+      <div
+        className="fixed inset-x-0 top-0 z-50 px-3"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        <button
-          type="button"
-          onClick={() => navigate('/admin/notifications')}
-          aria-label="Bildirishnomalar"
-          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition-transform active:scale-95"
-        >
-          <Bell size={20} />
-          <NotificationBadge role={UserRoleEnum.ADMIN} />
-        </button>
-      </header>
+        <div className="mx-auto flex w-full max-w-[430px] justify-end">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/notifications')}
+            aria-label="Bildirishnomalar"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95"
+          >
+            <Bell size={20} />
+            <NotificationBadge role={UserRoleEnum.ADMIN} />
+          </button>
+        </div>
+      </div>
 
       <main
         className="mx-auto w-full max-w-[430px] overflow-x-hidden px-4"

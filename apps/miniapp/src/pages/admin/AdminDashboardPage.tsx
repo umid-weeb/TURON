@@ -59,26 +59,65 @@ const StatCard: React.FC<{
   </article>
 );
 
-const QuickAction: React.FC<{
+const QuickActionTile: React.FC<{
   label: string;
   icon: React.ReactNode;
   badge?: number;
   onClick: () => void;
-}> = ({ label, icon, badge, onClick }) => (
+  prominent?: boolean;
+}> = ({ label, icon, badge, onClick, prominent }) => (
   <button
     type="button"
     onClick={onClick}
-    className="relative flex h-[92px] flex-col items-center justify-center gap-3 rounded-[16px] bg-white text-slate-950 shadow-[0_16px_34px_rgba(15,23,42,0.07)] active:scale-[0.98]"
+    className={`relative flex flex-col items-center justify-center gap-3 rounded-[18px] bg-white text-slate-950 shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition-transform active:scale-[0.985] ${
+      prominent ? 'h-[124px]' : 'h-[92px]'
+    }`}
   >
     {badge ? (
       <span className="absolute right-3 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-black text-white">
         {badge}
       </span>
     ) : null}
-    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+    <span
+      className={`relative flex items-center justify-center rounded-full bg-blue-50 text-blue-600 ${
+        prominent ? 'h-14 w-14 shadow-[0_18px_40px_rgba(37,99,235,0.24)]' : 'h-10 w-10'
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`absolute inset-0 -z-10 rounded-full bg-blue-500/18 blur-2xl ${prominent ? 'opacity-100' : 'opacity-0'}`}
+      />
       {icon}
     </span>
     <span className="text-sm font-black">{label}</span>
+  </button>
+);
+
+const QuickActionRow: React.FC<{
+  label: string;
+  icon: React.ReactNode;
+  badge?: number;
+  onClick: () => void;
+  iconClassName?: string;
+}> = ({ label, icon, badge, onClick, iconClassName }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="relative flex h-[62px] w-full items-center gap-3 rounded-[18px] bg-white px-4 text-left text-slate-950 shadow-[0_16px_34px_rgba(15,23,42,0.07)] transition-transform active:scale-[0.99]"
+  >
+    <span
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+        iconClassName ?? 'bg-slate-100 text-slate-700'
+      }`}
+    >
+      {icon}
+    </span>
+    <span className="min-w-0 flex-1 text-sm font-black">{label}</span>
+    {badge ? (
+      <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-black text-white">
+        {badge}
+      </span>
+    ) : null}
   </button>
 );
 
@@ -121,6 +160,21 @@ const AdminDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-6">
+      <section
+        className="relative overflow-hidden rounded-[32px] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.18),transparent_40%),linear-gradient(135deg,#0b1a44_0%,#071a3d_45%,#020617_100%)] px-6 py-6 text-white shadow-[0_26px_70px_rgba(15,23,42,0.22)]"
+        style={{
+          marginTop: 'calc(0px - var(--admin-header-clearance))',
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 22px)',
+        }}
+      >
+        <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -left-24 bottom-0 h-56 w-56 rounded-full bg-sky-500/16 blur-3xl" />
+        <div className="relative pr-14">
+          <h1 className="text-[34px] font-black leading-none tracking-[-0.045em]">Turon Bot</h1>
+          <p className="mt-3 text-sm font-semibold leading-6 text-white/76">Admin panel boshqaruvi</p>
+        </div>
+      </section>
+
       <section className="grid grid-cols-2 gap-3">
         <StatCard
           title="Yangi buyurtmalar"
@@ -154,27 +208,49 @@ const AdminDashboardPage: React.FC = () => {
 
       <section className="space-y-3">
         <h2 className="text-lg font-black tracking-tight text-slate-950">Tezkor amallar</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <QuickAction
+        <div className="grid grid-cols-2 gap-3">
+          <QuickActionTile
+            prominent
             label="Buyurtmalar"
-            icon={<ClipboardList size={20} />}
+            icon={<ClipboardList size={22} />}
             badge={newOrders.length || undefined}
             onClick={() => navigate('/admin/orders')}
           />
-          <QuickAction label="Menu" icon={<UtensilsCrossed size={20} />} onClick={() => navigate('/admin/menu')} />
-          <QuickAction
-            label="Kuryerlar"
-            icon={<Bike size={20} />}
-            badge={busyCouriers || undefined}
-            onClick={() => navigate('/admin/couriers')}
+          <div className="flex flex-col gap-3">
+            <QuickActionRow
+              label="Menu"
+              icon={<UtensilsCrossed size={18} />}
+              onClick={() => navigate('/admin/menu')}
+              iconClassName="bg-blue-50 text-blue-600"
+            />
+            <QuickActionRow
+              label="Kuryerlar"
+              icon={<Bike size={18} />}
+              badge={busyCouriers || undefined}
+              onClick={() => navigate('/admin/couriers')}
+              iconClassName="bg-amber-50 text-amber-600"
+            />
+            <QuickActionRow
+              label="Promo"
+              icon={<Tag size={18} />}
+              onClick={() => navigate('/admin/promos')}
+              iconClassName="bg-fuchsia-50 text-fuchsia-600"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <QuickActionRow
+            label="Hisobotlar"
+            icon={<TrendingUp size={18} />}
+            onClick={() => navigate('/admin/reports')}
+            iconClassName="bg-emerald-50 text-emerald-600"
           />
-          <QuickAction label="Promo" icon={<Tag size={20} />} onClick={() => navigate('/admin/promos')} />
-          <QuickAction label="Hisobotlar" icon={<TrendingUp size={20} />} onClick={() => navigate('/admin/reports')} />
-          <QuickAction
+          <QuickActionRow
             label="Xabarlar"
-            icon={<Bell size={20} />}
+            icon={<Bell size={18} />}
             badge={pendingOrders.length || undefined}
             onClick={() => navigate('/admin/notifications')}
+            iconClassName="bg-red-50 text-red-500"
           />
         </div>
       </section>
