@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
-import { useToastStore, type Toast } from '../../store/useToastStore';
+import { useToastStore, type Toast as ToastType } from '../../store/useToastStore';
 
 export const ToastContainer: React.FC = () => {
     const { toasts, removeToast } = useToastStore();
@@ -13,7 +13,7 @@ export const ToastContainer: React.FC = () => {
             }}
         >
             {toasts.map((toast) => (
-                <Toast
+                <ToastItem
                     key={toast.id}
                     toast={toast}
                     onClose={() => removeToast(toast.id)}
@@ -23,8 +23,8 @@ export const ToastContainer: React.FC = () => {
     );
 };
 
-const Toast: React.FC<{
-    toast: Toast;
+const ToastItem: React.FC<{
+    toast: ToastType;
     onClose: () => void;
 }> = ({ toast, onClose }) => {
     useEffect(() => {
