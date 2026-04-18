@@ -105,6 +105,7 @@ const CartPage: React.FC = () => {
   const validatePromoMutation = useValidatePromo();
   const [promoCode, setPromoCode] = React.useState(appliedPromo?.code ?? '');
   const [promoFeedback, setPromoFeedback] = React.useState<{ success: boolean; message: string } | null>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
 
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null;
   const subtotal = getSubtotal();
@@ -254,6 +255,8 @@ const CartPage: React.FC = () => {
                   setPromoCode(event.target.value.toUpperCase());
                   setPromoFeedback(null);
                 }}
+                onFocus={() => setIsKeyboardOpen(true)}
+                onBlur={() => setTimeout(() => setIsKeyboardOpen(false), 50)}
                 disabled={Boolean(appliedPromo)}
                 placeholder="Promo kod"
                 className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-bold uppercase text-[#202020] outline-none placeholder:normal-case placeholder:text-[#9a9aa3] disabled:text-[#202020]"
@@ -331,21 +334,23 @@ const CartPage: React.FC = () => {
         </section>
       </main>
 
-      <div
-        className="fixed inset-x-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 py-3 shadow-[0_-16px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-        style={{ bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))' }}
-      >
-        <div className="mx-auto">
-          <button
-            type="button"
-            onClick={() => navigate('/customer/checkout')}
-            disabled={items.some((item) => item.isAvailable === false)}
-            className="flex h-[58px] w-full items-center justify-center rounded-[18px] bg-[#C62020] text-[16px] font-black text-white shadow-[0_16px_28px_rgba(198,32,32,0.25)] transition active:scale-[0.985] disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
-          >
-            Buyurtma berish
-          </button>
+      {!isKeyboardOpen && (
+        <div
+          className="fixed inset-x-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 py-3 shadow-[0_-16px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+          style={{ bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <div className="mx-auto">
+            <button
+              type="button"
+              onClick={() => navigate('/customer/checkout')}
+              disabled={items.some((item) => item.isAvailable === false)}
+              className="flex h-[58px] w-full items-center justify-center rounded-[18px] bg-[#C62020] text-[16px] font-black text-white shadow-[0_16px_28px_rgba(198,32,32,0.25)] transition active:scale-[0.985] disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+            >
+              Buyurtma berish
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
