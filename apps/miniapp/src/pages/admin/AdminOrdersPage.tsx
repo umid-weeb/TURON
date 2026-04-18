@@ -15,37 +15,37 @@ import { getNextStatus } from '../../lib/orderStatusUtils';
 type OrderFilter = 'ALL' | OrderStatus;
 
 const FILTERS: Array<{ value: OrderFilter; label: string }> = [
-  { value: 'ALL', label: 'All' },
-  { value: OrderStatus.PENDING, label: 'New' },
-  { value: OrderStatus.PREPARING, label: 'Preparing' },
-  { value: OrderStatus.DELIVERING, label: 'On the way' },
-  { value: OrderStatus.DELIVERED, label: 'Completed' },
-  { value: OrderStatus.CANCELLED, label: 'Cancelled' },
+  { value: 'ALL', label: 'Hammasi' },
+  { value: OrderStatus.PENDING, label: 'Yangi' },
+  { value: OrderStatus.PREPARING, label: 'Tayyorlanyotgan' },
+  { value: OrderStatus.DELIVERING, label: 'Yolda' },
+  { value: OrderStatus.DELIVERED, label: 'Tugallangan' },
+  { value: OrderStatus.CANCELLED, label: 'Bekor qilingan' },
 ];
 
 const STATUS_META: Record<OrderStatus, { label: string; className: string }> = {
   [OrderStatus.PENDING]: {
-    label: 'New',
+    label: 'Yangi',
     className: 'bg-blue-50 text-blue-600',
   },
   [OrderStatus.PREPARING]: {
-    label: 'Preparing',
+    label: 'Tayyorlanyotgan',
     className: 'bg-amber-50 text-amber-600',
   },
   [OrderStatus.READY_FOR_PICKUP]: {
-    label: 'Ready',
+    label: 'Tayyor',
     className: 'bg-emerald-50 text-emerald-600',
   },
   [OrderStatus.DELIVERING]: {
-    label: 'On the way',
+    label: 'Yolda',
     className: 'bg-emerald-50 text-emerald-600',
   },
   [OrderStatus.DELIVERED]: {
-    label: 'Completed',
+    label: 'Tugallangan',
     className: 'bg-emerald-50 text-emerald-600',
   },
   [OrderStatus.CANCELLED]: {
-    label: 'Cancelled',
+    label: 'Bekor qilingan',
     className: 'bg-rose-50 text-rose-600',
   },
 };
@@ -169,6 +169,8 @@ const AdminOrdersPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<OrderFilter>('ALL');
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [mutatingOrderId, setMutatingOrderId] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   const storeOrders = useOrdersStore((state) => state.orders);
   const {
@@ -180,6 +182,29 @@ const AdminOrdersPage: React.FC = () => {
     refetch,
   } = useAdminOrders();
   const updateOrderStatus = useUpdateOrderStatus();
+
+  // Handle scroll direction for sticky search
+  React.useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const handleScroll = () => {
+      clearTimeout(timeoutId);
+      const currentScrollY = window.scrollY || document.documentElement.scrollTop;
+
+      // Show search when scrolling up or at the top
+      if (currentScrollY < lastScrollY || currentScrollY < 50) {
+        setShowSearch(true);
+      } else if (currentScrollY > lastScrollY + 10) {
+        // Hide search when scrolling down
+        setShowSearch(false);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   const useFallbackOrders = (isLoading || isError) && storeOrders.length > 0;
   const orders = useFallbackOrders ? storeOrders : adminOrders;
@@ -248,16 +273,18 @@ const AdminOrdersPage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-6">
-      <section className="rounded-[20px] border border-slate-200 bg-[#f8fafc] px-4 py-3">
-        <label className="flex items-center gap-3">
-          <Search size={19} className="text-slate-400" />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search by order ID or name..."
-            className="w-full bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-          />
-        </label>
+      <section className={`sticky top-0 z-40 transition-all duration-300 ${showSearch ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`} style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)', paddingBottom: '12px', backgroundColor: 'rgb(248, 250, 252)', margin: '0 -16px 16px -16px', paddingLeft: '16px', paddingRight: '16px' }}>
+        <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
+          <label className="flex items-center gap-3">
+            <Search size={19} className="text-slate-400" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Order ID yoki nomi bo'yicha qidiring..."
+              className="w-full bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+            />
+          </label>
+        </div>
       </section>
 
       <section className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide">
@@ -304,7 +331,7 @@ const AdminOrdersPage: React.FC = () => {
 
       <div className="flex items-center justify-between">
         <p className="text-sm font-bold text-slate-500">
-          {filteredOrders.length} orders
+          {filteredOrders.length} buyurtma
         </p>
         {isFetching ? (
           <Loader2 size={16} className="animate-spin text-slate-400" />
