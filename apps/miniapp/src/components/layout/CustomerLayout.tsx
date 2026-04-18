@@ -162,7 +162,7 @@ const CustomerLayout: React.FC = () => {
           }}
         >
           <CustomerErrorBoundary>
-            <Outlet />
+            <Outlet context={{ isKeyboardOpen }} />
           </CustomerErrorBoundary>
         </main>
       </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Loader2, Minus, Plus, ShoppingCart, Tag, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { CartItem } from '../../data/types';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { getCartItemImageUrl, getProductPosterUrl } from '../../features/menu/placeholders';
@@ -87,6 +87,7 @@ const CartProductCard: React.FC<{
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isKeyboardOpen } = useOutletContext<{ isKeyboardOpen?: boolean }>() || {};
   const { formatText } = useCustomerLanguage();
   const {
     items,
@@ -105,7 +106,6 @@ const CartPage: React.FC = () => {
   const validatePromoMutation = useValidatePromo();
   const [promoCode, setPromoCode] = React.useState(appliedPromo?.code ?? '');
   const [promoFeedback, setPromoFeedback] = React.useState<{ success: boolean; message: string } | null>(null);
-  const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
 
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null;
   const subtotal = getSubtotal();
@@ -255,8 +255,6 @@ const CartPage: React.FC = () => {
                   setPromoCode(event.target.value.toUpperCase());
                   setPromoFeedback(null);
                 }}
-                onFocus={() => setIsKeyboardOpen(true)}
-                onBlur={() => setTimeout(() => setIsKeyboardOpen(false), 50)}
                 disabled={Boolean(appliedPromo)}
                 placeholder="Promo kod"
                 className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-bold uppercase text-[#202020] outline-none placeholder:normal-case placeholder:text-[#9a9aa3] disabled:text-[#202020]"
