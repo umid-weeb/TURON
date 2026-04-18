@@ -62,59 +62,70 @@ const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
   const { formatText } = useCustomerLanguage();
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  // Duplicate items many times so it never runs out during continuous scrolling
-  const displayItems = React.useMemo(() => [...items, ...items, ...items, ...items, ...items], [items]);
+  // Duplicate items many times to ensure smooth endless forward scrolling during the session
+  const displayItems = React.useMemo(() => {
+    let arr: MenuProduct[] = [];
+    if (items.length === 0) return arr;
+    for (let i = 0; i < 20; i++) arr = [...arr, ...items];
+    return arr;
+  }, [items]);
 
   React.useEffect(() => {
-    if (items.length === 0) return;
+    if (items.length <= 1) return;
     const el = scrollRef.current;
     if (!el) return;
 
-    let isPaused = false;
-    let animationId: number;
-    let lastTime = performance.now();
-
-    const handleTouchStart = () => { isPaused = true; };
-    const handleTouchEnd = () => { isPaused = false; };
+    let intervalId: NodeJS.Timeout;
     
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchend', handleTouchEnd, { passive: true });
-    el.addEventListener('mousedown', handleTouchStart, { passive: true });
-    el.addEventListener('mouseup', handleTouchEnd, { passive: true });
-    el.addEventListener('mouseleave', handleTouchEnd, { passive: true });
-
-    const step = (currentTime: number) => {
-      const dt = currentTime - lastTime;
-      lastTime = currentTime;
-
-      if (!isPaused) {
-        el.scrollLeft += dt * 0.035; // smooth continuous scroll speed
+    const startAutoPlay = () => {
+      // Clear any existing intervals to prevent duplicate triggers
+      clearInterval(intervalId);
+      intervalId = setInterval(() => {
+        if (!el) return;
+        const itemWidth = el.clientWidth;
+        const originalSetWidth = itemWidth * items.length;
         
-        // Endless loop logic: 5 sets, so 1 set = scrollWidth / 5.
-        const originalSetWidth = el.scrollWidth / 5;
-        if (el.scrollLeft >= originalSetWidth * 2) {
-          el.scrollLeft -= originalSetWidth;
+        // Endless loop logic: jump backwards silently if scrolled too far
+        if (el.scrollLeft >= originalSetWidth * 10) {
+           el.style.scrollBehavior = 'auto'; // Turn off smooth scroll instantly
+           el.scrollLeft -= originalSetWidth * 5; // Jump back 5 sets
+           
+           // Force a browser reflow/layout so scrollBehavior applies instantly
+           // eslint-disable-next-line @typescript-eslint/no-unused-expressions, no-void
+           void el.offsetWidth; 
+           
+           el.style.scrollBehavior = 'smooth'; // Turn smooth scroll back on
         }
-      }
-      animationId = requestAnimationFrame(step);
+        
+        // Advance exactly one item
+        el.scrollLeft += itemWidth;
+      }, 3500); 
     };
-    
-    animationId = requestAnimationFrame(step);
+
+    startAutoPlay();
+
+    // Pause auto-sliding when the user touches to avoid conflicting with active swiping
+    const onTouchStart = () => clearInterval(intervalId);
+    const onTouchEnd = () => startAutoPlay();
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('mousedown', onTouchStart, { passive: true });
+    el.addEventListener('mouseup', onTouchEnd, { passive: true });
 
     return () => {
-      cancelAnimationFrame(animationId);
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchend', handleTouchEnd);
-      el.removeEventListener('mousedown', handleTouchStart);
-      el.removeEventListener('mouseup', handleTouchEnd);
-      el.removeEventListener('mouseleave', handleTouchEnd);
+      clearInterval(intervalId);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('mousedown', onTouchStart);
+      el.removeEventListener('mouseup', onTouchEnd);
     };
   }, [items.length]);
 
   if (items.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 16, marginBottom: 4 }}>
+    <div style={{ marginTop: 16, marginBottom: 8 }}>
       <p style={{
         fontSize: 17, fontWeight: 900, color: 'var(--app-text)',
         margin: '0 0 10px 16px', letterSpacing: '-0.02em',
@@ -127,20 +138,30 @@ const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
         className="scrollbar-hide"
         style={{
           display: 'flex',
-          gap: 12,
           overflowX: 'auto',
-          paddingInline: 16,
-          paddingBottom: 4,
+          scrollSnapType: 'x mandatory',
+          scrollBehavior: 'smooth',
           WebkitOverflowScrolling: 'touch',
+          paddingBottom: 4,
         }}
       >
         {displayItems.map((product, index) => (
-          <PromoBannerCard
+          <div
             key={`${product.id}-${index}`}
-            product={product}
-            onClick={() => navigate(`/customer/product/${product.id}`)}
-            formatText={formatText}
-          />
+            style={{
+              flex: '0 0 100%',
+              minWidth: '100%',
+              scrollSnapAlign: 'start',
+              paddingInline: 16,
+              boxSizing: 'border-box'
+            }}
+          >
+            <PromoBannerCard
+              product={product}
+              onClick={() => navigate(`/customer/product/${product.id}`)}
+              formatText={formatText}
+            />
+          </div>
         ))}
       </div>
     </div>
@@ -168,69 +189,119 @@ const PromoBannerCard: React.FC<{
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}
       style={{
-        width: 290,
-        maxWidth: '85vw',
-        height: 175,
-        borderRadius: 20,
+        width: '100%',
+        height: 160,
+        borderRadius: 24,
         overflow: 'hidden',
-        flexShrink: 0,
         position: 'relative',
         cursor: 'pointer',
-        boxShadow: '0 8px 28px rgba(0,0,0,0.22)',
+        boxShadow: '0 12px 30px rgba(0,0,0,0.15)',
         userSelect: 'none',
-        transform: 'translateZ(0)', // hardware acceleration for smooth scroll
+        background: 'linear-gradient(135deg, #222222 0%, #151515 100%)',
+        transform: 'translateZ(0)', // Force hardware acceleration
+        display: 'flex',
+        alignItems: 'center',
       }}
     >
-      {/* Background */}
-      <img
-        src={imgSrc}
-        alt={formatText(product.name)}
-        onError={() => { if (imgSrc !== posterSrc) setImgSrc(posterSrc); }}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
-      />
-      {/* Gradient overlay */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.45) 100%)',
-      }} />
-
-      {/* Discount badge - big & prominent */}
-      {(promotion.discountPercent || promotion.kind === 'discount') && (
-        <div style={{
-          position: 'absolute', top: 16, left: 16,
-          background: '#C62020',
-          borderRadius: 14, padding: '6px 14px',
-          boxShadow: '0 3px 12px rgba(198,32,32,0.45)',
+      {/* Left side text content */}
+      <div style={{ flex: 1, padding: '20px 20px 20px 24px', zIndex: 10, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+        <h2 style={{ 
+          color: '#ffffff', 
+          fontSize: 21, 
+          fontWeight: 800, 
+          lineHeight: 1.15, 
+          margin: 0, 
+          display: '-webkit-box', 
+          WebkitLineClamp: 2, 
+          WebkitBoxOrient: 'vertical', 
+          overflow: 'hidden',
+          textShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          maxWidth: '180px'
         }}>
-          <span style={{ color: 'white', fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em' }}>
-            {promotion.discountPercent ? `-${promotion.discountPercent}%` : 'Chegirma'}
-          </span>
-        </div>
-      )}
-
-      {/* Bottom info */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '12px 16px 14px' }}>
-        <p style={{
-          color: 'white', fontSize: 15, fontWeight: 900, margin: 0,
-          letterSpacing: '-0.02em', textShadow: '0 1px 4px rgba(0,0,0,0.5)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          {promotion.discountPercent ? `Chegirma: ${formatText(product.name)}` : formatText(product.name)}
+        </h2>
+        
+        <p style={{ 
+          color: '#a0a0a0', 
+          fontSize: 13, 
+          marginTop: 6, 
+          display: '-webkit-box', 
+          WebkitLineClamp: 1, 
+          WebkitBoxOrient: 'vertical', 
+          overflow: 'hidden',
+          maxWidth: '160px',
+          fontWeight: 500
         }}>
-          {formatText(product.name)}
+          {formatText(getProductSecondaryText(product) || product.description || "Ajoyib taklif")}
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          <span style={{ color: 'white', fontSize: 17, fontWeight: 900, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
-            {product.price.toLocaleString()} so'm
-          </span>
-          {promotion.oldPrice ? (
-            <span style={{
-              color: 'rgba(255,255,255,0.65)', fontSize: 12,
-              textDecoration: 'line-through', fontWeight: 600,
-            }}>
-              {promotion.oldPrice.toLocaleString()}
+
+        {/* Price & Order Button Area */}
+        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button style={{ 
+            background: '#C2FF00', // Lime green like the reference image
+            color: '#111', 
+            border: 'none', 
+            borderRadius: 20, 
+            padding: '7px 18px', 
+            fontSize: 13, 
+            fontWeight: 800,
+            boxShadow: '0 4px 12px rgba(194, 255, 0, 0.25)',
+            transform: 'translateZ(0)'
+          }}>
+            Buyurtma
+          </button>
+          
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1 }}>
+              {product.price.toLocaleString()} s.
             </span>
-          ) : null}
+            {promotion.oldPrice ? (
+              <span style={{ color: '#888', fontSize: 11, textDecoration: 'line-through', fontWeight: 600, marginTop: 2 }}>
+                {promotion.oldPrice.toLocaleString()} s.
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
+
+      {/* Right side Image (masked as circle) */}
+      <div style={{
+         position: 'absolute',
+         right: -25,
+         top: '50%',
+         transform: 'translateY(-50%)',
+         width: 175,
+         height: 175,
+         borderRadius: '50%',
+         overflow: 'hidden',
+         boxShadow: '-10px 0 35px rgba(0,0,0,0.6)', 
+         zIndex: 5,
+         backgroundColor: '#333'
+      }}>
+         <img
+           src={imgSrc}
+           alt={formatText(product.name)}
+           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+           onError={() => { if (imgSrc !== posterSrc) setImgSrc(posterSrc); }}
+         />
+      </div>
+
+      {/* Decorative gradient behind image */}
+      <div style={{
+        position: 'absolute', right: 0, top: 0, bottom: 0, width: 200,
+        background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 100%)',
+        zIndex: 4,
+        pointerEvents: 'none'
+      }} />
+
+      {/* Discount Badge */}
+      {promotion.discountPercent && (
+         <div style={{ position: 'absolute', top: 12, right: 'auto', left: 24, zIndex: 15 }}>
+            <span style={{ background: '#C62020', color: '#fff', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 900 }}>
+               -{promotion.discountPercent}%
+            </span>
+         </div>
+      )}
     </div>
   );
 };
