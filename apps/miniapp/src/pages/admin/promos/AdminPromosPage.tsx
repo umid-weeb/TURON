@@ -51,7 +51,7 @@ const AdminPromosPage: React.FC = () => {
       <section className="rounded-[16px] border border-[#E5E7EB] bg-[#FFFFFF] p-3 shadow-[0_8px_20px_rgba(17,24,39,0.06)]">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h2 className="text-[17px] font-black tracking-tight text-[#111827]">Promo boshqaruvi</h2>
+            <h2 className="text-[17px] font-black tracking-tight text-[#111827]">Promokodlar boshqaruvi</h2>
             <p className="text-[12px] font-medium text-[#6B7280]">Kodlar, holatlar va ishlatilish statistikasi</p>
           </div>
           <div className="flex items-center gap-2">

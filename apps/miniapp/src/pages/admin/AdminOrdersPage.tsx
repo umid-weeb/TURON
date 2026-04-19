@@ -51,12 +51,12 @@ const STATUS_META: Record<OrderStatus, { label: string; className: string }> = {
 };
 
 const ACTION_LABELS: Partial<Record<OrderStatus, string>> = {
-  [OrderStatus.PENDING]: 'Accept',
-  [OrderStatus.PREPARING]: 'Ready',
-  [OrderStatus.READY_FOR_PICKUP]: 'Send',
-  [OrderStatus.DELIVERING]: 'Track',
-  [OrderStatus.DELIVERED]: 'View',
-  [OrderStatus.CANCELLED]: 'View',
+  [OrderStatus.PENDING]: 'Qabul qilish',
+  [OrderStatus.PREPARING]: 'Tayyor',
+  [OrderStatus.READY_FOR_PICKUP]: "Jo'natish",
+  [OrderStatus.DELIVERING]: 'Kuzatish',
+  [OrderStatus.DELIVERED]: "Ko'rish",
+  [OrderStatus.CANCELLED]: "Ko'rish",
 };
 
 function getMinutesSince(timestamp: string) {
@@ -67,11 +67,11 @@ function formatOrderTime(timestamp: string) {
   const minutes = getMinutesSince(timestamp);
 
   if (minutes < 60) {
-    return `${minutes} min ago`;
+    return `${minutes} daqiqa oldin`;
   }
 
   const hours = Math.floor(minutes / 60);
-  return `${hours} hr ago`;
+  return `${hours} soat oldin`;
 }
 
 function matchesSearch(order: Order, query: string) {
@@ -121,7 +121,7 @@ const OrderListCard: React.FC<OrderListCardProps> = ({
   onPrimaryAction,
 }) => {
   const meta = STATUS_META[order.orderStatus];
-  const actionLabel = ACTION_LABELS[order.orderStatus] || 'View';
+  const actionLabel = ACTION_LABELS[order.orderStatus] || "Ko'rish";
 
   return (
     <article className="rounded-[18px] bg-white px-4 py-4 shadow-[0_14px_32px_rgba(15,23,42,0.06)]">
@@ -148,7 +148,7 @@ const OrderListCard: React.FC<OrderListCardProps> = ({
 
       <div className="mt-6 flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-slate-500">
-          {order.items.length} items
+          {order.items.length} ta mahsulot
         </p>
         <button
           type="button"
@@ -255,7 +255,7 @@ const AdminOrdersPage: React.FC = () => {
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Order ID yoki nomi bo'yicha qidiring..."
+              placeholder="Buyurtma ID yoki nomi bo'yicha qidiring..."
               className="w-full bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
             />
           </label>

@@ -61,13 +61,13 @@ const AdminLayout: React.FC = () => {
   const { flashActive } = useAdminNewOrderAlert(newOrdersCount);
 
   const getPageHeaderTitle = (pathname: string) => {
-    if (pathname.startsWith('/admin/orders')) return 'Buyurtma page';
-    if (pathname.startsWith('/admin/menu')) return 'Menu page';
-    if (pathname.startsWith('/admin/promos')) return 'Promo page';
-    if (pathname.startsWith('/admin/couriers')) return 'Kuryer page';
-    if (pathname.startsWith('/admin/reports')) return 'Hisobot page';
-    if (pathname.startsWith('/admin/notifications')) return 'Bildirishnoma page';
-    if (pathname.startsWith('/admin/dashboard') || pathname === '/admin') return 'Home page';
+    if (pathname.startsWith('/admin/orders')) return 'Buyurtmalar';
+    if (pathname.startsWith('/admin/menu')) return 'Menyu';
+    if (pathname.startsWith('/admin/promos')) return 'Promokodlar';
+    if (pathname.startsWith('/admin/couriers')) return 'Kuryerlar';
+    if (pathname.startsWith('/admin/reports')) return 'Hisobotlar';
+    if (pathname.startsWith('/admin/notifications')) return 'Bildirishnomalar';
+    if (pathname.startsWith('/admin/dashboard') || pathname === '/admin') return 'Bosh sahifa';
     return '';
   };
 
@@ -80,12 +80,12 @@ const AdminLayout: React.FC = () => {
   };
 
   const syncLabel = isConnected
-    ? 'Main Branch'
+    ? 'Asosiy tarmoq'
     : connectionState === 'reconnecting'
       ? 'Qayta ulanmoqda'
       : connectionState === 'connecting'
         ? 'Ulanmoqda'
-        : 'Offline';
+        : 'Oflayn';
 
   const syncBadgeClass = isConnected
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -179,7 +179,7 @@ const AdminLayout: React.FC = () => {
           <NavItem
             path="/admin/dashboard"
             icon={<LayoutDashboard size={21} />}
-            label="Home"
+            label="Bosh"
           />
           <NavItem
             path="/admin/orders"
@@ -190,7 +190,7 @@ const AdminLayout: React.FC = () => {
           <NavItem
             path="/admin/menu"
             icon={<UtensilsCrossed size={21} />}
-            label="Menu"
+            label="Menyu"
           />
           <NavItem
             path="/admin/couriers"
@@ -200,7 +200,7 @@ const AdminLayout: React.FC = () => {
           <NavItem
             path="/admin/promos"
             icon={<Tag size={21} />}
-            label="Promo"
+            label="Promokod"
           />
         </div>
       </nav>

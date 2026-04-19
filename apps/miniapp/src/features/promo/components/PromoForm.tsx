@@ -81,7 +81,7 @@ export const PromoForm: React.FC<Props> = ({
       <section className="sticky top-[calc(env(safe-area-inset-top,0px)+8px)] z-10 rounded-2xl border border-white/10 bg-slate-900/70 p-3 backdrop-blur-xl shadow-[0_16px_44px_rgba(0,0,0,0.35)]">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold tracking-tight text-white">Edit Promo Code</h2>
+            <h2 className="truncate text-lg font-semibold tracking-tight text-white">Promokodni tahrirlash</h2>
             <p className="mt-0.5 text-xs text-slate-400">{title}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -105,10 +105,10 @@ export const PromoForm: React.FC<Props> = ({
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
-        <h3 className="mb-3 text-sm font-semibold text-white">Basic Info</h3>
+        <h3 className="mb-3 text-sm font-semibold text-white">Asosiy ma'lumotlar</h3>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Promo code *</label>
+            <label className="text-xs font-medium text-slate-300">Promokod *</label>
             <input
               type="text"
               value={code}
@@ -122,7 +122,7 @@ export const PromoForm: React.FC<Props> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Title</label>
+            <label className="text-xs font-medium text-slate-300">Sarlavha</label>
             <input
               type="text"
               value={titleStr}
@@ -133,7 +133,7 @@ export const PromoForm: React.FC<Props> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Description</label>
+            <label className="text-xs font-medium text-slate-300">Tavsif</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -146,10 +146,10 @@ export const PromoForm: React.FC<Props> = ({
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
-        <h3 className="mb-3 text-sm font-semibold text-white">Discount Settings</h3>
+        <h3 className="mb-3 text-sm font-semibold text-white">Chegirma sozlamalari</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Type *</label>
+            <label className="text-xs font-medium text-slate-300">Turi *</label>
             <select
               value={discountType}
               onChange={(e) => setDiscountType(e.target.value as DiscountTypeEnum)}
@@ -161,7 +161,7 @@ export const PromoForm: React.FC<Props> = ({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Value *</label>
+            <label className="text-xs font-medium text-slate-300">Qiymati *</label>
             <input
               type="number"
               value={discountValue || ''}
@@ -175,7 +175,7 @@ export const PromoForm: React.FC<Props> = ({
         {errors.discountValue && <p className="mt-2 text-xs font-medium text-rose-300">{errors.discountValue}</p>}
 
         <div className="mt-3 space-y-1.5">
-          <label className="text-xs font-medium text-slate-300">Minimal order value (so&apos;m)</label>
+          <label className="text-xs font-medium text-slate-300">Minimal buyurtma qiymati (so&apos;m)</label>
           <input
             type="number"
             value={minOrderValue || ''}
@@ -186,10 +186,10 @@ export const PromoForm: React.FC<Props> = ({
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
-        <h3 className="mb-3 text-sm font-semibold text-white">Usage Rules</h3>
+        <h3 className="mb-3 text-sm font-semibold text-white">Foydalanish qoidalari</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Start date</label>
+            <label className="text-xs font-medium text-slate-300">Boshlanish sanasi</label>
             <input
               type="date"
               value={startDate}
@@ -198,7 +198,7 @@ export const PromoForm: React.FC<Props> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">End date (optional)</label>
+            <label className="text-xs font-medium text-slate-300">Tugash sanasi (ixtiyoriy)</label>
             <input
               type="date"
               value={endDate}
@@ -212,7 +212,7 @@ export const PromoForm: React.FC<Props> = ({
         {errors.endDate && <p className="mt-2 text-xs font-medium text-rose-300">{errors.endDate}</p>}
 
         <div className="mt-3 space-y-1.5">
-          <label className="text-xs font-medium text-slate-300">Usage limit (0 = cheksiz)</label>
+          <label className="text-xs font-medium text-slate-300">Foydalanish limiti (0 = cheksiz)</label>
           <input
             type="number"
             value={usageLimit || ''}
@@ -253,7 +253,7 @@ export const PromoForm: React.FC<Props> = ({
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
-        <h3 className="mb-3 text-sm font-semibold text-white">Advanced Settings</h3>
+        <h3 className="mb-3 text-sm font-semibold text-white">Kengaytirilgan sozlamalar</h3>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-slate-300">Mijoz ID (VIP promo, ixtiyoriy)</label>
           <input
