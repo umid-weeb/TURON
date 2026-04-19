@@ -24,21 +24,25 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
       label: 'Kategoriyalar',
       value: totalCategories,
       tone: 'neutral',
+      onClick: () => navigate('/admin/menu/categories'),
     },
     {
       label: 'Faol taomlar',
       value: activeProducts,
       tone: 'active',
+      onClick: () => navigate('/admin/menu/products?active=active'),
     },
     {
       label: 'Nofaol',
       value: inactiveProducts,
       tone: 'inactive',
+      onClick: () => navigate('/admin/menu/products?active=inactive'),
     },
     {
       label: 'Tugagan',
       value: oosProducts,
       tone: 'danger',
+      onClick: () => navigate(`/admin/menu/products?availability=${ProductAvailabilityEnum.OUT_OF_STOCK}`),
     },
   ] as const;
 
@@ -103,13 +107,18 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
                     : 'bg-blue-500';
 
             return (
-              <div key={card.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
+              <button
+                key={card.label}
+                type="button"
+                onClick={card.onClick}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-blue-200 hover:shadow-[0_12px_24px_rgba(37,99,235,0.12)] active:scale-[0.99]"
+              >
                 <div className="flex items-center justify-between">
                   <p className="text-[12px] font-semibold text-slate-500">{card.label}</p>
                   <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
                 </div>
                 <p className={`mt-2 text-2xl font-black leading-none ${colorClass}`}>{card.value}</p>
-              </div>
+              </button>
             );
           })}
         </div>

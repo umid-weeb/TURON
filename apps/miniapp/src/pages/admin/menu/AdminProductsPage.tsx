@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import ProductCardAdmin from '../../../features/menu/components/ProductCardAdmin';
 import ProductFiltersBar from '../../../features/menu/components/ProductFiltersBar';
@@ -13,19 +13,56 @@ import {
 
 const AdminProductsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [pageError, setPageError] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<MenuProduct | null>(null);
-  const [filters, setFilters] = useState<ProductFilterState>({
-    categoryId: 'all',
-    activeFilter: 'all',
-    availabilityFilter: 'all',
-    searchQuery: '',
+  const [filters, setFilters] = useState<ProductFilterState>(() => {
+    const activeParam = searchParams.get('active');
+    const availabilityParam = searchParams.get('availability');
+    const categoryParam = searchParams.get('categoryId');
+    const searchParam = searchParams.get('q');
+
+    return {
+      categoryId: categoryParam || 'all',
+      activeFilter:
+        activeParam === 'active' || activeParam === 'inactive' ? activeParam : 'all',
+      availabilityFilter: (availabilityParam as ProductFilterState['availabilityFilter']) || 'all',
+      searchQuery: searchParam || '',
+    };
   });
 
   const { data: categories = [] } = useAdminCategories();
   const { data: products = [], isLoading, isError } = useAdminProducts();
   const setProductActiveMutation = useSetProductActive();
   const deleteProductMutation = useDeleteProduct();
+
+  React.useEffect(() => {
+    const activeParam = searchParams.get('active');
+    const availabilityParam = searchParams.get('availability');
+    const categoryParam = searchParams.get('categoryId');
+    const searchParam = searchParams.get('q');
+
+    const nextFilters: ProductFilterState = {
+      categoryId: categoryParam || 'all',
+      activeFilter:
+        activeParam === 'active' || activeParam === 'inactive' ? activeParam : 'all',
+      availabilityFilter: (availabilityParam as ProductFilterState['availabilityFilter']) || 'all',
+      searchQuery: searchParam || '',
+    };
+
+    setFilters((current) => {
+      if (
+        current.categoryId === nextFilters.categoryId &&
+        current.activeFilter === nextFilters.activeFilter &&
+        current.availabilityFilter === nextFilters.availabilityFilter &&
+        current.searchQuery === nextFilters.searchQuery
+      ) {
+        return current;
+      }
+
+      return nextFilters;
+    });
+  }, [searchParams]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
