@@ -16,8 +16,12 @@ import { MiniAppCloseButton } from '../telegram/MiniAppCloseButton';
 function useCourierNewOrderDetection() {
   const { data: orders = [] } = useCourierOrders();
   const { data: courierStatus } = useCourierStatus();
-  const { initialized, seenOrderIds, showInterrupt, dismissInterrupt, markSeen, setInitialized } =
-    useOrderInterruptStore();
+  const initialized = useOrderInterruptStore((state) => state.initialized);
+  const seenOrderIds = useOrderInterruptStore((state) => state.seenOrderIds);
+  const showInterrupt = useOrderInterruptStore((state) => state.showInterrupt);
+  const dismissInterrupt = useOrderInterruptStore((state) => state.dismissInterrupt);
+  const markSeen = useOrderInterruptStore((state) => state.markSeen);
+  const setInitialized = useOrderInterruptStore((state) => state.setInitialized);
   const initializedRef = React.useRef(initialized);
 
   React.useEffect(() => {
