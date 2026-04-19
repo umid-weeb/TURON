@@ -8,7 +8,7 @@ export interface ChatMessage {
   id: string;
   orderId: string;
   senderId: string;
-  senderRole: 'COURIER' | 'CUSTOMER';
+  senderRole: 'COURIER' | 'CUSTOMER' | 'ADMIN';
   senderName: string;
   content: string;
   isRead: boolean;
@@ -17,13 +17,13 @@ export interface ChatMessage {
 
 interface ChatReadPayload {
   orderId: string;
-  readerRole: 'COURIER' | 'CUSTOMER';
+  readerRole: 'COURIER' | 'CUSTOMER' | 'ADMIN';
   readAt: string;
 }
 
 interface ChatUnreadReminderPayload {
   orderId: string;
-  forRole: 'COURIER' | 'CUSTOMER';
+  forRole: 'COURIER' | 'CUSTOMER' | 'ADMIN';
   messageId: string;
 }
 

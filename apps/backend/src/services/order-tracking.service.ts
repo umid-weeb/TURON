@@ -21,7 +21,7 @@ export interface ChatMessagePayload {
   id: string;
   orderId: string;
   senderId: string;
-  senderRole: 'COURIER' | 'CUSTOMER';
+  senderRole: 'COURIER' | 'CUSTOMER' | 'ADMIN';
   senderName: string;
   content: string;
   isRead: boolean;

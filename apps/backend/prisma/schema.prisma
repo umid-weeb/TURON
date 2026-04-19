@@ -125,6 +125,7 @@ enum SpecialEventTypeEnum {
 enum ChatSenderRoleEnum {
   COURIER
   CUSTOMER
+  ADMIN
 
   @@map("chat_sender_role_enum")
 }
@@ -361,19 +362,22 @@ model OrderItem {
 }
 
 model OrderChatMessage {
-  id         String             @id @default(uuid())
-  orderId    String             @map("order_id")
-  senderId   String             @map("sender_id")
-  senderRole ChatSenderRoleEnum @map("sender_role")
-  content    String             @db.Text
-  isRead     Boolean            @default(false) @map("is_read")
-  createdAt  DateTime           @default(now()) @map("created_at")
+  id                String             @id @default(uuid())
+  orderId           String             @map("order_id")
+  senderId          String             @map("sender_id")
+  senderRole        ChatSenderRoleEnum @map("sender_role")
+  content           String             @db.Text
+  isRead            Boolean            @default(false) @map("is_read")
+  telegramMessageId BigInt?            @map("telegram_message_id")
+  fallbackSentAt    DateTime?          @map("fallback_sent_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
 
   order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   sender User  @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt(sort: Asc)])
   @@index([senderId])
+  @@index([telegramMessageId])
   @@map("order_chat_messages")
 }
 

@@ -17,6 +17,7 @@ import {
   rateOrder,
 } from './orders.controller.js';
 import { getOrderChat, sendOrderChat, getUnreadCount } from '../chat/chat.controller.js';
+import { getAdminInbox, getAdminOrderChat, sendAdminOrderChat, markAdminOrderChatRead } from '../chat/admin-chat.controller.js';
 import { 
   AssignCourierSchema,
   CreateOrderSchema, 
@@ -94,5 +95,11 @@ export default async function orderRoutes(fastify: FastifyInstance) {
         body: RejectPaymentSchema,
       }
     }, handleRejectPayment);
+
+    // ── Admin chat endpoints ────────────────────────────────────────────────
+    admin.get('/chats', getAdminInbox);
+    admin.get('/:id/admin-chat', { schema: { params: IdParamSchema } }, getAdminOrderChat);
+    admin.post('/:id/admin-chat', { schema: { params: IdParamSchema } }, sendAdminOrderChat);
+    admin.post('/:id/admin-chat/read', { schema: { params: IdParamSchema } }, markAdminOrderChatRead);
   });
 }

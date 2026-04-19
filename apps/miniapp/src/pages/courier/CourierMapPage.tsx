@@ -7,6 +7,7 @@ import { CourierMapView } from '../../components/courier/CourierMapView';
 import CourierNavigationPanel, { type RouteAlternative } from '../../components/courier/CourierNavigationPanel';
 import { DeliveryCompletedPanel } from '../../components/courier/DeliveryCompletedPanel';
 import { BottomPanel as CourierMapBottomPanel } from '../../components/CourierMap/BottomPanel';
+import { OrderChatPanel } from '../../components/chat/OrderChatPanel';
 import type { RouteInfo, RouteStep } from '../../features/maps/MapProvider';
 import {
   CourierProblemReporter,
@@ -178,6 +179,7 @@ const CourierMapPage: React.FC = () => {
     text: string;
     tone: 'success' | 'error' | 'neutral';
   } | null>(null);
+  const [isChatOpen, setIsChatOpen]             = useState(false);
   const [copied, setCopied]                     = useState(false);
   const [selectedRouteId, setSelectedRouteId]   = useState<string | undefined>(undefined);
 
@@ -679,7 +681,10 @@ const CourierMapPage: React.FC = () => {
         </div>
       ) : null}
 
-      <CourierMapBottomPanel onProblem={() => setProblemSheetOpen(true)} />
+      <CourierMapBottomPanel
+        onChat={() => setIsChatOpen(true)}
+        onProblem={() => setProblemSheetOpen(true)}
+      />
 
       {isProblemSheetOpen ? (
         <div className="fixed inset-0 z-[80] flex flex-col justify-end bg-black/55">
@@ -706,6 +711,16 @@ const CourierMapPage: React.FC = () => {
             />
           </div>
         </div>
+      ) : null}
+
+      {isChatOpen && orderId ? (
+        <OrderChatPanel
+          orderId={orderId}
+          role="courier"
+          otherPartyPhone={order?.customerPhone ?? null}
+          onClose={() => setIsChatOpen(false)}
+          theme="dark"
+        />
       ) : null}
     </div>
   );

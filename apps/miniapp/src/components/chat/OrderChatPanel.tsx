@@ -71,7 +71,7 @@ function MessageBubble({
               isDark ? 'text-white/45' : 'text-slate-400'
             }`}
           >
-            {msg.senderRole === 'COURIER' ? 'Kuryer' : 'Mijoz'}
+            {msg.senderRole === 'COURIER' ? 'Kuryer' : msg.senderRole === 'ADMIN' ? 'Operator' : 'Mijoz'}
           </p>
         )}
         <p className="text-[13px] font-semibold leading-snug">{msg.content}</p>

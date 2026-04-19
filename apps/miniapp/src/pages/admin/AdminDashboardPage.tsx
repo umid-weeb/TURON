@@ -5,6 +5,7 @@ import {
   Bike,
   ClipboardList,
   Loader2,
+  MessageCircle,
   Tag,
   TrendingUp,
   UtensilsCrossed,
@@ -14,6 +15,7 @@ import { OrderStatusEnum, PaymentStatusEnum } from '@turon/shared';
 import { useAdminOrders } from '../../hooks/queries/useOrders';
 import { useAdminCourierDirectory } from '../../hooks/queries/useCouriers';
 import { useOrdersStore } from '../../store/useOrdersStore';
+import { useAdminUnreadTotal } from '../../hooks/queries/useAdminChats';
 
 function formatCompactMoney(value: number) {
   if (value >= 1_000_000) {
@@ -81,6 +83,7 @@ const QuickActionCard: React.FC<{
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const storeOrders = useOrdersStore((state) => state.orders);
+  const { data: chatUnread = 0 } = useAdminUnreadTotal();
 
   const { data: adminOrders = [], isLoading } = useAdminOrders();
   const { data: couriers = [] } = useAdminCourierDirectory();
@@ -139,8 +142,15 @@ const AdminDashboardPage: React.FC = () => {
         onClick: () => navigate('/admin/notifications'),
         badge: pendingOrders.length || undefined,
       },
+      {
+        key: 'chats',
+        label: 'Chat',
+        icon: <MessageCircle size={20} />,
+        onClick: () => navigate('/admin/chats'),
+        badge: chatUnread || undefined,
+      },
     ],
-    [navigate, newOrders.length, busyCouriers, pendingOrders.length],
+    [navigate, newOrders.length, busyCouriers, pendingOrders.length, chatUnread],
   );
 
   return (

@@ -4,6 +4,7 @@ import app from './app.js';
 import { launchTelegramBot, stopTelegramBot } from '../services/telegram-bot.service.js';
 import { startOrderExpiryScheduler } from '../services/order-expiry.service.js';
 import { locationWriteBuffer } from '../services/location-write-buffer.service.js';
+import { recoverPendingFallbacks } from '../services/admin-chat-fallback.service.js';
 
 const server = fastify({
   logger: true,
@@ -26,6 +27,9 @@ async function main() {
     // Start location write buffer — batches courier GPS DB writes every 10s
     // (prevents 10k upserts/sec killing Postgres at scale)
     locationWriteBuffer.start();
+
+    // Recover any chat messages that were waiting for admin fallback before restart
+    void recoverPendingFallbacks();
 
     // Never block API health/startup on Telegram bot launch.
     if (env.NODE_ENV === 'production') {

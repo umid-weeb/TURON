@@ -81,7 +81,7 @@ type AdminReplyMessage = {
   message_id: number;
   text?: string;
   chat: { id: number | string };
-  from?: { first_name?: string; last_name?: string; username?: string };
+  from?: { id?: number; first_name?: string; last_name?: string; username?: string };
   reply_to_message?: { message_id?: number };
 };
 
@@ -166,7 +166,7 @@ declare global {
     | undefined;
 }
 
-function getBotState() {
+export function getBotState() {
   if (!globalThis.__turonTelegramBotState) {
     globalThis.__turonTelegramBotState = {
       bot: new Telegraf(botToken),
@@ -307,6 +307,32 @@ async function handleAdminSupportReply(message: AdminReplyMessage) {
   const replyToMessageId = message.reply_to_message?.message_id;
   if (!replyToMessageId) return;
 
+  // ── Try to route as an order chat reply first ─────────────────────────────
+  // If the replied-to message was a fallback from AdminChatFallbackService,
+  // its Telegram message_id will be stored in OrderChatMessage.telegramMessageId.
+  try {
+    const { OrderChatService } = await import('./order-chat.service.js');
+    const linked = await OrderChatService.findByTelegramMessageId(BigInt(replyToMessageId));
+
+    if (linked) {
+      // Resolve admin user from their Telegram ID
+      const adminUserId = await resolveTelegramAdminUserId(message.from?.id ? Number(message.from.id) : undefined);
+      if (adminUserId) {
+        await OrderChatService.sendMessage(
+          linked.orderId,
+          adminUserId,
+          'ADMIN',
+          message.text.trim(),
+          { telegramMessageId: BigInt(message.message_id) },
+        );
+        return; // handled — do NOT fall through to support service
+      }
+    }
+  } catch (err) {
+    console.error('[Bot] Order chat reply routing failed:', err);
+  }
+
+  // ── Fallback: legacy support message reply ────────────────────────────────
   await SupportService.createAdminReplyFromTelegram({
     adminChatId: String(message.chat.id),
     telegramMessageId: message.message_id,

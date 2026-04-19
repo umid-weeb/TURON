@@ -29,6 +29,7 @@ import AdminPromosPage from './pages/admin/promos/AdminPromosPage';
 import AdminPromoFormPage from './pages/admin/promos/AdminPromoFormPage';
 import AdminCouriersPage from './pages/admin/AdminCouriersPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
+import AdminChatsPage from './pages/admin/AdminChatsPage';
 
 // --- Courier Pages ---
 import CourierStatusPage from './pages/courier/CourierStatusPage';
@@ -142,6 +143,7 @@ export default function App() {
             <Route path="promos/:promoId/edit" element={<AdminPromoFormPage />} />
             <Route path="couriers" element={<AdminCouriersPage />} />
             <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="chats" element={<AdminChatsPage />} />
           </Route>
 
           {/* Courier Module */}
