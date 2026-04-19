@@ -21,6 +21,7 @@ import {
 import { getOrderChat, sendOrderChat, getUnreadCount } from '../chat/chat.controller.js';
 import {
   CourierProblemSchema,
+  DeliverOrderSchema,
   IdParamSchema,
   TrackingLocationSchema,
   UpdateCourierOperationalStatusSchema,
@@ -90,6 +91,7 @@ export default async function courierRoutes(fastify: FastifyInstance) {
   fastify.post('/order/:id/deliver', {
     schema: {
       params: IdParamSchema,
+      body: DeliverOrderSchema,
     }
   }, deliverCourierOrder);
 

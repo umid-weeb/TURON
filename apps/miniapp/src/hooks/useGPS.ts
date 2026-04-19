@@ -20,6 +20,7 @@ export function useGPS() {
     // Production Note: watchPosition provides updates natively without us polling.
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        setError(null);
         const { latitude, longitude, speed, heading } = position.coords;
         // Speed is in m/s, heading is true north bearing if speed > 0
         setGpsData(latitude, longitude, speed, heading);

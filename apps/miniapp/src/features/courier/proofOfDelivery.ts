@@ -102,13 +102,11 @@ export function validateOtp(enteredOtp: string, correctOtp: string): ProofValida
  */
 export async function submitDeliveryProof(proof: DeliveryProof): Promise<{ success: boolean; orderId: string }> {
   try {
-    const response = await api.post(`/courier/orders/${proof.orderId}/delivery-proof`, {
-      photoBase64: proof.photoBase64,
+    await api.post(`/courier/order/${proof.orderId}/deliver`, {
       gpsLatitude: proof.latitude,
       gpsLongitude: proof.longitude,
       gpsAccuracy: proof.accuracy,
-      timestamp: proof.timestamp,
-      customerOtp: proof.customerOtp,
+      photoBase64: proof.photoBase64 || undefined,
     });
 
     return {
@@ -116,7 +114,7 @@ export async function submitDeliveryProof(proof: DeliveryProof): Promise<{ succe
       orderId: proof.orderId,
     };
   } catch (error) {
-    throw new Error(`POD topshirishdaida xatolik: ${error instanceof Error ? error.message : 'Noma\'lum xatolik'}`);
+    throw new Error(`Topshirishda xatolik: ${error instanceof Error ? error.message : 'Noma\'lum xatolik'}`);
   }
 }
 

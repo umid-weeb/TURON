@@ -358,11 +358,129 @@ export async function arriveAtDestination(
   return runCourierAction(request, reply, { action: 'ARRIVE_DESTINATION' });
 }
 
+const MAX_DELIVERY_DISTANCE_METERS = 300;
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export async function deliverCourierOrder(
-  request: FastifyRequest<{ Params: { id: string } }>,
+  request: FastifyRequest<{
+    Params: { id: string };
+    Body: { gpsLatitude: number; gpsLongitude: number; gpsAccuracy?: number; photoBase64?: string };
+  }>,
   reply: FastifyReply,
 ) {
-  return runCourierAction(request, reply, { action: 'DELIVER' });
+  const requester = request.user as any;
+  const { id: orderId } = request.params;
+  const { gpsLatitude, gpsLongitude, photoBase64 } = request.body;
+
+  try {
+    // 1. Load order — verify courier has access and get destination coordinates
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId,
+        courierAssignments: { some: { courierId: requester.id } },
+      },
+      include: ORDER_INCLUDE as any,
+    });
+
+    if (!order) {
+      return reply.status(404).send({ error: 'Buyurtma topilmadi' });
+    }
+
+    // 2. Server-side GPS geofencing — cannot be bypassed by client
+    const destLat = Number((order as any).destinationLat);
+    const destLng = Number((order as any).destinationLng);
+    const distanceMeters = haversineMeters(gpsLatitude, gpsLongitude, destLat, destLng);
+
+    if (distanceMeters > MAX_DELIVERY_DISTANCE_METERS) {
+      return reply.status(400).send({
+        error: `Siz mijoz manzilidan ${Math.round(distanceMeters)}m uzoqdasiz. Topshirish uchun ${MAX_DELIVERY_DISTANCE_METERS}m yaqin bo'lishingiz kerak.`,
+      });
+    }
+
+    // 3. Confirm courier is in DELIVERING status
+    const assignment = (order as any).courierAssignments?.find(
+      (a: any) => a.courierId === requester.id && a.status === 'DELIVERING',
+    );
+
+    if (!assignment) {
+      return reply.status(400).send({
+        error: "Buyurtmani topshirishdan oldin yo'lga chiqqan bo'lishingiz kerak",
+      });
+    }
+
+    // 4. Atomic: save DeliveryProof + perform DELIVER in one transaction
+    const result = await prisma.$transaction(async (tx) => {
+      await (tx as any).deliveryProof.create({
+        data: {
+          orderId,
+          courierAssignmentId: assignment.id,
+          gpsLatitude,
+          gpsLongitude,
+          distanceMeters: Math.round(distanceMeters),
+          photoBase64: photoBase64 ?? null,
+        },
+      });
+
+      return CourierOrderActionsService.perform({
+        orderId,
+        courierId: requester.id,
+        actorUserId: requester.id,
+        action: 'DELIVER',
+        db: tx,
+      });
+    }, { timeout: 15000, maxWait: 5000 });
+
+    // 5. Audit
+    await AuditService.record({
+      userId: requester.id,
+      actorRole: requester.role,
+      action: 'UPDATE_DELIVERY_STAGE',
+      entity: 'Order',
+      entityId: result.order.id,
+      oldValue: result.before,
+      newValue: {
+        ...result.after,
+        eventType: result.eventType,
+        podGpsLatitude: gpsLatitude,
+        podGpsLongitude: gpsLongitude,
+        podDistanceMeters: Math.round(distanceMeters),
+      },
+      metadata: {
+        assignmentId: result.assignmentId,
+        eventId: result.eventId,
+        action: 'DELIVER',
+      },
+    });
+
+    if (result.before.orderStatus !== result.after.orderStatus) {
+      await AuditService.recordStatusChange({
+        userId: requester.id,
+        entity: 'Order',
+        entityId: result.order.id,
+        from: result.before.orderStatus,
+        to: result.after.orderStatus,
+      });
+    }
+
+    return reply.send(await publishCourierActionResult(result));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Topshirishda xatolik yuz berdi";
+    const statusCode =
+      message === 'Buyurtma topilmadi' ? 404 :
+      message === 'Ruxsat etilmadi' ? 403 :
+      400;
+    return reply.status(statusCode).send({ error: message });
+  }
 }
 
 export async function reportCourierProblem(

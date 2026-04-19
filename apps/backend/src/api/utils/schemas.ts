@@ -155,6 +155,13 @@ export const CourierProblemSchema = z.object({
   text: z.string().trim().min(5).max(500),
 });
 
+export const DeliverOrderSchema = z.object({
+  gpsLatitude: z.number().min(-90).max(90),
+  gpsLongitude: z.number().min(-180).max(180),
+  gpsAccuracy: z.number().min(0).optional(),
+  photoBase64: z.string().min(1000).optional(),
+});
+
 export const AdminCreateCourierSchema = z.object({
   telegramId: z.coerce.bigint(),
   fullName: z.string().trim().min(3).max(120),
