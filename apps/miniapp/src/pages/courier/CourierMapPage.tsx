@@ -6,10 +6,10 @@ import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import CourierNavigationPanel, { type RouteAlternative } from '../../components/courier/CourierNavigationPanel';
 import { DeliveryCompletedPanel } from '../../components/courier/DeliveryCompletedPanel';
+import { BottomPanel as CourierMapBottomPanel } from '../../components/CourierMap/BottomPanel';
 import type { RouteInfo, RouteStep } from '../../features/maps/MapProvider';
 import {
   CourierProblemReporter,
-  DeliveryBottomPanel,
 } from '../../components/courier/CourierComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import { useNextAvailableOrder } from '../../hooks/queries/useNextAvailableOrder';
@@ -114,6 +114,19 @@ function stageToast(stage: DeliveryStage): { text: string; type: 'success' | 'in
   }
 }
 
+function mapServerStageToCourierPanelStage(stage: DeliveryStage): 1 | 2 | 3 {
+  switch (stage) {
+    case DeliveryStage.PICKED_UP:
+    case DeliveryStage.DELIVERING:
+    case DeliveryStage.ARRIVED_AT_DESTINATION:
+      return 2;
+    case DeliveryStage.DELIVERED:
+      return 3;
+    default:
+      return 1;
+  }
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CourierMapPage: React.FC = () => {
@@ -143,6 +156,10 @@ const CourierMapPage: React.FC = () => {
   // ── Zustand store reads ────────────────────────────────────────────────────
   const storeCoords     = useCourierStore((s) => s.coords);
   const smoothedHeading = useCourierStore((s) => s.smoothedHeading);
+  const panelStage      = useCourierStore((s) => s.deliveryStage);
+  const setPanelStage   = useCourierStore((s) => s.setDeliveryStage);
+  const setStoreOrderInfo = useCourierStore((s) => s.setOrderInfo);
+  const setStoreRouteInfo = useCourierStore((s) => s.setRouteInfo);
 
   // Convert [lon, lat] → {lat, lng} for business logic (haversine, heartbeat, etc.)
   const liveCourierPos: { lat: number; lng: number } | null = storeCoords
@@ -155,6 +172,7 @@ const CourierMapPage: React.FC = () => {
   const [followMode, setFollowMode]             = useState(false); // Auto-enable after 4s
   const [routeInfo, setRouteInfo]               = useState<RouteInfo | null>(null);
   const [currentStep, setCurrentStep]           = useState<RouteStep | null>(null);
+  const [isProblemSheetOpen, setProblemSheetOpen] = useState(false);
   const [problemDraft, setProblemDraft]         = useState('');
   const [problemFeedback, setProblemFeedback]   = useState<{
     text: string;
@@ -237,11 +255,49 @@ const CourierMapPage: React.FC = () => {
   const canPublishLiveLocation =
     currentStage !== DeliveryStage.IDLE && currentStage !== DeliveryStage.DELIVERED;
 
+  useEffect(() => {
+    setPanelStage(mapServerStageToCourierPanelStage(currentStage));
+  }, [currentStage, setPanelStage]);
+
+  useEffect(() => {
+    if (!order) return;
+
+    setStoreOrderInfo({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      orderItems: order.items.map((item) => ({
+        id: item.id || item.menuItemId || item.name,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image,
+      })),
+      restaurantName: DEFAULT_RESTAURANT_LOCATION.name,
+      restaurantAddress: "Yangi Sergeli ko'chasi, 11",
+      restaurantPhone: '',
+      customerName: order.customerName || 'Mijoz',
+      customerAddress: order.customerAddress?.addressText || "Manzil ko'rsatilmagan",
+      customerPhone: order.customerPhone || '',
+      restaurantCoords: [restaurantPos.lng, restaurantPos.lat],
+      customerCoords: [customerPos.lng, customerPos.lat],
+    });
+  }, [customerPos.lat, customerPos.lng, order, restaurantPos.lat, restaurantPos.lng, setStoreOrderInfo]);
+
+  useEffect(() => {
+    if (!routeInfo?.distanceMeters || !routeInfo?.etaSeconds) return;
+
+    setStoreRouteInfo(
+      routeInfo.distanceMeters,
+      routeInfo.etaSeconds,
+      (routeInfo.polyline || []).map((point) => [point.lng, point.lat]),
+    );
+  }, [routeInfo, setStoreRouteInfo]);
+
   const courierPos    = liveCourierPos ?? trackedCourierPos ?? restaurantPos;
   // heading = smoothedHeading from Zustand (compass primary, GPS fallback — filtered in store)
   const heading       = smoothedHeading > 0 || liveCourierPos ? smoothedHeading : undefined;
   const currentTarget =
-    currentState === 'ACCEPTED' || currentState === 'ARRIVED' ? restaurantPos : customerPos;
+    panelStage === 1 ? restaurantPos : customerPos;
 
   const remainingMetrics = useMemo(
     () => computeRemainingMetrics(currentState, courierPos, currentTarget),
@@ -525,6 +581,7 @@ const CourierMapPage: React.FC = () => {
       {
         onSuccess: () => {
           setProblemDraft('');
+          setProblemSheetOpen(false);
           setProblemFeedback({ text: 'Muammo operatorga yuborildi.', tone: 'success' });
           window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
         },
@@ -545,18 +602,6 @@ const CourierMapPage: React.FC = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   
-  // Show delivery completed panel when order is delivered
-  if (currentStage === DeliveryStage.DELIVERED) {
-    return (
-      <DeliveryCompletedPanel
-        order={order}
-        metrics={remainingMetrics}
-        onNextOrder={() => nextOrderMutation.mutate()}
-        isLoadingNext={nextOrderMutation.isPending}
-      />
-    );
-  }
-
   return (
     <div className="relative h-screen w-full overflow-hidden bg-slate-950 font-sans text-white">
 
@@ -634,19 +679,18 @@ const CourierMapPage: React.FC = () => {
         </div>
       ) : null}
 
-      <DeliveryBottomPanel
-        order={order}
-        currentStage={currentStage}
-        onAction={handleStageAction}
-        onCall={handleCall}
-        onOpenDetails={() => navigate(`/courier/order/${order.id}`)}
-        onDeliveredNavigate={() => navigate('/courier/orders')}
-        nearRestaurant={nearRestaurant}
-        nearCustomer={nearCustomer}
-        approachingCustomer={approachingCustomer}
-        problemPanel={
-          // After early return check, currentStage can't be DELIVERED
-          (
+      <CourierMapBottomPanel onProblem={() => setProblemSheetOpen(true)} />
+
+      {isProblemSheetOpen ? (
+        <div className="fixed inset-0 z-[80] flex flex-col justify-end bg-black/55">
+          <button
+            type="button"
+            aria-label="Muammo oynasini yopish"
+            className="flex-1"
+            onClick={() => setProblemSheetOpen(false)}
+          />
+          <div className="rounded-t-[16px] bg-[#1a1b26] p-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]">
+            <div className="mx-auto mb-4 h-1 w-9 rounded-sm bg-white/15" />
             <CourierProblemReporter
               value={problemDraft}
               onChange={(value) => {
@@ -660,23 +704,9 @@ const CourierMapPage: React.FC = () => {
               feedbackText={problemFeedback?.text ?? null}
               feedbackTone={problemFeedback?.tone ?? 'neutral'}
             />
-          )
-        }
-        isUpdating={updateStageMutation.isPending}
-        canCall={Boolean(order.customerPhone)}
-        routeTitle={routeMeta.title}
-        routeDescription={geolocationError ?? routeMeta.description}
-        pickupLabel={DEFAULT_RESTAURANT_LOCATION.name}
-        destinationLabel={order.customerAddress?.label || 'Mijoz manzili'}
-        distance={displayRouteInfo.distance || formatRouteDistance(remainingMetrics.distanceKm)}
-        eta={displayRouteInfo.eta || formatEtaMinutes(remainingMetrics.etaMinutes)}
-        distanceLabel="Qolgan masofa"
-        etaLabel="Qolgan ETA"
-        isEtaLive={isEtaLive}
-        arrivalTime={remainingMetrics.etaMinutes > 0 ? arrivalTime : null}
-        onCopyAddress={showCopyButton ? handleCopyAddress : undefined}
-        copySuccess={copied}
-      />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { CourierOrderPreview } from '../../data/types';
@@ -13,6 +14,7 @@ interface UseNextAvailableOrderOptions {
  */
 export const useNextAvailableOrder = (options?: UseNextAvailableOrderOptions) => {
   const queryClient = useQueryClient();
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   return useMutation({
     mutationFn: async (): Promise<CourierOrderPreview | null> => {
@@ -28,7 +30,11 @@ export const useNextAvailableOrder = (options?: UseNextAvailableOrderOptions) =>
         }
 
         // Auto-accept the next order
-        const acceptResponse = (await api.post(`/courier/order/${response.order.id}/accept`)) as {
+        const acceptResponse = (await api.post(
+          `/courier/order/${response.order.id}/accept`,
+          undefined,
+          { headers: { 'Idempotency-Key': idempotencyKeyRef.current } },
+        )) as {
           success: boolean;
           order?: CourierOrderPreview;
         };
@@ -44,8 +50,9 @@ export const useNextAvailableOrder = (options?: UseNextAvailableOrderOptions) =>
     },
 
     onSuccess: (order) => {
+      idempotencyKeyRef.current = crypto.randomUUID();
+
       if (order) {
-        // Invalidate and refresh courier orders
         queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
         queryClient.invalidateQueries({ queryKey: ['courier-status'] });
 

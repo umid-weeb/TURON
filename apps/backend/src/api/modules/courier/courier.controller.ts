@@ -19,7 +19,6 @@ import {
   serializeOrder,
 } from '../orders/order-helpers.js';
 import { eligibleCourierCache } from '../../../services/courier-assignment.service.js';
-import { OrderReassignmentQueue } from '../../../services/order-reassignment-queue.service.js';
 
 const COURIER_LIST_ASSIGNMENT_STATUSES = [
   'ASSIGNED',
@@ -121,6 +120,19 @@ async function runCourierAction(
 ) {
   const requester = request.user as any;
   const params = request.params as { id: string };
+  const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+
+  // Return cached response for duplicate requests (e.g. user tapped 4 times offline)
+  if (idempotencyKey) {
+    try {
+      const cached = await prisma.idempotencyKey.findUnique({ where: { key: idempotencyKey } });
+      if (cached) {
+        return reply.send(JSON.parse(cached.responseJson));
+      }
+    } catch {
+      // idempotency_keys table unavailable — proceed without cache
+    }
+  }
 
   try {
     const result = await CourierOrderActionsService.perform({
@@ -163,7 +175,20 @@ async function runCourierAction(
       });
     }
 
-    return reply.send(await publishCourierActionResult(result));
+    const serializedOrder = await publishCourierActionResult(result);
+
+    // Cache response so future duplicate requests return immediately
+    if (idempotencyKey) {
+      prisma.idempotencyKey.create({
+        data: {
+          key: idempotencyKey,
+          orderId: result.order.id,
+          responseJson: JSON.stringify(serializedOrder),
+        },
+      }).catch(() => {});
+    }
+
+    return reply.send(serializedOrder);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Kuryer amalini bajarib bo'lmadi";
     const statusCode =
@@ -382,6 +407,19 @@ export async function deliverCourierOrder(
   const requester = request.user as any;
   const { id: orderId } = request.params;
   const { gpsLatitude, gpsLongitude, photoBase64 } = request.body;
+  const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+
+  // Return cached response for duplicate delivery confirmation requests
+  if (idempotencyKey) {
+    try {
+      const cached = await prisma.idempotencyKey.findUnique({ where: { key: idempotencyKey } });
+      if (cached) {
+        return reply.send(JSON.parse(cached.responseJson));
+      }
+    } catch {
+      // idempotency_keys table unavailable — proceed without cache
+    }
+  }
 
   try {
     // 1. Load order — verify courier has access and get destination coordinates
@@ -473,7 +511,19 @@ export async function deliverCourierOrder(
       });
     }
 
-    return reply.send(await publishCourierActionResult(result));
+    const serializedOrder = await publishCourierActionResult(result);
+
+    if (idempotencyKey) {
+      prisma.idempotencyKey.create({
+        data: {
+          key: idempotencyKey,
+          orderId: result.order.id,
+          responseJson: JSON.stringify(serializedOrder),
+        },
+      }).catch(() => {});
+    }
+
+    return reply.send(serializedOrder);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Topshirishda xatolik yuz berdi";
     const statusCode =
@@ -528,6 +578,13 @@ export async function declineCourierOrder(
         data: { status: 'REJECTED' as any },
       });
 
+      if ((order as any).courierId === requester.id) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { courierId: null },
+        });
+      }
+
       await tx.courierAssignmentEvent.create({
         data: {
           assignmentId: assignment.id,
@@ -565,9 +622,12 @@ export async function declineCourierOrder(
       metadata: { assignmentId: assignment.id },
     });
 
-    // Fire-and-forget: auto-reassign to the next best available courier.
-    // The queue handles retries and notifies admin only if all attempts fail.
-    OrderReassignmentQueue.enqueue(orderId, (order as any).orderNumber);
+    InAppNotificationsService.notifyAdmins({
+      type: NotificationTypeEnum.WARNING,
+      title: 'Kuryer buyurtmani rad etdi',
+      message: `#${String((order as any).orderNumber)} buyurtma qayta dispatch qilishni kutmoqda`,
+      relatedOrderId: orderId,
+    }).catch(() => {});
 
     return reply.send({ success: true, orderId });
   } catch (error) {
@@ -617,6 +677,8 @@ export async function updateCourierLocation(
       speedKmh?: number;
       remainingDistanceKm?: number;
       remainingEtaMinutes?: number;
+      /** ISO-8601 timestamp when the GPS fix was taken on the device. */
+      clientTimestamp?: string;
     };
   }>,
   reply: FastifyReply,
@@ -643,23 +705,33 @@ export async function updateCourierLocation(
   //   2. Enqueue to LocationWriteBuffer → flushed to DB every 10 s (100× fewer writes)
   //   3. AuditService REMOVED from this path — GPS coordinates have no audit value
   //      at 1-Hz frequency; stage changes / accept / decline are still audited.
+  //
+  // clientTimestamp guards against offline-sync teleportation:
+  //   live updates always carry the current time → pass staleness check
+  //   offline-synced updates have old timestamps → discarded from SSE + DB buffer
 
-  const { latitude, longitude, heading, speedKmh, remainingDistanceKm, remainingEtaMinutes } =
+  const { latitude, longitude, heading, speedKmh, remainingDistanceKm, remainingEtaMinutes, clientTimestamp } =
     request.body;
+  const clientTimestampMs = clientTimestamp ? new Date(clientTimestamp).getTime() : undefined;
   const now = new Date().toISOString();
 
-  // Step 1 — immediate SSE push (no DB)
-  const tracking = orderTrackingService.publishCourierLocation(order.id, {
-    latitude,
-    longitude,
-    heading,
-    speedKmh,
-    remainingDistanceKm,
-    remainingEtaMinutes,
-    updatedAt: now,
-  });
+  // Step 1 — immediate SSE push (no DB); returns current snapshot if update is stale
+  const tracking = orderTrackingService.publishCourierLocation(
+    order.id,
+    {
+      latitude,
+      longitude,
+      heading,
+      speedKmh,
+      remainingDistanceKm,
+      remainingEtaMinutes,
+      updatedAt: clientTimestamp ?? now,
+    },
+    clientTimestampMs,
+  );
 
   // Step 2 — deferred DB write (buffered, flushed every 10 s)
+  // recordedAtMs prevents stale offline coords from overwriting current DB presence
   locationWriteBuffer.enqueue({
     courierId: requester.id,
     orderId: order.id,
@@ -669,6 +741,7 @@ export async function updateCourierLocation(
     speedKmh: speedKmh ?? null,
     remainingDistanceKm: remainingDistanceKm ?? null,
     remainingEtaMinutes: remainingEtaMinutes ?? null,
+    recordedAtMs: clientTimestampMs,
   });
 
   // Step 3 — AuditService call REMOVED (was 1 extra write per heartbeat)

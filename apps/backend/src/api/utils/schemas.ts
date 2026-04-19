@@ -137,6 +137,8 @@ export const TrackingLocationSchema = z.object({
   speedKmh: z.number().min(0).optional(),
   remainingDistanceKm: z.number().min(0).optional(),
   remainingEtaMinutes: z.number().int().min(0).optional(),
+  /** ISO-8601 timestamp when the GPS reading was taken on the device. Used for offline-sync staleness checks. */
+  clientTimestamp: z.string().datetime().optional(),
 });
 
 export const UpdateCourierOperationalStatusSchema = z

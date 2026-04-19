@@ -1,4 +1,6 @@
 // filepath: apps/miniapp/src/features/courier/offlineSync.ts
+import { useEffect, useRef } from 'react';
+
 /**
  * Offline Support & Sync Queue System
  * Queues location updates when offline, syncs when back online
@@ -288,9 +290,9 @@ export class OfflineSyncManager {
  * React hook for offline sync
  */
 export function useOfflineSync(onSync: (update: QueuedLocationUpdate) => Promise<void>) {
-  const managerRef: { current: OfflineSyncManager | null } = { current: null };
+  const managerRef = useRef<OfflineSyncManager | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     managerRef.current = new OfflineSyncManager(onSync);
     return () => {
       managerRef.current?.destroy();
@@ -308,4 +310,3 @@ export function useOfflineSync(onSync: (update: QueuedLocationUpdate) => Promise
   };
 }
 
-import React from 'react';

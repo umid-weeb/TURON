@@ -32,7 +32,7 @@ export function useYmaps21(apiKey: string) {
 
     // Script tag qo'shish
     const script = document.createElement('script');
-    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU`;
+    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=uz_UZ&load=package.full`;
     script.async = true;
 
     script.onload = () => {

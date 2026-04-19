@@ -98,6 +98,81 @@ function syncTelegramOrderStatusInBackground(orderId: string, status?: string | 
   }
 }
 
+function scheduleCourierAssignmentTimeout(params: {
+  orderId: string;
+  orderNumber: bigint;
+  assignmentId: string;
+  courierId: string;
+}) {
+  setTimeout(() => {
+    void (async () => {
+      const assignment = await prisma.courierAssignment.findUnique({
+        where: { id: params.assignmentId },
+        select: {
+          id: true,
+          status: true,
+          orderId: true,
+          courierId: true,
+        },
+      });
+
+      if (!assignment || assignment.status !== 'ASSIGNED') {
+        return;
+      }
+
+      const now = new Date();
+      await prisma.$transaction(async (tx) => {
+        await tx.courierAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            status: 'CANCELLED' as any,
+            cancelledAt: now,
+          },
+        });
+
+        await tx.order.updateMany({
+          where: {
+            id: params.orderId,
+            courierId: params.courierId,
+          },
+          data: {
+            courierId: null,
+          },
+        });
+
+        await tx.courierAssignmentEvent.create({
+          data: {
+            assignmentId: assignment.id,
+            orderId: params.orderId,
+            courierId: params.courierId,
+            eventType: 'CANCELLED' as any,
+            eventAt: now,
+            payload: {
+              reason: 'courier_response_timeout',
+              timeoutSeconds: 30,
+            },
+          },
+        });
+      });
+
+      await InAppNotificationsService.notifyAdmins({
+        type: NotificationTypeEnum.WARNING,
+        title: 'Kuryer javob bermadi',
+        message: `#${String(params.orderNumber)} buyurtma 30 soniyada qabul qilinmadi. Qayta dispatch qiling.`,
+        relatedOrderId: params.orderId,
+      });
+
+      await publishOrderSnapshot(params.orderId);
+    })().catch((error) => {
+      console.warn('[Orders] Courier assignment timeout failed.', {
+        orderId: params.orderId,
+        assignmentId: params.assignmentId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, 30_000);
+}
+
 function recordOrderCreatedAudit(params: {
   userId: string;
   actorRole: string;
@@ -651,7 +726,8 @@ export async function handleCreateOrder(
     orderId: createdOrder.id,
     serializedOrder,
   });
-  void continueAutoAssignmentAfterOrderCreation(createdOrder.id);
+  // Admin tasdiqlamaguncha courierga yubormaymiz.
+  // Oldingi auto-assign shu yerda ishga tushib, band courierlarga ham yangi topshiriq chiqishiga sabab bo'lgan.
 
   // Fire-and-forget Telegram notification — never block order creation
   if (serializedOrder) {
@@ -699,7 +775,7 @@ export async function getAllOrders(request: FastifyRequest, reply: FastifyReply)
 }
 
 export async function getAvailableCouriers(request: FastifyRequest, reply: FastifyReply) {
-  const couriers = await CourierAssignmentService.rankEligibleCouriers();
+  const couriers = await CourierAssignmentService.rankDispatchCouriers();
 
   return reply.send(
     couriers.map((courier) => ({
@@ -712,6 +788,8 @@ export async function getAvailableCouriers(request: FastifyRequest, reply: Fasti
       rank: courier.rank,
       distanceMeters: courier.metrics.distanceMeters,
       etaMinutes: courier.metrics.etaMinutes,
+      remainingDeliveryDistanceMeters: courier.metrics.remainingDeliveryDistanceMeters ?? null,
+      isFree: courier.activeAssignments === 0 && courier.isOnline && courier.isAcceptingOrders,
       rankingSource: courier.metrics.source,
       hasLiveLocation: courier.metrics.hasLiveLocation,
       liveLocationUpdatedAt: courier.metrics.liveLocationUpdatedAt,
@@ -927,7 +1005,17 @@ export async function handleUpdateStatus(
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: order.id },
-      data: { status },
+      data: {
+        status,
+        approvedByUserId:
+          order.status === OrderStatusEnum.PENDING && status === OrderStatusEnum.PREPARING
+            ? admin.id
+            : undefined,
+        approvedAt:
+          order.status === OrderStatusEnum.PENDING && status === OrderStatusEnum.PREPARING
+            ? now
+            : undefined,
+      },
     });
 
     if (status === OrderStatusEnum.DELIVERING && activeAssignment) {
@@ -1037,6 +1125,47 @@ export async function handleUpdateStatus(
   return reply.send(serializedOrder);
 }
 
+export async function handleConfirmOrder(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  const admin = request.user as any;
+  const order = await prisma.order.findUnique({
+    where: { id: request.params.id },
+  });
+
+  if (!order) {
+    return reply.status(404).send({ error: 'Buyurtma topilmadi' });
+  }
+
+  if (order.status !== OrderStatusEnum.PENDING) {
+    return reply.status(400).send({ error: 'Faqat PENDING buyurtma tasdiqlanadi' });
+  }
+
+  const now = new Date();
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      status: OrderStatusEnum.PREPARING as any,
+      approvedAt: now,
+      approvedByUserId: admin.id,
+    },
+  });
+
+  await AuditService.recordStatusChange({
+    userId: admin.id,
+    entity: 'Order',
+    entityId: order.id,
+    from: order.status,
+    to: OrderStatusEnum.PREPARING,
+  });
+
+  const serializedOrder = await publishOrderSnapshot(order.id);
+  syncTelegramOrderStatusInBackground(order.id, serializedOrder?.orderStatus ?? OrderStatusEnum.PREPARING);
+
+  return reply.send(serializedOrder);
+}
+
 export async function handleAssignCourier(
   request: FastifyRequest<{ Params: { id: string }; Body: { courierId: string } }>,
   reply: FastifyReply,
@@ -1061,6 +1190,10 @@ export async function handleAssignCourier(
 
   if (order.status === OrderStatusEnum.DELIVERED || order.status === OrderStatusEnum.CANCELLED) {
     return reply.status(400).send({ error: "Yakunlangan buyurtmaga kuryer biriktirib bolmaydi" });
+  }
+
+  if (order.status === OrderStatusEnum.PENDING) {
+    return reply.status(400).send({ error: 'Buyurtmani avval admin tasdiqlashi kerak' });
   }
 
   const courier = await prisma.user.findFirst({
@@ -1106,9 +1239,20 @@ export async function handleAssignCourier(
       message === 'Buyurtma topilmadi' ? 404 :
       message === "Yakunlangan buyurtmaga kuryer biriktirib bo'lmaydi" ? 400 :
       message === "Tanlangan kuryer hozir buyurtma qabul qilishga tayyor emas" ? 400 :
+      message === "Buyurtmani avval admin tasdiqlashi kerak" ? 400 :
+      message === "Tanlangan kuryer hozir boshqa buyurtmada band" ? 400 :
       400;
 
     return reply.status(statusCode).send({ error: message });
+  }
+
+  if (!assignment.reusedExistingAssignment) {
+    scheduleCourierAssignmentTimeout({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      assignmentId: assignment.assignmentId,
+      courierId,
+    });
   }
 
   const serializedOrder = await getSerializedOrder(order.id);
@@ -1145,6 +1289,13 @@ export async function handleAssignCourier(
     relatedOrderId: order.id,
   });
   return reply.send(serializedOrder);
+}
+
+export async function handleDispatchOrder(
+  request: FastifyRequest<{ Params: { id: string }; Body: { courierId: string } }>,
+  reply: FastifyReply,
+) {
+  return handleAssignCourier(request, reply);
 }
 
 export async function handleApprovePayment(

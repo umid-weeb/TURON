@@ -1,94 +1,164 @@
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCourierStore } from '../store/courierStore';
 
-interface RouteResult {
-  points: [number, number][];     // Polyline nuqtalari [lon, lat][]
-  distanceMeters: number;
-  timeSeconds: number;
+interface UseRouteResult {
+  isLoading: boolean;
+  error: string | null;
+  updateCourier: (lat: number, lon: number) => void;
 }
 
-/**
- * ymaps 2.1 multiRouter bilan pedestrian marshrut olish.
- * ymaps — useYmaps21() dan kelgan instance.
- *
- * multiRouter natijalarini courierStore da saqlaymiz.
- */
-async function fetchPedestrianRoute(
-  ymaps: any,
-  from: [number, number],
-  to: [number, number],
-): Promise<RouteResult> {
-  return new Promise((resolve, reject) => {
-    const multiRoute = new ymaps.multiRouter.MultiRoute(
-      {
-        referencePoints: [
-          [from[1], from[0]],   // ymaps: [lat, lon] (swap!)
-          [to[1], to[0]],
-        ],
-        params: {
-          routingMode: 'pedestrian',   // Piyoda marshrut — courier uchun
-          results: 1,
-        },
-      },
-      { boundsAutoApply: false },
-    );
+function toYmapsPoint(point: [number, number]) {
+  return [point[1], point[0]];
+}
 
-    multiRoute.model.events.add('requestsuccess', () => {
-      const routes = multiRoute.getRoutes();
-      if (!routes.getLength()) {
-        reject(new Error('No route found'));
-        return;
-      }
+function collectionToArray(collection: any) {
+  if (!collection) return [] as any[];
+  if (Array.isArray(collection)) return collection;
+  if (typeof collection.each === 'function') {
+    const values: any[] = [];
+    collection.each((item: any) => values.push(item));
+    return values;
+  }
+  if (typeof collection.getLength === 'function' && typeof collection.get === 'function') {
+    return Array.from({ length: collection.getLength() }, (_, index) => collection.get(index));
+  }
+  return [] as any[];
+}
 
-      const route = routes.get(0);
-      const geometry = route.geometry.getCoordinates(); // [[lat, lon], ...]
-      const props = route.properties.getAll();
+function pushCoordinates(points: [number, number][], value: unknown) {
+  if (!Array.isArray(value)) return;
 
-      // ymaps [lat, lon] → bizning [lon, lat] formatiga o'tkazish (GeoJSON)
-      resolve({
-        points: geometry.map(([lat, lon]: number[]) => [lon, lat]),
-        distanceMeters: props.distance?.value ?? 0,
-        timeSeconds: props.duration?.value ?? 0,
-      });
-    });
+  if (value.length >= 2 && !Array.isArray(value[0]) && !Array.isArray(value[1])) {
+    const lat = Number(value[0]);
+    const lon = Number(value[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      points.push([lon, lat]);
+    }
+    return;
+  }
 
-    multiRoute.model.events.add('requesterror', (event: any) => {
-      reject(new Error(`multiRouter error: ${event.error}`));
+  value.forEach((item) => pushCoordinates(points, item));
+}
+
+function extractRoutePoints(route: any) {
+  const points: [number, number][] = [];
+
+  pushCoordinates(points, route?.geometry?.getCoordinates?.());
+
+  const paths = collectionToArray(route?.getPaths?.());
+  paths.forEach((path) => {
+    pushCoordinates(points, path?.geometry?.getCoordinates?.());
+    const segments = collectionToArray(path?.getSegments?.());
+    segments.forEach((segment) => {
+      pushCoordinates(points, segment?.geometry?.getCoordinates?.());
+      pushCoordinates(points, segment?.getCoordinates?.());
     });
   });
+
+  return points;
 }
 
-/**
- * Courier destinatsiyasigacha marshrut kalkulyatsiya qilish.
- * Har 30 soniyada avtomatik yangilaydi.
- * courierStore da distanceLeft, timeLeft, routePoints saqlaymiz.
- */
-export function useRoute(
-  ymaps: any | null,
-  destination: [number, number] | null,
-) {
+function readRouteMetric(route: any, key: 'distance' | 'duration' | 'durationInTraffic') {
+  const value = route?.properties?.get?.(key);
+  if (typeof value === 'number') return value;
+  if (typeof value?.value === 'number') return value.value;
+  return 0;
+}
+
+export function useRoute(ymaps: any | null, destination: [number, number] | null): UseRouteResult {
   const coords = useCourierStore((s) => s.coords);
   const setRouteInfo = useCourierStore((s) => s.setRouteInfo);
+  const multiRouteRef = useRef<any>(null);
+  const destinationRef = useRef<[number, number] | null>(destination);
+  const [isLoading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const query = useQuery<RouteResult>({
-    queryKey: [
-      'route',
-      coords?.[0],
-      coords?.[1],
-      destination?.[0],
-      destination?.[1],
-    ],
-    queryFn: async () => {
-      if (!ymaps || !coords || !destination) throw new Error('Not ready');
-      const result = await fetchPedestrianRoute(ymaps, coords, destination);
-      setRouteInfo(result.distanceMeters, result.timeSeconds, result.points);
-      return result;
+  const syncRouteInfo = useCallback(() => {
+    const multiRoute = multiRouteRef.current;
+    if (!multiRoute) return;
+
+    const activeRoute =
+      multiRoute.getActiveRoute?.() ||
+      (multiRoute.getRoutes?.()?.getLength?.() ? multiRoute.getRoutes().get(0) : null);
+
+    if (!activeRoute) return;
+
+    const distanceMeters = readRouteMetric(activeRoute, 'distance');
+    const timeSeconds =
+      readRouteMetric(activeRoute, 'durationInTraffic') || readRouteMetric(activeRoute, 'duration');
+    const points = extractRoutePoints(activeRoute);
+
+    setRouteInfo(distanceMeters, timeSeconds, points);
+    setLoading(false);
+    setError(null);
+  }, [setRouteInfo]);
+
+  const updateReferencePoints = useCallback(
+    (from: [number, number], to: [number, number]) => {
+      const multiRoute = multiRouteRef.current;
+      if (!multiRoute) return;
+
+      setLoading(true);
+      multiRoute.model.setReferencePoints([toYmapsPoint(from), toYmapsPoint(to)]);
     },
-    enabled: !!ymaps && !!coords && !!destination,
-    staleTime: 30_000,        // 30 soniyada bir yangilanadi
-    refetchInterval: 30_000,  // Avtomatik yangilash
-    retry: 2,
-  });
+    [],
+  );
 
-  return query;
+  const updateCourier = useCallback(
+    (lat: number, lon: number) => {
+      const to = destinationRef.current;
+      if (!to) return;
+      updateReferencePoints([lon, lat], to);
+    },
+    [updateReferencePoints],
+  );
+
+  useEffect(() => {
+    destinationRef.current = destination;
+  }, [destination]);
+
+  useEffect(() => {
+    if (!ymaps || !coords || !destination) return undefined;
+
+    if (!multiRouteRef.current) {
+      setLoading(true);
+      const multiRoute = new ymaps.multiRouter.MultiRoute(
+        {
+          referencePoints: [toYmapsPoint(coords), toYmapsPoint(destination)],
+          params: {
+            routingMode: 'pedestrian',
+            avoidTrafficJams: true,
+            results: 1,
+          },
+        },
+        {
+          boundsAutoApply: false,
+          routeActiveStrokeWidth: 6,
+          routeActiveStrokeColor: '#FF4500',
+          wayPointVisible: false,
+          pinIconFillColor: 'transparent',
+        },
+      );
+
+      multiRoute.model.events.add('requestsuccess', syncRouteInfo);
+      multiRoute.model.events.add('requesterror', (event: any) => {
+        setLoading(false);
+        setError(event?.error?.message || 'Yandex marshrutini hisoblab bo‘lmadi');
+      });
+
+      multiRouteRef.current = multiRoute;
+      return undefined;
+    }
+
+    updateReferencePoints(coords, destination);
+    return undefined;
+  }, [coords, destination, syncRouteInfo, updateReferencePoints, ymaps]);
+
+  useEffect(() => {
+    return () => {
+      multiRouteRef.current = null;
+    };
+  }, []);
+
+  return { isLoading, error, updateCourier };
 }

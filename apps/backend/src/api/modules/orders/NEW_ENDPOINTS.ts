@@ -1,6 +1,36 @@
 // NEW API ENDPOINTS FOR PRODUCTION FIXES
 // Add these to apps/backend/src/api/modules/orders/orders.controller.ts
 
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import { OrderStatusEnum, UserRoleEnum } from '@turon/shared';
+import { prisma } from '../../../lib/prisma.js';
+import { AuditService } from '../../../services/audit.service.js';
+import { orderTrackingService } from '../../../services/order-tracking.service.js';
+import {
+  ACTIVE_ASSIGNMENT_STATUSES,
+  ORDER_INCLUDE,
+  serializeOrder,
+} from './order-helpers.js';
+
+async function publishOrderSnapshot(orderId: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: ORDER_INCLUDE,
+  });
+
+  if (!order) {
+    return null;
+  }
+
+  const serializedOrder = {
+    ...serializeOrder(order),
+    tracking: await orderTrackingService.getSnapshot(orderId),
+  };
+
+  orderTrackingService.publishOrderUpdate(orderId, serializedOrder);
+  return serializedOrder;
+}
+
 export async function handleGetPaymentReceipt(
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply,
@@ -92,8 +122,8 @@ export async function handleSubmitDeliveryProof(
       orderId: order.id,
       courierAssignmentId: order.courierAssignments[0].id,
       photoBase64,
-      gpsLatitude: gpsLatitude ? new Decimal(gpsLatitude) : null,
-      gpsLongitude: gpsLongitude ? new Decimal(gpsLongitude) : null,
+      gpsLatitude: gpsLatitude ? Number(gpsLatitude) : null,
+      gpsLongitude: gpsLongitude ? Number(gpsLongitude) : null,
       distanceMeters,
       customerOtp: customerOtp?.trim() || null,
       createdAt: new Date(),

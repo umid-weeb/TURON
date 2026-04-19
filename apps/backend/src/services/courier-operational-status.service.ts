@@ -22,6 +22,13 @@ function buildEligibleCourierWhere(): Prisma.UserWhereInput {
         isAcceptingOrders: true,
       },
     },
+    courierAssignments: {
+      none: {
+        status: {
+          in: [...ACTIVE_ASSIGNMENT_STATUSES] as any,
+        },
+      },
+    },
   };
 }
 
@@ -80,7 +87,7 @@ function serializeStatus(
   return {
     courierId: status.courierId,
     isOnline: status.isOnline,
-    isAcceptingOrders: status.isAcceptingOrders,
+    isAcceptingOrders: status.isAcceptingOrders && activeAssignmentCount === 0,
     lastOnlineAt: status.lastOnlineAt?.toISOString() ?? null,
     lastOfflineAt: status.lastOfflineAt?.toISOString() ?? null,
     updatedAt: status.updatedAt.toISOString(),
@@ -149,6 +156,19 @@ export class CourierOperationalStatusService {
     db: DbClient = prisma,
   ) {
     const current = await this.getOrCreate(courierId, db);
+    const currentActiveAssignmentCount = await db.courierAssignment.count({
+      where: {
+        courierId,
+        status: {
+          in: [...ACTIVE_ASSIGNMENT_STATUSES] as any,
+        },
+      },
+    });
+
+    if (input.isAcceptingOrders === true && currentActiveAssignmentCount > 0) {
+      throw new Error("Faol buyurtmangiz bor paytda yangi buyurtma qabul qilishni yoqib bo'lmaydi");
+    }
+
     const nextIsOnline = input.isOnline ?? current.isOnline;
 
     if (!nextIsOnline && input.isAcceptingOrders === true && input.isOnline !== true) {
@@ -156,7 +176,7 @@ export class CourierOperationalStatusService {
     }
 
     const nextIsAcceptingOrders =
-      input.isOnline === false
+      input.isOnline === false || currentActiveAssignmentCount > 0
         ? false
         : input.isAcceptingOrders ?? current.isAcceptingOrders;
 
@@ -179,15 +199,7 @@ export class CourierOperationalStatusService {
     });
 
     const { start, end } = getTashkentDayRange();
-    const [activeAssignmentCount, completedToday, activeAssignment] = await Promise.all([
-      db.courierAssignment.count({
-        where: {
-          courierId,
-          status: {
-            in: [...ACTIVE_ASSIGNMENT_STATUSES] as any,
-          },
-        },
-      }),
+    const [completedToday, activeAssignment] = await Promise.all([
       db.courierAssignment.count({
         where: {
           courierId,
@@ -202,8 +214,8 @@ export class CourierOperationalStatusService {
     ]);
 
     return {
-      before: serializeStatus(current, activeAssignmentCount, completedToday, activeAssignment),
-      after: serializeStatus(updated, activeAssignmentCount, completedToday, activeAssignment),
+      before: serializeStatus(current, currentActiveAssignmentCount, completedToday, activeAssignment),
+      after: serializeStatus(updated, currentActiveAssignmentCount, completedToday, activeAssignment),
     };
   }
 }

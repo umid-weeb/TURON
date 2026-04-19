@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type {
@@ -423,6 +423,23 @@ export const useUpdateOrderStatus = () => {
   });
 };
 
+export const useConfirmOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      api.post(`/orders/${id}/confirm`, undefined, { timeout: 30000 }) as Promise<Order>,
+    onSuccess: (updatedOrder) => {
+      const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
+      const { upsertOrder } = useOrdersStore.getState();
+
+      applyOrderUpdateToCaches(queryClient, updatedOrder, upsertOrder);
+      notifyAboutOrderChanges(previousOrder, updatedOrder);
+      invalidateOrderQueries(queryClient, updatedOrder.id);
+    },
+  });
+};
+
 export const useAdminOrders = () => {
   const query = useQuery<Order[]>({
     queryKey: ['admin-orders'],
@@ -439,6 +456,7 @@ export const useAdminCouriers = (enabled = true) => {
     queryKey: ['admin-couriers'],
     queryFn: async () => (await api.get('/orders/courier-options')) as AdminCourierOption[],
     enabled,
+    refetchInterval: enabled ? 10_000 : false,
   });
 };
 
@@ -495,11 +513,21 @@ export const useCourierOrderDetails = (id: string) => {
 
 export const useUpdateCourierOrderStage = () => {
   const queryClient = useQueryClient();
+  // One stable key per hook instance — all rapid taps share the same key,
+  // so the backend processes only the first and returns the cached response for the rest.
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   return useMutation({
     mutationFn: ({ id, stage }: { id: string; stage: DeliveryStage }) =>
-      api.post(`/courier/order/${id}/${resolveCourierStageActionPath(stage)}`) as Promise<Order>,
+      api.post(
+        `/courier/order/${id}/${resolveCourierStageActionPath(stage)}`,
+        undefined,
+        { headers: { 'Idempotency-Key': idempotencyKeyRef.current } },
+      ) as Promise<Order>,
     onSuccess: (updatedOrder) => {
+      // Rotate key so the next stage action gets a fresh idempotency scope
+      idempotencyKeyRef.current = crypto.randomUUID();
+
       const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
       const { upsertOrder } = useOrdersStore.getState();
 
@@ -512,11 +540,18 @@ export const useUpdateCourierOrderStage = () => {
 
 export const useDeclineCourierOrder = () => {
   const queryClient = useQueryClient();
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   return useMutation({
     mutationFn: ({ id }: { id: string }) =>
-      api.post(`/courier/order/${id}/decline`) as Promise<{ success: boolean; orderId: string }>,
+      api.post(
+        `/courier/order/${id}/decline`,
+        undefined,
+        { headers: { 'Idempotency-Key': idempotencyKeyRef.current } },
+      ) as Promise<{ success: boolean; orderId: string }>,
     onSuccess: (_result, { id }) => {
+      idempotencyKeyRef.current = crypto.randomUUID();
+
       // Remove from courier orders cache immediately — courier no longer owns this order
       queryClient.setQueryData<CourierOrderPreview[]>(
         ['courier-orders'],
@@ -577,6 +612,7 @@ export const useUpdateCourierLocation = () => {
         speedKmh,
         remainingDistanceKm,
         remainingEtaMinutes,
+        clientTimestamp: new Date().toISOString(),
       }) as Promise<{ orderId: string; tracking?: OrderTrackingState }>;
     },
     onSuccess: (result, variables) => {
@@ -616,7 +652,7 @@ export const useAssignCourierToOrder = () => {
 
   return useMutation({
     mutationFn: ({ id, courierId }: { id: string; courierId: string }) =>
-      api.patch(`/orders/${id}/assign-courier`, { courierId }) as Promise<Order>,
+      api.post(`/orders/${id}/dispatch`, { courierId }) as Promise<Order>,
     onSuccess: (updatedOrder) => {
       const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
       const { upsertOrder } = useOrdersStore.getState();

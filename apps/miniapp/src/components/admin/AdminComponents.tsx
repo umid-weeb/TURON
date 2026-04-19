@@ -247,15 +247,32 @@ export const CourierAssignModal: React.FC<{
           ) : null}
 
           {!isLoading && !errorMessage
-            ? couriers.map((courier) => (
+            ? couriers.map((courier) => {
+                const isBusy = !courier.isFree || courier.activeAssignments > 0;
+                const distanceLabel =
+                  typeof courier.distanceMeters === 'number'
+                    ? courier.distanceMeters < 1000
+                      ? `${courier.distanceMeters} m`
+                      : `${(courier.distanceMeters / 1000).toFixed(1)} km`
+                    : null;
+                const remainingLabel =
+                  typeof courier.remainingDeliveryDistanceMeters === 'number'
+                    ? courier.remainingDeliveryDistanceMeters < 1000
+                      ? `${courier.remainingDeliveryDistanceMeters} m`
+                      : `${(courier.remainingDeliveryDistanceMeters / 1000).toFixed(1)} km`
+                    : null;
+
+                return (
                 <button
                   key={courier.id}
                   type="button"
                   onClick={() => onAssign(courier)}
-                  disabled={isAssigning}
+                  disabled={isAssigning || isBusy}
                   className={`w-full p-5 rounded-[24px] border flex items-center justify-between transition-all disabled:opacity-60 ${
                     currentCourierId === courier.id
                       ? 'bg-indigo-50 border-indigo-200'
+                      : isBusy
+                        ? 'bg-amber-50 border-amber-100'
                       : 'bg-slate-50 border-slate-100 active:scale-[0.98]'
                   }`}
                 >
@@ -275,7 +292,9 @@ export const CourierAssignModal: React.FC<{
                         {courier.phoneNumber || 'Telefon yo\'q'}
                       </p>
                       <p className="text-[11px] font-bold text-slate-500 mt-2">
-                        {courier.activeAssignments} ta faol buyurtma
+                        {isBusy
+                          ? `Band${remainingLabel ? ` - ${remainingLabel} qoldi` : ''}`
+                          : `Bo'sh${distanceLabel ? ` - Restoranga ${distanceLabel}` : ''}`}
                       </p>
                     </div>
                   </div>
@@ -283,9 +302,14 @@ export const CourierAssignModal: React.FC<{
                     <Loader2 size={20} className="text-slate-400 animate-spin" />
                   ) : currentCourierId === courier.id ? (
                     <CheckCircle size={20} className="text-indigo-500" />
+                  ) : isBusy ? (
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                      Band
+                    </span>
                   ) : null}
                 </button>
-              ))
+              );
+              })
             : null}
         </div>
       </div>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { CourierDeliveryStage } from '../../store/courierStore';
 
 interface Props {
@@ -10,46 +9,103 @@ interface Props {
   itemCount: number;
 }
 
-export function InfoCards({ stage, distance, time, orderId, customerName, itemCount }: Props) {
-  
-  const formatDist = (d: number | null) => d != null ? `${d} m` : '-- m';
-  const formatTime = (t: number | null) => t != null ? `${Math.ceil(t / 60)} daq` : '-- daq';
-  const orderIdText = orderId ? `#${orderId.slice(-6)}` : '#----';
-
-  let card1, card2, card3;
-
-  if (stage === 1) {
-    card1 = { label: "Masofa", value: formatDist(distance), color: '#f5a623', sub: "route bo'yicha" };
-    card2 = { label: "Vaqt", value: formatTime(time), color: '#2dd4a0', sub: "taxminiy" };
-    card3 = { label: "Buyurtma", value: orderIdText, color: '#e8ecff', sub: `${itemCount} ta mahsulot` };
-  } else if (stage === 2) {
-    card1 = { label: "Qoldi", value: formatDist(distance), color: '#2dd4a0', sub: "route bo'yicha" };
-    card2 = { label: "Vaqt", value: formatTime(time), color: '#f5a623', sub: "taxminiy" };
-    card3 = { label: "Mijoz", value: customerName, color: '#e8ecff', sub: `${itemCount} ta mahsulot`, isName: true };
-  } else {
-    card1 = { label: "Masofa", value: "0 m", color: '#2dd4a0', sub: "yetkazildi" };
-    card2 = { label: "Vaqt", value: "✓", color: '#2dd4a0', sub: "topshirildi" };
-    card3 = { label: "Buyurtma", value: orderIdText, color: '#e8ecff', sub: "yakunlandi" };
+function formatDistance(distance: number | null) {
+  if (distance === null || Number.isNaN(distance)) {
+    return '-- m';
   }
 
-  const cards = [card1, card2, card3];
+  return distance < 1000 ? `${Math.round(distance)} m` : `${(distance / 1000).toFixed(1)} km`;
+}
+
+function formatTime(seconds: number | null) {
+  if (seconds === null || Number.isNaN(seconds)) {
+    return '-- daq';
+  }
+
+  return `${Math.max(1, Math.ceil(seconds / 60))} daq`;
+}
+
+function formatOrderId(orderId: string | null) {
+  if (!orderId) {
+    return '#----';
+  }
+
+  return orderId.startsWith('#') ? orderId : `#${orderId.slice(-6)}`;
+}
+
+export function InfoCards({ stage, distance, time, orderId, customerName, itemCount }: Props) {
+  const orderIdText = formatOrderId(orderId);
+  const cards =
+    stage === 1
+      ? [
+          { label: 'Masofa', value: formatDistance(distance), color: '#f5a623', sub: "route bo'yicha" },
+          { label: 'Vaqt', value: formatTime(time), color: '#2dd4a0', sub: 'taxminiy' },
+          { label: 'Buyurtma', value: orderIdText, color: '#e8ecff', sub: `${itemCount} ta mahsulot` },
+        ]
+      : stage === 2
+        ? [
+            { label: 'Qoldi', value: formatDistance(distance), color: '#2dd4a0', sub: "route bo'yicha" },
+            { label: 'Vaqt', value: formatTime(time), color: '#f5a623', sub: 'taxminiy' },
+            {
+              label: 'Mijoz',
+              value: customerName || 'Mijoz',
+              color: '#e8ecff',
+              sub: `${itemCount} ta mahsulot`,
+              valueSize: 12,
+            },
+          ]
+        : [
+            { label: 'Masofa', value: '0 m', color: '#2dd4a0', sub: 'yetkazildi' },
+            { label: 'Vaqt', value: '✓', color: '#2dd4a0', sub: 'topshirildi' },
+            { label: 'Buyurtma', value: orderIdText, color: '#e8ecff', sub: 'yakunlandi' },
+          ];
 
   return (
-    <div style={{ display: 'flex', gap: '8px', padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-      {cards.map((c, i) => (
-        <div key={i} style={{
-          flex: 1, background: 'rgba(255,255,255,0.04)', borderRadius: '10px',
-          padding: '9px 10px', display: 'flex', flexDirection: 'column', gap: '3px'
-        }}>
-          <div style={{ fontSize: '10px', color: '#6b7080', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-            {c.label}
+    <div
+      style={{
+        display: 'flex',
+        gap: 8,
+        padding: '10px 16px',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+      }}
+    >
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          style={{
+            flex: 1,
+            background: 'rgba(255,255,255,0.04)',
+            borderRadius: 10,
+            padding: '9px 10px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              color: '#6b7080',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            {card.label}
           </div>
-          <div style={{ fontSize: '15px', fontWeight: 600, color: c.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {c.value}
+          <div
+            style={{
+              fontSize: card.valueSize ?? 15,
+              fontWeight: 500,
+              color: card.color,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {card.value}
           </div>
-          <div style={{ fontSize: c.isName ? '12px' : '10px', color: '#6b7080', fontWeight: 500 }}>
-            {c.sub}
-          </div>
+          <div style={{ fontSize: 10, color: '#6b7080' }}>{card.sub}</div>
         </div>
       ))}
     </div>
