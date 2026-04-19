@@ -37,9 +37,11 @@ function normalizeUzbekPhone(raw: string): string | null {
 /**
  * PATCH /users/me/phone
  *
- * Body: { phone: string }
+ * Body: { phone: string | null }
  *
- * Validates, normalises, and persists the caller's phone number.
+ * Validates, normalises, and persists the caller's phone number. Passing null
+ * or an empty string clears the saved phone while this temporary profile UX is
+ * being tested.
  * Returns { phoneNumber } so the client can update its auth store.
  */
 export async function saveUserPhone(
@@ -47,10 +49,16 @@ export async function saveUserPhone(
   reply: FastifyReply,
 ) {
   const user = request.user as any;
-  const raw: string = (request.body?.phone ?? '').trim();
+  const raw = typeof request.body?.phone === 'string' ? request.body.phone.trim() : '';
 
   if (!raw) {
-    return reply.status(400).send({ error: 'Telefon raqam kiritilmagan' });
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { phoneNumber: null },
+      select: { id: true, phoneNumber: true },
+    });
+
+    return reply.send({ phoneNumber: updated.phoneNumber });
   }
 
   const normalized = normalizeUzbekPhone(raw);

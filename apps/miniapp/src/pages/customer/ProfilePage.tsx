@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, ChevronRight, ClipboardList, Globe2, Loader2, Moon, Phone, Trash2, X } from 'lucide-react';
+import { Bell, ChevronRight, ClipboardList, Globe2, Loader2, Moon, Pencil, Phone, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
@@ -48,11 +48,30 @@ const Row: React.FC<{
   onClick?: () => void;
   right?: React.ReactNode;
   last?: boolean;
-}> = ({ icon, label, value, onClick, right, last }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    style={{
+}> = ({ icon, label, value, onClick, right, last }) => {
+  const content = (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 12,
+          background: 'var(--app-icon-bg)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--app-text)' }}>{label}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0 }}>
+        {value && (
+          <span style={{ fontSize: 13, color: 'var(--app-muted)', fontWeight: 500 }}>{value}</span>
+        )}
+        {right ?? (onClick ? <ChevronRight size={18} color="var(--app-muted)" /> : null)}
+      </div>
+    </>
+  );
+
+  const baseStyle: React.CSSProperties = {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       width: '100%', background: 'var(--app-card)',
       border: 'none',
@@ -61,27 +80,18 @@ const Row: React.FC<{
       cursor: onClick ? 'pointer' : 'default',
       textAlign: 'left',
       transition: 'background 0.15s',
-    }}
-  >
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{
-        width: 40, height: 40, borderRadius: 12,
-        background: 'var(--app-icon-bg)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
-        {icon}
-      </div>
-      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--app-text)' }}>{label}</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {value && (
-        <span style={{ fontSize: 13, color: 'var(--app-muted)', fontWeight: 500 }}>{value}</span>
-      )}
-      {right ?? (onClick ? <ChevronRight size={18} color="var(--app-muted)" /> : null)}
-    </div>
-  </button>
-);
+  };
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} style={baseStyle}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div style={baseStyle}>{content}</div>;
+};
 
 /* ─── Section ────────────────────────────────────────────────────────────── */
 const Section: React.FC<{ title?: string; children: React.ReactNode; delay?: number }> = ({
@@ -142,33 +152,20 @@ const PhoneEditModal: React.FC<{
 
   const savePhone = async () => {
     setError('');
-    const normalized = normalizePhone(value);
-    if (!normalized) {
+    const trimmed = value.trim();
+    const normalized = trimmed ? normalizePhone(trimmed) : null;
+    if (trimmed && !normalized) {
       setError("Noto'g'ri format. Masalan: +998 90 123 45 67");
       return;
     }
 
     setSaving(true);
     try {
-      const res = await api.patch('/users/me/phone', { phone: normalized }) as { phoneNumber: string };
+      const res = await api.patch('/users/me/phone', { phone: normalized }) as { phoneNumber: string | null };
       onSaved(res.phoneNumber);
       onClose();
     } catch (err: any) {
       setError(err?.response?.data?.error || "Telefon saqlanmadi");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deletePhone = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      await api.delete('/users/me/phone');
-      onSaved(null);
-      onClose();
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Telefon o'chirilmadi");
     } finally {
       setSaving(false);
     }
@@ -237,24 +234,15 @@ const PhoneEditModal: React.FC<{
         />
         {error ? <p className="mt-2 text-[12px] font-semibold text-red-600">{error}</p> : null}
 
-        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+        <div className="mt-4">
           <button
             type="button"
-            disabled={saving || !value.trim()}
+            disabled={saving}
             onClick={() => { void savePhone(); }}
-            className="flex h-[52px] items-center justify-center gap-2 rounded-[14px] bg-[#C62020] px-4 text-[14px] font-black text-white shadow-lg shadow-red-200 active:scale-[0.98] disabled:opacity-50"
+            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#C62020] px-4 text-[14px] font-black text-white shadow-lg shadow-red-200 active:scale-[0.98] disabled:opacity-50"
           >
             {saving ? <Loader2 size={17} className="animate-spin" /> : null}
             <span>Saqlash</span>
-          </button>
-          <button
-            type="button"
-            disabled={saving || !initialPhone}
-            onClick={() => { void deletePhone(); }}
-            className="flex h-[52px] w-14 items-center justify-center rounded-[14px] border border-red-100 bg-red-50 text-[#C62020] active:scale-[0.98] disabled:opacity-40"
-            aria-label="Telefonni o'chirish"
-          >
-            <Trash2 size={18} />
           </button>
         </div>
       </div>
@@ -272,6 +260,8 @@ const ProfilePage: React.FC = () => {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('turon-dark') === '1');
   const [notifOn, setNotifOn] = useState(() => localStorage.getItem('turon-notif') !== '0');
   const [isPhoneOpen, setIsPhoneOpen] = useState(false);
+  const [phoneDeleting, setPhoneDeleting] = useState(false);
+  const [phoneFeedback, setPhoneFeedback] = useState('');
 
   useEffect(() => {
     document.body.classList.toggle('dark', darkMode);
@@ -300,6 +290,26 @@ const ProfilePage: React.FC = () => {
     const langs: Array<'uz-latn' | 'uz-cyrl' | 'ru'> = ['uz-latn', 'uz-cyrl', 'ru'];
     const next = (langs.indexOf(language as 'uz-latn' | 'uz-cyrl' | 'ru') + 1) % langs.length;
     setLanguage(langs[next]);
+  };
+
+  const deletePhone = async () => {
+    if (!user?.phoneNumber || phoneDeleting) return;
+
+    setPhoneDeleting(true);
+    setPhoneFeedback('');
+
+    try {
+      try {
+        await api.delete('/users/me/phone');
+      } catch {
+        await api.patch('/users/me/phone', { phone: null });
+      }
+      updateUser({ phoneNumber: null });
+    } catch (err: any) {
+      setPhoneFeedback(err?.response?.data?.error || "Telefon o'chirilmadi");
+    } finally {
+      setPhoneDeleting(false);
+    }
   };
 
   return (
@@ -380,9 +390,74 @@ const ProfilePage: React.FC = () => {
         <Row
           icon={<Phone size={19} color={RED} />}
           label="Telefon raqam"
-          value={phoneLabel}
-          onClick={() => setIsPhoneOpen(true)}
+          right={(
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minWidth: 0 }}>
+              <span
+                style={{
+                  maxWidth: 150,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontSize: 13,
+                  color: 'var(--app-muted)',
+                  fontWeight: 700,
+                }}
+              >
+                {phoneLabel}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPhoneFeedback('');
+                  setIsPhoneOpen(true);
+                }}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 12,
+                  border: '1px solid rgba(198,32,32,0.16)',
+                  background: 'rgba(198,32,32,0.08)',
+                  color: RED,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+                aria-label="Telefonni tahrirlash"
+              >
+                <Pencil size={16} />
+              </button>
+              {user?.phoneNumber ? (
+                <button
+                  type="button"
+                  disabled={phoneDeleting}
+                  onClick={() => { void deletePhone(); }}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 12,
+                    border: '1px solid rgba(198,32,32,0.16)',
+                    background: 'rgba(198,32,32,0.08)',
+                    color: RED,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    opacity: phoneDeleting ? 0.55 : 1,
+                  }}
+                  aria-label="Telefonni o'chirish"
+                >
+                  {phoneDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                </button>
+              ) : null}
+            </div>
+          )}
         />
+        {phoneFeedback ? (
+          <p style={{ padding: '0 20px 12px 74px', fontSize: 12, fontWeight: 700, color: RED }}>
+            {phoneFeedback}
+          </p>
+        ) : null}
         <Row
           icon={<ClipboardList size={19} color={RED} />}
           label="Buyurtmalar tarixi"
@@ -415,7 +490,10 @@ const ProfilePage: React.FC = () => {
         <PhoneEditModal
           initialPhone={user?.phoneNumber || null}
           onClose={() => setIsPhoneOpen(false)}
-          onSaved={(phoneNumber) => updateUser({ phoneNumber })}
+          onSaved={(phoneNumber) => {
+            updateUser({ phoneNumber });
+            setPhoneFeedback('');
+          }}
         />
       ) : null}
 

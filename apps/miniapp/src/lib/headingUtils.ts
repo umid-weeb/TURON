@@ -14,17 +14,36 @@ export function lowPassFilter(newVal: number, oldVal: number, alpha = 0.2): numb
 }
 
 /**
+ * Backward-compatible circular low-pass helper.
+ * Some courier hooks call it as (current, target), while lowPassFilter uses
+ * (newVal, oldVal), so this wrapper keeps both call sites correct.
+ */
+export function lowPassFilterCircular(current: number, target: number, alpha = 0.2): number {
+  return lowPassFilter(target, current, alpha);
+}
+
+/**
+ * Current screen rotation in degrees. Safari older builds expose
+ * window.orientation, modern browsers expose screen.orientation.angle.
+ */
+export function getScreenOrientation(): number {
+  const legacyOrientation = typeof window.orientation === 'number' ? window.orientation : 0;
+  const angle = window.screen?.orientation?.angle ?? legacyOrientation;
+  return Number.isFinite(angle) ? angle : 0;
+}
+
+/**
  * Android: deviceorientationabsolute.alpha → heading (magnetic north = 0)
  */
-export function alphaToHeading(alpha: number): number {
-  return (360 - alpha + 360) % 360;
+export function alphaToHeading(alpha: number, screenOrientation = 0): number {
+  return (360 - alpha + screenOrientation + 360) % 360;
 }
 
 /**
  * iOS: webkitCompassHeading to'g'ridan-to'g'ri heading sifatida keladi
  */
-export function webkitToHeading(webkitCompassHeading: number): number {
-  return webkitCompassHeading;
+export function webkitToHeading(webkitCompassHeading: number, screenOrientation = 0): number {
+  return (webkitCompassHeading + screenOrientation + 360) % 360;
 }
 
 /**

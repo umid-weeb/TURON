@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useCourierStore } from '../store/courierStore';
-import { alphaToHeading, webkitToHeading } from '../lib/headingUtils';
+import { alphaToHeading, webkitToHeading, getScreenOrientation } from '../lib/headingUtils';
 
 interface DeviceOrientationExtended extends DeviceOrientationEvent {
   webkitCompassHeading?: number;
@@ -36,6 +36,8 @@ export function useCompass() {
     if (listenerRef.current) return; // allaqachon boshlangan
 
     const handler = (e: Event) => {
+      // Dynamically fetch orientation to account for live device rotations
+      const orientation = getScreenOrientation();
       const event = e as DeviceOrientationExtended;
 
       // iOS: webkitCompassHeading — to'g'ridan-to'g'ri magnetic north (0-360°).
@@ -47,13 +49,13 @@ export function useCompass() {
         typeof event.webkitCompassHeading === 'number' &&
         Number.isFinite(event.webkitCompassHeading)
       ) {
-        setCompassHeading(event.webkitCompassHeading); // to'g'ridan-to'g'ri, transform yo'q
+        setCompassHeading(webkitToHeading(event.webkitCompassHeading, orientation));
         return;
       }
 
       // Android: deviceorientationabsolute yoki absolute=true bo'lganda
       if (event.absolute && typeof event.alpha === 'number' && Number.isFinite(event.alpha)) {
-        setCompassHeading(alphaToHeading(event.alpha));
+        setCompassHeading(alphaToHeading(event.alpha, orientation));
       }
     };
 
