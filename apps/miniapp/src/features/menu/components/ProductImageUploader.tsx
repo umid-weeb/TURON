@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+﻿import React, { useRef, useState } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { imageUploadService } from '../services/imageUploadService';
 
@@ -40,30 +40,34 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-slate-600 uppercase tracking-wider">Rasm</label>
+      <label className="text-sm font-semibold text-slate-700">Rasm</label>
 
       {currentImageUrl ? (
-        <div className="relative w-full h-48 rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50">
+        <div className="relative h-52 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
           <img
             src={currentImageUrl}
             alt="Mahsulot rasmi"
-            className="w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).src = ''; }}
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '';
+            }}
           />
-          <div className="absolute top-2 right-2 flex gap-2">
+          <div className="absolute bottom-3 right-3 flex gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-9 h-9 bg-white/90 backdrop-blur rounded-xl flex items-center justify-center text-slate-600 shadow-sm active:scale-95 transition-transform"
+              className="flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-700 shadow-sm active:scale-95"
             >
               <Upload size={16} />
+              O'zgartirish
             </button>
             <button
               type="button"
               onClick={onImageRemove}
-              className="w-9 h-9 bg-red-500/90 backdrop-blur rounded-xl flex items-center justify-center text-white shadow-sm active:scale-95 transition-transform"
+              className="flex h-9 items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-600 shadow-sm active:scale-95"
             >
               <X size={16} />
+              Olib tashlash
             </button>
           </div>
         </div>
@@ -72,15 +76,15 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="w-full h-48 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors"
+          className="flex h-52 w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 transition-colors active:border-blue-400 active:text-blue-600"
         >
           {uploading ? (
-            <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
           ) : (
             <>
               <ImageIcon size={32} />
-              <span className="text-sm font-bold">Rasm yuklash</span>
-              <span className="text-xs">PNG, JPG · max 5MB</span>
+              <span className="text-sm font-bold text-slate-700">Rasm yuklash</span>
+              <span className="text-xs text-slate-500">PNG, JPG - maksimal 5MB</span>
             </>
           )}
         </button>
@@ -94,7 +98,7 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
         className="hidden"
       />
 
-      {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
+      {error ? <p className="text-xs font-medium text-red-500">{error}</p> : null}
     </div>
   );
 };

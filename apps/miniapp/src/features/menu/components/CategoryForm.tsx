@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Save, Trash2, X } from 'lucide-react';
+import { Loader2, Save, X } from 'lucide-react';
 import type { CategoryFormData, MenuCategory } from '../types';
 
 interface Props {
@@ -27,6 +27,24 @@ const CategoryForm: React.FC<Props> = ({
   const [sortOrder, setSortOrder] = useState(initialData?.sortOrder || 1);
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [keyboardInset, setKeyboardInset] = useState(0);
+
+  React.useEffect(() => {
+    const updateKeyboardInset = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const inset = Math.max(0, Math.round(window.innerHeight - viewportHeight));
+      setKeyboardInset(inset > 120 ? inset : 0);
+    };
+
+    updateKeyboardInset();
+    window.visualViewport?.addEventListener('resize', updateKeyboardInset);
+    window.visualViewport?.addEventListener('scroll', updateKeyboardInset);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateKeyboardInset);
+      window.visualViewport?.removeEventListener('scroll', updateKeyboardInset);
+    };
+  }, []);
 
   const validate = () => {
     const nextErrors: Record<string, string> = {};
@@ -58,109 +76,117 @@ const CategoryForm: React.FC<Props> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-slate-900">{title}</h2>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      {error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
-          <p className="text-xs font-bold uppercase tracking-widest text-rose-500">Xatolik</p>
-          <p className="text-sm font-bold text-rose-700 mt-1 leading-relaxed">{error}</p>
+    <form onSubmit={handleSubmit} className="animate-in fade-in duration-300">
+      <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+108px)]">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">{title}</h2>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500"
+          >
+            <X size={20} />
+          </button>
         </div>
-      ) : null}
 
-      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Eslatma</p>
-        <p className="text-sm font-bold text-slate-600 mt-1 leading-relaxed">
-          Kategoriya rasmi mahsulot kartalaridagi birinchi rasm asosida ko'rsatiladi.
-        </p>
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-sm font-bold text-slate-600 uppercase tracking-wider">
-          Kategoriya nomi *
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Masalan: Somsa"
-          className={`w-full h-14 px-4 rounded-2xl border-2 text-slate-800 font-medium text-base bg-white focus:outline-none transition-colors ${
-            errors.name ? 'border-red-300 focus:border-red-500' : 'border-slate-100 focus:border-blue-400'
-          }`}
-        />
-        {errors.name ? <p className="text-xs text-red-500 font-medium">{errors.name}</p> : null}
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-sm font-bold text-slate-600 uppercase tracking-wider">
-          Tartib raqami
-        </label>
-        <input
-          type="number"
-          value={sortOrder}
-          onChange={(event) => setSortOrder(parseInt(event.target.value, 10) || 0)}
-          min={0}
-          className={`w-full h-14 px-4 rounded-2xl border-2 text-slate-800 font-medium text-base bg-white focus:outline-none transition-colors ${
-            errors.sortOrder
-              ? 'border-red-300 focus:border-red-500'
-              : 'border-slate-100 focus:border-blue-400'
-          }`}
-        />
-        {errors.sortOrder ? (
-          <p className="text-xs text-red-500 font-medium">{errors.sortOrder}</p>
+        {error ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-rose-500">Xatolik</p>
+            <p className="mt-1 text-sm font-bold leading-relaxed text-rose-700">{error}</p>
+          </div>
         ) : null}
-      </div>
 
-      <div className="flex items-center justify-between bg-white rounded-2xl p-4 border-2 border-slate-100">
-        <div>
-          <p className="font-bold text-slate-800 text-sm">Faol holat</p>
-          <p className="text-xs text-slate-400 mt-0.5">Nofaol kategoriyalar mijozlarga ko'rinmaydi</p>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Eslatma</p>
+          <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
+            Kategoriya rasmi mahsulot kartalaridagi birinchi rasm asosida ko'rsatiladi.
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsActive(!isActive)}
-          className={`w-14 h-8 rounded-full transition-colors relative ${
-            isActive ? 'bg-emerald-500' : 'bg-slate-200'
-          }`}
-        >
-          <div
-            className={`w-6 h-6 bg-white rounded-full shadow-md absolute top-1 transition-transform ${
-              isActive ? 'translate-x-7' : 'translate-x-1'
-            }`}
-          />
-        </button>
-      </div>
 
-      <div className="space-y-3">
-        <button
-          type="submit"
-          disabled={isSubmitting || isDeleting}
-          className="w-full h-14 bg-blue-600 text-white rounded-2xl font-bold text-base shadow-lg shadow-blue-200 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:bg-blue-300 disabled:shadow-none disabled:active:scale-100"
-        >
-          {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-          Saqlash
-        </button>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Kategoriya nomi *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Masalan: Somsa"
+              className={`h-14 w-full rounded-xl border px-4 text-base font-medium text-slate-800 outline-none transition ${
+                errors.name ? 'border-red-300 focus:border-red-500' : 'border-slate-200 focus:border-blue-400'
+              }`}
+            />
+            {errors.name ? <p className="text-xs font-medium text-red-500">{errors.name}</p> : null}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Tartib raqami</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={sortOrder}
+              onChange={(event) => setSortOrder(parseInt(event.target.value, 10) || 0)}
+              min={0}
+              className={`h-14 w-full rounded-xl border px-4 text-base font-medium text-slate-800 outline-none transition ${
+                errors.sortOrder
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-slate-200 focus:border-blue-400'
+              }`}
+            />
+            {errors.sortOrder ? (
+              <p className="text-xs font-medium text-red-500">{errors.sortOrder}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Faol holat</p>
+            <p className="mt-0.5 text-xs text-slate-500">Nofaol kategoriya mijozlarga ko'rinmaydi</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isActive}
+            onClick={() => setIsActive(!isActive)}
+            className={`relative inline-flex h-7 w-12 items-center rounded-full p-1 transition ${
+              isActive ? 'bg-emerald-500' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`h-5 w-5 rounded-full bg-white shadow-sm transition ${
+                isActive ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
 
         {onDelete ? (
           <button
             type="button"
             onClick={() => onDelete()}
             disabled={isSubmitting || isDeleting}
-            className="w-full h-12 rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+            className="h-11 w-full rounded-xl border border-rose-200 bg-rose-50 text-sm font-bold text-rose-600 disabled:opacity-60"
           >
-            {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
-            Kategoriyani o'chirish
+            {isDeleting ? <Loader2 size={18} className="mx-auto animate-spin" /> : "Kategoriyani o'chirish"}
           </button>
         ) : null}
+      </div>
+
+      <div
+        className="fixed inset-x-0 z-40 mx-auto w-full max-w-[430px] border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur"
+        style={{
+          bottom: `${Math.max(0, keyboardInset - 6)}px`,
+          paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 12px)`,
+        }}
+      >
+        <button
+          type="submit"
+          disabled={isSubmitting || isDeleting}
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-base font-bold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] disabled:bg-blue-300 disabled:shadow-none"
+        >
+          {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+          Saqlash
+        </button>
       </div>
     </form>
   );

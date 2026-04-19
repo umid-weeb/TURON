@@ -125,7 +125,8 @@ const AdminLayout: React.FC = () => {
   };
 
   const pageHeaderTitle = getPageHeaderTitle(location.pathname);
-  const hideBottomNav = keyboardOpen || modalOpen;
+  const isAdminFormRoute = /\/(new|edit)$/.test(location.pathname);
+  const hideBottomNav = keyboardOpen || modalOpen || isAdminFormRoute;
 
   const layoutVars: React.CSSProperties & Record<string, string> = {
     '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 82px)',
