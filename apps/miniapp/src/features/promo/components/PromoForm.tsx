@@ -24,20 +24,20 @@ export const PromoForm: React.FC<Props> = ({
   const [discountType, setDiscountType] = useState<DiscountTypeEnum>(initialData?.discountType || DiscountTypeEnum.PERCENTAGE);
   const [discountValue, setDiscountValue] = useState(initialData?.discountValue || 0);
   const [minOrderValue, setMinOrderValue] = useState(initialData?.minOrderValue || 0);
-  
+
   // Dates formatting to YYYY-MM-DD for input[type="date"]
   const [startDate, setStartDate] = useState(
-    initialData?.startDate 
-      ? new Date(initialData.startDate).toISOString().split('T')[0] 
+    initialData?.startDate
+      ? new Date(initialData.startDate).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0]
   );
-  
+
   const [endDate, setEndDate] = useState(
-    initialData?.endDate 
-      ? new Date(initialData.endDate).toISOString().split('T')[0] 
+    initialData?.endDate
+      ? new Date(initialData.endDate).toISOString().split('T')[0]
       : ''
   );
-  
+
   const [usageLimit, setUsageLimit] = useState(initialData?.usageLimit || 0);
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [isFirstOrderOnly, setIsFirstOrderOnly] = useState(initialData?.isFirstOrderOnly ?? false);
@@ -51,7 +51,7 @@ export const PromoForm: React.FC<Props> = ({
     if (discountValue <= 0) errs.discountValue = 'Chegirma qiymati musbat bo\'lishi kerak';
     if (discountType === DiscountTypeEnum.PERCENTAGE && discountValue > 100) errs.discountValue = 'Foiz 100 dan oshmasligi kerak';
     if (endDate && new Date(endDate) < new Date(startDate)) errs.endDate = 'Tugash sanasi boshlanishidan kichik bo\'lmasligi kerak';
-    
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -59,7 +59,7 @@ export const PromoForm: React.FC<Props> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    
+
     onSubmit({
       code: code.trim().toUpperCase(),
       title: titleStr.trim(),
@@ -77,173 +77,195 @@ export const PromoForm: React.FC<Props> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in duration-300 pb-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-slate-900">{title}</h2>
-        <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
-          <X size={20} />
-        </button>
-      </div>
-
-      {/* Basic Info */}
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <label className="text-sm font-bold text-slate-600 uppercase tracking-wider">Promokod *</label>
-          <input
-            type="text"
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="Masalan: MEGA50"
-            className={`w-full h-14 px-4 rounded-2xl border-2 text-slate-800 font-black tracking-widest text-lg bg-white focus:outline-none transition-colors uppercase ${
-              errors.code ? 'border-red-300' : 'border-slate-100 focus:border-indigo-400'
-            }`}
-          />
-          {errors.code && <p className="text-xs text-red-500 font-medium">{errors.code}</p>}
+    <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in duration-300 pb-8 text-slate-100">
+      <section className="sticky top-[calc(env(safe-area-inset-top,0px)+8px)] z-10 rounded-2xl border border-white/10 bg-slate-900/70 p-3 backdrop-blur-xl shadow-[0_16px_44px_rgba(0,0,0,0.35)]">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold tracking-tight text-white">Edit Promo Code</h2>
+            <p className="mt-0.5 text-xs text-slate-400">{title}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all duration-200 hover:bg-white/10"
+            >
+              <X size={16} />
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-500 px-3.5 text-sm font-semibold text-white shadow-[0_0_22px_rgba(99,102,241,0.38)] transition-all duration-200 hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-60"
+            >
+              <Save size={15} />
+              {isSubmitting ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
+          </div>
         </div>
+      </section>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-bold text-slate-600 uppercase tracking-wider">Sarlavha (Keling, tushunarli bo'lsin)</label>
-          <input
-            type="text"
-            value={titleStr}
-            onChange={(e) => setTitleStr(e.target.value)}
-            placeholder="Masalan: Yangi mijozlarga aksiya"
-            className="w-full h-14 px-4 rounded-2xl border-2 border-slate-100 text-slate-800 font-medium text-base bg-white focus:outline-none focus:border-indigo-400"
-          />
+      <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+        <h3 className="mb-3 text-sm font-semibold text-white">Basic Info</h3>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-300">Promo code *</label>
+            <input
+              type="text"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="MEGA50"
+              className={`h-11 w-full rounded-xl border bg-white/5 px-3 font-semibold tracking-[0.18em] uppercase text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:ring-2 focus:ring-indigo-400/40 ${
+                errors.code ? 'border-rose-400/60' : 'border-white/15 focus:border-indigo-400'
+              }`}
+            />
+            {errors.code && <p className="text-xs font-medium text-rose-300">{errors.code}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-300">Title</label>
+            <input
+              type="text"
+              value={titleStr}
+              onChange={(e) => setTitleStr(e.target.value)}
+              placeholder="Yangi mijozlarga aksiya"
+              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-300">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Qisqa tavsif"
+              rows={3}
+              className="w-full resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+            />
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Discount Configuration */}
-      <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 space-y-4">
-        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest">Chegirma sozlamalari</h3>
-        
+      <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+        <h3 className="mb-3 text-sm font-semibold text-white">Discount Settings</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-500 uppercase">Turi *</label>
+            <label className="text-xs font-medium text-slate-300">Type *</label>
             <select
               value={discountType}
               onChange={(e) => setDiscountType(e.target.value as DiscountTypeEnum)}
-              className="w-full h-12 px-3 rounded-xl border border-slate-200 text-slate-800 font-bold bg-white focus:outline-none focus:border-indigo-400"
+              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
             >
-              <option value={DiscountTypeEnum.PERCENTAGE}>Foizli (%)</option>
-              <option value={DiscountTypeEnum.FIXED}>Miqdorli</option>
+              <option className="text-slate-900" value={DiscountTypeEnum.PERCENTAGE}>Foizli (%)</option>
+              <option className="text-slate-900" value={DiscountTypeEnum.FIXED}>Miqdorli</option>
             </select>
           </div>
-          
+
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-500 uppercase">Qiymat *</label>
+            <label className="text-xs font-medium text-slate-300">Value *</label>
             <input
               type="number"
               value={discountValue || ''}
               onChange={(e) => setDiscountValue(parseInt(e.target.value) || 0)}
-              className={`w-full h-12 px-3 rounded-xl border font-bold bg-white focus:outline-none focus:border-indigo-400 ${
-                errors.discountValue ? 'border-red-300' : 'border-slate-200'
+              className={`h-11 w-full rounded-xl border bg-white/5 px-3 text-sm font-semibold text-white outline-none transition-all duration-200 focus:ring-2 focus:ring-indigo-400/40 ${
+                errors.discountValue ? 'border-rose-400/60' : 'border-white/15 focus:border-indigo-400'
               }`}
             />
           </div>
         </div>
-        {errors.discountValue && <p className="text-xs text-red-500 font-medium">{errors.discountValue}</p>}
+        {errors.discountValue && <p className="mt-2 text-xs font-medium text-rose-300">{errors.discountValue}</p>}
 
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-slate-500 uppercase">Minimal buyurtma (so'm)</label>
+        <div className="mt-3 space-y-1.5">
+          <label className="text-xs font-medium text-slate-300">Minimal order value (so&apos;m)</label>
           <input
             type="number"
             value={minOrderValue || ''}
             onChange={(e) => setMinOrderValue(parseInt(e.target.value) || 0)}
-            className="w-full h-12 px-3 rounded-xl border border-slate-200 font-bold bg-white focus:outline-none focus:border-indigo-400"
+            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
           />
         </div>
-      </div>
+      </section>
 
-      {/* Rules */}
-      <div className="space-y-4">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+        <h3 className="mb-3 text-sm font-semibold text-white">Usage Rules</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-500 uppercase">Boshlanish sanasi</label>
+            <label className="text-xs font-medium text-slate-300">Start date</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full h-12 px-3 rounded-xl border border-slate-200 font-bold bg-white focus:outline-none focus:border-indigo-400"
+              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-500 uppercase">Tugash sanasi (ixtiyoriy)</label>
+            <label className="text-xs font-medium text-slate-300">End date (optional)</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className={`w-full h-12 px-3 rounded-xl border font-bold bg-white focus:outline-none focus:border-indigo-400 ${
-                errors.endDate ? 'border-red-300' : 'border-slate-200'
+              className={`h-11 w-full rounded-xl border bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:ring-2 focus:ring-indigo-400/40 ${
+                errors.endDate ? 'border-rose-400/60' : 'border-white/15 focus:border-indigo-400'
               }`}
             />
           </div>
         </div>
-        {errors.endDate && <p className="text-xs text-red-500 font-medium">{errors.endDate}</p>}
+        {errors.endDate && <p className="mt-2 text-xs font-medium text-rose-300">{errors.endDate}</p>}
 
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-slate-500 uppercase">Foydalanish limiti (0 = cheksiz)</label>
+        <div className="mt-3 space-y-1.5">
+          <label className="text-xs font-medium text-slate-300">Usage limit (0 = cheksiz)</label>
           <input
             type="number"
             value={usageLimit || ''}
             onChange={(e) => setUsageLimit(parseInt(e.target.value) || 0)}
-            className="w-full h-12 px-3 rounded-xl border border-slate-200 font-bold bg-white focus:outline-none focus:border-indigo-400"
+            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
           />
         </div>
-      </div>
 
-      {/* Active Toggle */}
-      <div className="flex items-center justify-between bg-white rounded-2xl p-4 border-2 border-slate-100">
-        <div>
-          <p className="font-bold text-slate-800 text-sm">Faol holat</p>
-          <p className="text-xs text-slate-400 mt-0.5">O'chirilgan promokod foydalanuvchilarga ishlamaydi</p>
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+            <div className="pr-3">
+              <p className="text-sm font-medium text-white">Faol holat</p>
+              <p className="text-xs text-slate-400">O&apos;chirilgan promokod foydalanuvchilarga ishlamaydi</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsActive(!isActive)}
+              className={`relative h-7 w-12 rounded-full transition-all duration-200 ${isActive ? 'bg-emerald-500/90 shadow-[0_0_14px_rgba(16,185,129,0.45)]' : 'bg-slate-600/70'}`}
+            >
+              <div className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-200 ${isActive ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+            <div className="pr-3">
+              <p className="text-sm font-medium text-white">Faqat birinchi buyurtma</p>
+              <p className="text-xs text-slate-400">Oldin buyurtma bergan mijozlarga ishlamaydi</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsFirstOrderOnly(!isFirstOrderOnly)}
+              className={`relative h-7 w-12 rounded-full transition-all duration-200 ${isFirstOrderOnly ? 'bg-indigo-500/90 shadow-[0_0_14px_rgba(99,102,241,0.45)]' : 'bg-slate-600/70'}`}
+            >
+              <div className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-200 ${isFirstOrderOnly ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsActive(!isActive)}
-          className={`w-14 h-8 rounded-full transition-colors relative ${isActive ? 'bg-indigo-500' : 'bg-slate-200'}`}
-        >
-          <div className={`w-6 h-6 bg-white rounded-full shadow-md absolute top-1 transition-transform ${isActive ? 'translate-x-7' : 'translate-x-1'}`} />
-        </button>
-      </div>
+      </section>
 
-      {/* First-order-only Toggle */}
-      <div className="flex items-center justify-between bg-white rounded-2xl p-4 border-2 border-slate-100">
-        <div>
-          <p className="font-bold text-slate-800 text-sm">Faqat birinchi buyurtma</p>
-          <p className="text-xs text-slate-400 mt-0.5">Foydalanuvchi oldin buyurtma bergan bo'lsa ishlamaydi (FIRST50 kabi)</p>
+      <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+        <h3 className="mb-3 text-sm font-semibold text-white">Advanced Settings</h3>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-slate-300">Mijoz ID (VIP promo, ixtiyoriy)</label>
+          <input
+            type="text"
+            value={targetUserId}
+            onChange={(e) => setTargetUserId(e.target.value.trim())}
+            placeholder="UUID (bo'sh = hamma uchun)"
+            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 font-mono text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+          />
+          <p className="text-xs text-slate-400">To&apos;ldirilsa faqat shu foydalanuvchi ishlata oladi</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsFirstOrderOnly(!isFirstOrderOnly)}
-          className={`w-14 h-8 rounded-full transition-colors relative ${isFirstOrderOnly ? 'bg-emerald-500' : 'bg-slate-200'}`}
-        >
-          <div className={`w-6 h-6 bg-white rounded-full shadow-md absolute top-1 transition-transform ${isFirstOrderOnly ? 'translate-x-7' : 'translate-x-1'}`} />
-        </button>
-      </div>
-
-      {/* VIP Target User */}
-      <div className="space-y-1.5">
-        <label className="text-[11px] font-bold text-slate-500 uppercase">Mijoz ID (VIP promo — ixtiyoriy)</label>
-        <input
-          type="text"
-          value={targetUserId}
-          onChange={(e) => setTargetUserId(e.target.value.trim())}
-          placeholder="UUID (bo'sh = hamma uchun)"
-          className="w-full h-12 px-3 rounded-xl border border-slate-200 font-mono text-sm bg-white focus:outline-none focus:border-indigo-400 text-slate-700"
-        />
-        <p className="text-[10px] text-slate-400">To'ldirilsa faqat shu foydalanuvchi ishlata oladi</p>
-      </div>
-
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-      >
-        <Save size={20} />
-        {isSubmitting ? 'Saqlanmoqda...' : 'Saqlash'}
-      </button>
+      </section>
     </form>
   );
 };

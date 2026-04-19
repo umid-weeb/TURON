@@ -53,22 +53,24 @@ const AdminPromoFormPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 size={32} className="animate-spin text-indigo-600" />
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 shadow-[0_20px_46px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+          <Loader2 size={30} className="animate-spin text-indigo-300" />
+        </div>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-center">
-        <AlertCircle size={36} className="text-rose-500" />
-        <h2 className="text-xl font-bold text-slate-800 mt-4">Promokod yuklanmadi</h2>
-        <p className="text-sm text-slate-500 mt-2">{(error as Error).message}</p>
+      <div className="flex h-64 flex-col items-center justify-center rounded-2xl border border-rose-300/30 bg-slate-900/60 px-5 text-center shadow-[0_22px_48px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+        <AlertCircle size={34} className="text-rose-300" />
+        <h2 className="mt-4 text-xl font-semibold text-white">Promokod yuklanmadi</h2>
+        <p className="mt-2 text-sm text-slate-300">{(error as Error).message}</p>
         <button
           onClick={() => {
             void refetch();
           }}
-          className="mt-4 text-indigo-600 font-bold"
+          className="mt-4 text-sm font-semibold text-indigo-300"
         >
           Qayta urinish
         </button>
@@ -78,9 +80,9 @@ const AdminPromoFormPage: React.FC = () => {
 
   if (isEditing && !promoToEdit) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-center">
-        <h2 className="text-xl font-bold text-slate-800 mb-2">Promokod topilmadi</h2>
-        <button onClick={() => navigate('/admin/promos')} className="text-indigo-600 font-bold">
+      <div className="flex h-64 flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-900/60 px-5 text-center shadow-[0_22px_48px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+        <h2 className="mb-2 text-xl font-semibold text-white">Promokod topilmadi</h2>
+        <button onClick={() => navigate('/admin/promos')} className="text-sm font-semibold text-indigo-300">
           Ortga qaytish
         </button>
       </div>
@@ -88,11 +90,11 @@ const AdminPromoFormPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className="mx-auto max-w-2xl space-y-4 rounded-[28px] border border-white/10 bg-[#0f172a] p-4 shadow-[0_28px_70px_rgba(2,6,23,0.52)]">
       {submitError ? (
-        <div className="bg-rose-50 border border-rose-100 rounded-[24px] p-4">
-          <p className="text-sm font-black text-rose-900">Promokod saqlanmadi</p>
-          <p className="text-xs font-bold text-rose-700 mt-1 leading-relaxed">{submitError}</p>
+        <div className="rounded-2xl border border-rose-300/30 bg-rose-900/20 p-4">
+          <p className="text-sm font-semibold text-rose-200">Promokod saqlanmadi</p>
+          <p className="mt-1 text-xs leading-relaxed text-rose-300">{submitError}</p>
         </div>
       ) : null}
 
