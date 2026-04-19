@@ -170,7 +170,7 @@ const AdminDashboardPage: React.FC = () => {
         <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -left-24 bottom-0 h-56 w-56 rounded-full bg-sky-500/16 blur-3xl" />
         <div className="relative pr-14">
-          <h1 className="text-[34px] font-black leading-none tracking-[-0.045em]">Turon Bot</h1>
+          <h1 className="text-[34px] font-black leading-none tracking-[-0.045em]">Home page</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-white/76">Admin panel boshqaruvi</p>
         </div>
       </section>

@@ -60,6 +60,16 @@ const AdminLayout: React.FC = () => {
   const newOrdersCount = orders.filter((order) => order.orderStatus === OrderStatusEnum.PENDING).length;
   const { flashActive } = useAdminNewOrderAlert(newOrdersCount);
 
+  const getPageHeaderTitle = (pathname: string) => {
+    if (pathname.startsWith('/admin/orders')) return 'Buyurtma page';
+    if (pathname.startsWith('/admin/menu')) return 'Menu page';
+    if (pathname.startsWith('/admin/promos')) return 'Promo page';
+    if (pathname.startsWith('/admin/dashboard') || pathname === '/admin') return 'Home page';
+    return 'Home page';
+  };
+
+  const pageHeaderTitle = getPageHeaderTitle(location.pathname);
+
   const layoutVars: React.CSSProperties & Record<string, string> = {
     '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 60px)',
     '--admin-nav-clearance': 'calc(env(safe-area-inset-bottom, 0px) + 108px)',
@@ -126,7 +136,8 @@ const AdminLayout: React.FC = () => {
         className="fixed inset-x-0 top-0 z-50 px-3"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        <div className="mx-auto flex w-full max-w-[430px] justify-end">
+        <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3">
+          <h1 className="truncate text-lg font-black tracking-tight text-slate-900">{pageHeaderTitle}</h1>
           <button
             type="button"
             onClick={() => navigate('/admin/notifications')}
