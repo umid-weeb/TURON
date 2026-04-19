@@ -34,7 +34,6 @@ export function CourierMap({ ymaps3, destination }: CourierMapProps) {
       YMapDefaultSchemeLayer,
       YMapDefaultFeaturesLayer,
       YMapMarker,
-      YMapFeature,
     } = ymaps3;
 
     // Xarita — 3D perspektiva, qorong'i tema, Yandex Navigator style
