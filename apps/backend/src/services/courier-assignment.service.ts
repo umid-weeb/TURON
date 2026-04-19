@@ -64,6 +64,7 @@ interface CoordinatePoint {
 interface RankedCourierMetrics {
   distanceMeters: number | null;
   etaMinutes: number | null;
+  remainingDeliveryDistanceMeters?: number | null;
   source: 'live-location' | 'workload';
   hasLiveLocation: boolean;
   liveLocationUpdatedAt: string | null;
@@ -188,6 +189,38 @@ function compareRankedCouriers(
   }
 
   return left.fullName.localeCompare(right.fullName);
+}
+
+function isImmediatelyFree(candidate: RankedCourierCandidateInternal) {
+  return candidate.isOnline && candidate.isAcceptingOrders && candidate.activeAssignments === 0;
+}
+
+function compareDispatchCouriers(
+  left: RankedCourierCandidateInternal,
+  right: RankedCourierCandidateInternal,
+) {
+  const leftFree = isImmediatelyFree(left);
+  const rightFree = isImmediatelyFree(right);
+
+  if (leftFree !== rightFree) {
+    return leftFree ? -1 : 1;
+  }
+
+  if (leftFree && rightFree) {
+    return compareRankedCouriers(left, right);
+  }
+
+  const leftRemaining = left.metrics.remainingDeliveryDistanceMeters ?? Number.POSITIVE_INFINITY;
+  const rightRemaining = right.metrics.remainingDeliveryDistanceMeters ?? Number.POSITIVE_INFINITY;
+  if (leftRemaining !== rightRemaining) {
+    return leftRemaining - rightRemaining;
+  }
+
+  if (left.activeAssignments !== right.activeAssignments) {
+    return left.activeAssignments - right.activeAssignments;
+  }
+
+  return compareByLastAssigned(left.lastAssignedAt, right.lastAssignedAt) || left.fullName.localeCompare(right.fullName);
 }
 
 async function resolveLiveLocationMetrics(
@@ -358,6 +391,89 @@ export class CourierAssignmentService {
       }));
   }
 
+  static async rankDispatchCouriers(db: DbClient = prisma): Promise<RankedCourierCandidate[]> {
+    const couriers = await db.user.findMany({
+      where: {
+        isActive: true,
+        role: UserRoleEnum.COURIER as any,
+        courierOperationalStatus: {
+          is: {
+            isOnline: true,
+          },
+        },
+      },
+      include: {
+        courierOperationalStatus: true,
+        courierAssignments: {
+          include: {
+            order: {
+              select: {
+                id: true,
+              },
+            },
+          },
+          orderBy: { assignedAt: 'desc' },
+        },
+      },
+      orderBy: { fullName: 'asc' },
+    });
+
+    const liveLocationMap = await CourierPresenceService.getFreshCourierLocations(
+      couriers.map((courier) => courier.id),
+      db,
+    );
+    const liveLocations = couriers.map((courier) => liveLocationMap.get(courier.id) ?? null);
+    const liveLocationMetrics = await resolveLiveLocationMetrics(
+      liveLocations.map((location) =>
+        location
+          ? {
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }
+          : null,
+      ),
+    );
+
+    const candidates: RankedCourierCandidateInternal[] = couriers.map((courier, index) => {
+      const activeAssignments = (courier.courierAssignments || []).filter((assignment: any) =>
+        StatusService.isActiveAssignmentStatus(assignment.status),
+      );
+      const lastAssignedAt = courier.courierAssignments?.[0]?.assignedAt?.toISOString?.() ?? null;
+      const liveLocation = liveLocations[index];
+      const locationMetrics = liveLocationMetrics[index];
+      const metrics: RankedCourierMetrics = {
+        distanceMeters: locationMetrics.distanceMeters,
+        etaMinutes: locationMetrics.etaMinutes,
+        remainingDeliveryDistanceMeters:
+          typeof liveLocation?.remainingDistanceKm === 'number'
+            ? Math.round(liveLocation.remainingDistanceKm * 1000)
+            : null,
+        source: liveLocation ? 'live-location' : 'workload',
+        hasLiveLocation: Boolean(liveLocation),
+        liveLocationUpdatedAt: liveLocation?.updatedAt ?? null,
+      };
+
+      return {
+        id: courier.id,
+        fullName: courier.fullName || 'Kuryer',
+        phoneNumber: courier.phoneNumber || '',
+        activeAssignments: activeAssignments.length,
+        lastAssignedAt,
+        isOnline: courier.courierOperationalStatus?.isOnline ?? false,
+        isAcceptingOrders:
+          (courier.courierOperationalStatus?.isAcceptingOrders ?? false) && activeAssignments.length === 0,
+        metrics,
+      };
+    });
+
+    return candidates
+      .sort(compareDispatchCouriers)
+      .map((candidate, index) => ({
+        ...candidate,
+        rank: index + 1,
+      }));
+  }
+
   static async assignCourierToOrder(
     orderId: string,
     courierId: string,
@@ -374,6 +490,10 @@ export class CourierAssignmentService {
       throw new Error("Yakunlangan buyurtmaga kuryer biriktirib bo'lmaydi");
     }
 
+    if (order.status === 'PENDING') {
+      throw new Error("Buyurtmani avval admin tasdiqlashi kerak");
+    }
+
     const courier = await db.user.findFirst({
       where: {
         id: courierId,
@@ -386,6 +506,23 @@ export class CourierAssignmentService {
 
     if (!courier) {
       throw new Error("Tanlangan kuryer hozir buyurtma qabul qilishga tayyor emas");
+    }
+
+    const courierActiveAssignment = await db.courierAssignment.findFirst({
+      where: {
+        courierId,
+        status: {
+          in: [...ACTIVE_ASSIGNMENT_STATUSES] as any,
+        },
+      },
+      select: {
+        id: true,
+        orderId: true,
+      },
+    });
+
+    if (courierActiveAssignment && courierActiveAssignment.orderId !== order.id) {
+      throw new Error("Tanlangan kuryer hozir boshqa buyurtmada band");
     }
 
     const activeAssignment = getActiveAssignment(order);

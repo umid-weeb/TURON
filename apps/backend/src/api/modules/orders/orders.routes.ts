@@ -9,6 +9,8 @@ import {
   streamOrders,
   streamOrderTracking,
   handleUpdateStatus,
+  handleConfirmOrder,
+  handleDispatchOrder,
   handleAssignCourier,
   handleApprovePayment,
   handleRejectPayment,
@@ -61,6 +63,17 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     admin.patch('/:id/status', {
       schema: { params: IdParamSchema, body: UpdateOrderStatusSchema }
     }, handleUpdateStatus);
+
+    admin.post('/:id/confirm', {
+      schema: { params: IdParamSchema }
+    }, handleConfirmOrder);
+
+    admin.post('/:id/dispatch', {
+      schema: {
+        params: IdParamSchema,
+        body: AssignCourierSchema,
+      }
+    }, handleDispatchOrder);
 
     admin.patch('/:id/assign-courier', {
       schema: {

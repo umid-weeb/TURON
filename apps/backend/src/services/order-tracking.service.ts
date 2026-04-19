@@ -55,6 +55,8 @@ export interface OrderTrackingEvent {
 class OrderTrackingService {
   private readonly emitter = new EventEmitter();
   private readonly snapshots = new Map<string, CourierLocationSnapshot>();
+  /** Per-order: highest client-side GPS timestamp seen so far (ms). Guards against offline-sync teleportation. */
+  private readonly lastClientTimestampMs = new Map<string, number>();
   private readonly liveWindowMs = 45_000;
   private readonly globalEventName = 'order-tracking:all';
 
@@ -97,7 +99,22 @@ class OrderTrackingService {
     });
   }
 
-  publishCourierLocation(orderId: string, location: Omit<CourierLocationSnapshot, 'updatedAt'> & { updatedAt?: string }) {
+  publishCourierLocation(
+    orderId: string,
+    location: Omit<CourierLocationSnapshot, 'updatedAt'> & { updatedAt?: string },
+    clientTimestampMs?: number,
+  ): OrderTrackingSnapshot | undefined {
+    // Stale check — offline-synced points must not teleport the live map marker.
+    // If the incoming client timestamp is older than (or equal to) the last accepted one,
+    // skip both the snapshot update and the SSE emit.
+    if (clientTimestampMs !== undefined) {
+      const lastMs = this.lastClientTimestampMs.get(orderId) ?? 0;
+      if (clientTimestampMs <= lastMs) {
+        return this.getCachedSnapshot(orderId);
+      }
+      this.lastClientTimestampMs.set(orderId, clientTimestampMs);
+    }
+
     const snapshot: CourierLocationSnapshot = {
       ...location,
       updatedAt: location.updatedAt || new Date().toISOString(),
@@ -203,6 +220,7 @@ class OrderTrackingService {
 
   clearSnapshot(orderId: string) {
     this.snapshots.delete(orderId);
+    this.lastClientTimestampMs.delete(orderId);
   }
 
   private getEventName(orderId: string) {

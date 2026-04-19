@@ -200,6 +200,8 @@ export interface AdminCourierOption {
   rank?: number;
   distanceMeters?: number | null;
   etaMinutes?: number | null;
+  remainingDeliveryDistanceMeters?: number | null;
+  isFree?: boolean;
   rankingSource?: string | null;
   hasLiveLocation?: boolean;
   liveLocationUpdatedAt?: string | null;

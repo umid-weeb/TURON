@@ -19,7 +19,6 @@ import {
   serializeOrder,
 } from '../orders/order-helpers.js';
 import { eligibleCourierCache } from '../../../services/courier-assignment.service.js';
-import { OrderReassignmentQueue } from '../../../services/order-reassignment-queue.service.js';
 
 const COURIER_LIST_ASSIGNMENT_STATUSES = [
   'ASSIGNED',
@@ -579,6 +578,13 @@ export async function declineCourierOrder(
         data: { status: 'REJECTED' as any },
       });
 
+      if ((order as any).courierId === requester.id) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { courierId: null },
+        });
+      }
+
       await tx.courierAssignmentEvent.create({
         data: {
           assignmentId: assignment.id,
@@ -616,9 +622,12 @@ export async function declineCourierOrder(
       metadata: { assignmentId: assignment.id },
     });
 
-    // Fire-and-forget: auto-reassign to the next best available courier.
-    // The queue handles retries and notifies admin only if all attempts fail.
-    OrderReassignmentQueue.enqueue(orderId, (order as any).orderNumber);
+    InAppNotificationsService.notifyAdmins({
+      type: NotificationTypeEnum.WARNING,
+      title: 'Kuryer buyurtmani rad etdi',
+      message: `#${String((order as any).orderNumber)} buyurtma qayta dispatch qilishni kutmoqda`,
+      relatedOrderId: orderId,
+    }).catch(() => {});
 
     return reply.send({ success: true, orderId });
   } catch (error) {

@@ -18,6 +18,7 @@ import {
   useAdminCouriers,
   useApproveOrderPayment,
   useAssignCourierToOrder,
+  useConfirmOrder,
   useOrderDetails,
   useRejectOrderPayment,
   useOrderTrackingStream,
@@ -110,6 +111,7 @@ const AdminOrderDetailPage: React.FC = () => {
     refetch,
   } = useOrderDetails(orderId || '');
   const { connectionState, isConnected } = useOrderTrackingStream(orderId || '', Boolean(orderId));
+  const confirmOrderMutation = useConfirmOrder();
   const updateOrderStatusMutation = useUpdateOrderStatus();
   const approvePaymentMutation = useApproveOrderPayment();
   const rejectPaymentMutation = useRejectOrderPayment();
@@ -154,10 +156,13 @@ const AdminOrderDetailPage: React.FC = () => {
     setStatusError(null);
 
     try {
-      const updatedOrder = await updateOrderStatusMutation.mutateAsync({
-        id: order.id,
-        status: next,
-      });
+      const updatedOrder =
+        order.orderStatus === OrderStatus.PENDING && next === OrderStatus.PREPARING
+          ? await confirmOrderMutation.mutateAsync({ id: order.id })
+          : await updateOrderStatusMutation.mutateAsync({
+              id: order.id,
+              status: next,
+            });
 
       setOrder(updatedOrder);
 
@@ -249,6 +254,16 @@ const AdminOrderDetailPage: React.FC = () => {
     }
 
     setAssignmentError(null);
+
+    if (order.orderStatus === OrderStatus.PENDING) {
+      setAssignmentError('Avval buyurtmani tasdiqlang, keyin kuryerga yuboring');
+
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+      }
+
+      return;
+    }
 
     try {
       const updatedOrder = await assignCourierMutation.mutateAsync({
@@ -421,7 +436,7 @@ const AdminOrderDetailPage: React.FC = () => {
           currentStatus={order.orderStatus}
           onUpdate={(next) => void handleStatusUpdate(next)}
           onCancel={handleCancel}
-          isPending={updateOrderStatusMutation.isPending}
+          isPending={updateOrderStatusMutation.isPending || confirmOrderMutation.isPending}
         />
       </div>
 
@@ -439,12 +454,23 @@ const AdminOrderDetailPage: React.FC = () => {
           </h3>
           <button
             onClick={() => {
+              if (order.orderStatus === OrderStatus.PENDING) {
+                setAssignmentError('Avval buyurtmani tasdiqlang, keyin kuryerga yuboring');
+                return;
+              }
+
               setAssignmentError(null);
               setIsCourierModalOpen(true);
             }}
-            className="text-indigo-600 text-[10px] font-black uppercase tracking-widest"
+            className={`text-[10px] font-black uppercase tracking-widest ${
+              order.orderStatus === OrderStatus.PENDING ? 'text-slate-400' : 'text-indigo-600'
+            }`}
           >
-            {order.courierId ? "O'zgartirish" : "Biriktirish"}
+            {order.orderStatus === OrderStatus.PENDING
+              ? 'Avval tasdiqlang'
+              : order.courierId
+                ? "O'zgartirish"
+                : 'Dispatch'}
           </button>
         </div>
 

@@ -423,6 +423,23 @@ export const useUpdateOrderStatus = () => {
   });
 };
 
+export const useConfirmOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      api.post(`/orders/${id}/confirm`, undefined, { timeout: 30000 }) as Promise<Order>,
+    onSuccess: (updatedOrder) => {
+      const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
+      const { upsertOrder } = useOrdersStore.getState();
+
+      applyOrderUpdateToCaches(queryClient, updatedOrder, upsertOrder);
+      notifyAboutOrderChanges(previousOrder, updatedOrder);
+      invalidateOrderQueries(queryClient, updatedOrder.id);
+    },
+  });
+};
+
 export const useAdminOrders = () => {
   const query = useQuery<Order[]>({
     queryKey: ['admin-orders'],
@@ -439,6 +456,7 @@ export const useAdminCouriers = (enabled = true) => {
     queryKey: ['admin-couriers'],
     queryFn: async () => (await api.get('/orders/courier-options')) as AdminCourierOption[],
     enabled,
+    refetchInterval: enabled ? 10_000 : false,
   });
 };
 
@@ -633,7 +651,7 @@ export const useAssignCourierToOrder = () => {
 
   return useMutation({
     mutationFn: ({ id, courierId }: { id: string; courierId: string }) =>
-      api.patch(`/orders/${id}/assign-courier`, { courierId }) as Promise<Order>,
+      api.post(`/orders/${id}/dispatch`, { courierId }) as Promise<Order>,
     onSuccess: (updatedOrder) => {
       const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
       const { upsertOrder } = useOrdersStore.getState();

@@ -15,12 +15,24 @@ import { MiniAppCloseButton } from '../telegram/MiniAppCloseButton';
 // ─── New-order interrupt detection ──────────────────────────────────────────
 function useCourierNewOrderDetection() {
   const { data: orders = [] } = useCourierOrders();
-  const { initialized, seenOrderIds, showInterrupt, markSeen, setInitialized } =
+  const { data: courierStatus } = useCourierStatus();
+  const { initialized, seenOrderIds, showInterrupt, dismissInterrupt, markSeen, setInitialized } =
     useOrderInterruptStore();
   const initializedRef = React.useRef(initialized);
 
   React.useEffect(() => {
     const assignedOrders = orders.filter((o) => o.courierAssignmentStatus === 'ASSIGNED');
+    const hasInProgressOrder =
+      orders.some((o) => ['ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(o.courierAssignmentStatus || '')) ||
+      ['ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(
+        courierStatus?.activeAssignment?.assignmentStatus || '',
+      );
+
+    if (hasInProgressOrder) {
+      assignedOrders.forEach((o) => markSeen(o.id));
+      dismissInterrupt();
+      return;
+    }
 
     if (!initializedRef.current) {
       assignedOrders.forEach((o) => markSeen(o.id));
@@ -33,7 +45,16 @@ function useCourierNewOrderDetection() {
     if (newOrder) {
       showInterrupt(newOrder);
     }
-  }, [orders, initialized, seenOrderIds, showInterrupt, markSeen, setInitialized]);
+  }, [
+    orders,
+    courierStatus?.activeAssignment?.assignmentStatus,
+    initialized,
+    seenOrderIds,
+    showInterrupt,
+    dismissInterrupt,
+    markSeen,
+    setInitialized,
+  ]);
 }
 
 const CourierLayout: React.FC = () => {

@@ -311,6 +311,24 @@ export class CourierOrderActionsService {
       order.status as OrderStatusEnum,
       latestEvent?.eventType,
     );
+
+    if (input.action === 'ACCEPT') {
+      const otherActiveAssignment = await db.courierAssignment.findFirst({
+        where: {
+          courierId: input.courierId,
+          id: { not: assignment.id },
+          status: {
+            in: ['ACCEPTED', 'PICKED_UP', 'DELIVERING'] as any,
+          },
+        },
+        select: { id: true, orderId: true },
+      });
+
+      if (otherActiveAssignment) {
+        throw new Error("Sizda faol buyurtma bor. Yangi buyurtmani qabul qilib bo'lmaydi");
+      }
+    }
+
     const mutationPlan = buildActionMutationPlan({
       action: input.action,
       order,

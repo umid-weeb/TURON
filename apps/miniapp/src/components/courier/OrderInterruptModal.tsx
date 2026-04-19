@@ -285,8 +285,61 @@ function OrderInterruptContent({ order }: Props) {
 // The global interrupt overlay — renders above everything via fixed positioning
 export function OrderInterruptModal() {
   const pendingOrder = useOrderInterruptStore((s) => s.pendingOrder);
+  const isVisible = useOrderInterruptStore((s) => s.isVisible);
+  const setInterruptVisible = useOrderInterruptStore((s) => s.setInterruptVisible);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const startYRef = useRef(0);
+  const isDraggingRef = useRef(false);
 
   if (!pendingOrder) return null;
+
+  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    startYRef.current = event.touches[0].clientY;
+    isDraggingRef.current = true;
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = '';
+    }
+  };
+
+  const onTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !sheetRef.current) return;
+    const deltaY = event.touches[0].clientY - startYRef.current;
+    if (deltaY > 0) {
+      sheetRef.current.style.transform = `translateY(${deltaY}px)`;
+    }
+  };
+
+  const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const deltaY = event.changedTouches[0].clientY - startYRef.current;
+    isDraggingRef.current = false;
+
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = '';
+      sheetRef.current.style.transition = 'transform 0.28s ease';
+    }
+
+    if (deltaY > 100) {
+      setInterruptVisible(false);
+    }
+  };
+
+  if (!isVisible) {
+    return (
+      <button
+        type="button"
+        onClick={() => setInterruptVisible(true)}
+        className="fixed bottom-0 left-1/2 z-[200] flex -translate-x-1/2 flex-col items-center gap-1 rounded-t-2xl bg-emerald-600 px-6 pb-4 pt-2 text-white shadow-[0_-8px_30px_rgba(16,185,129,0.35)] active:scale-95"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+      >
+        <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
+          <polyline points="2 10 10 2 18 10" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+        <span className="text-[12px] font-black">
+          Yangi zakaz #{pendingOrder.orderNumber} - ko'rish
+        </span>
+      </button>
+    );
+  }
 
   return (
     <div
@@ -295,6 +348,10 @@ export function OrderInterruptModal() {
     >
       {/* Sheet-style panel from bottom */}
       <div
+        ref={sheetRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
         className="w-full max-w-md overflow-hidden rounded-t-[28px] border border-white/10 bg-slate-900 shadow-2xl"
         style={{
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
