@@ -72,20 +72,27 @@ const AdminLayout: React.FC = () => {
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
       const keyboardLikelyVisible = window.innerHeight - viewportHeight > 140;
       const hasInputFocus = isTypingElement(document.activeElement);
-      setKeyboardOpen(keyboardLikelyVisible && hasInputFocus);
+      // Global behavior for admin module:
+      // hide bottom nav whenever user is typing in a field, and also when viewport shrinks like mobile keyboard.
+      setKeyboardOpen(hasInputFocus || keyboardLikelyVisible);
+    };
+
+    const handleFocusOut = () => {
+      // Let browser move focus first, then recompute.
+      window.setTimeout(computeKeyboardOpen, 0);
     };
 
     computeKeyboardOpen();
     window.visualViewport?.addEventListener('resize', computeKeyboardOpen);
     window.visualViewport?.addEventListener('scroll', computeKeyboardOpen);
     window.addEventListener('focusin', computeKeyboardOpen);
-    window.addEventListener('focusout', computeKeyboardOpen);
+    window.addEventListener('focusout', handleFocusOut);
 
     return () => {
       window.visualViewport?.removeEventListener('resize', computeKeyboardOpen);
       window.visualViewport?.removeEventListener('scroll', computeKeyboardOpen);
       window.removeEventListener('focusin', computeKeyboardOpen);
-      window.removeEventListener('focusout', computeKeyboardOpen);
+      window.removeEventListener('focusout', handleFocusOut);
     };
   }, []);
 
