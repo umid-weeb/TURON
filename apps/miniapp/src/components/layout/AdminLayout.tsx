@@ -59,6 +59,35 @@ const AdminLayout: React.FC = () => {
   const orders = adminOrders.length > 0 ? adminOrders : storeOrders;
   const newOrdersCount = orders.filter((order) => order.orderStatus === OrderStatusEnum.PENDING).length;
   const { flashActive } = useAdminNewOrderAlert(newOrdersCount);
+  const [keyboardOpen, setKeyboardOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const isTypingElement = (element: Element | null) => {
+      if (!element) return false;
+      const tag = element.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (element as HTMLElement).isContentEditable;
+    };
+
+    const computeKeyboardOpen = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const keyboardLikelyVisible = window.innerHeight - viewportHeight > 140;
+      const hasInputFocus = isTypingElement(document.activeElement);
+      setKeyboardOpen(keyboardLikelyVisible && hasInputFocus);
+    };
+
+    computeKeyboardOpen();
+    window.visualViewport?.addEventListener('resize', computeKeyboardOpen);
+    window.visualViewport?.addEventListener('scroll', computeKeyboardOpen);
+    window.addEventListener('focusin', computeKeyboardOpen);
+    window.addEventListener('focusout', computeKeyboardOpen);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', computeKeyboardOpen);
+      window.visualViewport?.removeEventListener('scroll', computeKeyboardOpen);
+      window.removeEventListener('focusin', computeKeyboardOpen);
+      window.removeEventListener('focusout', computeKeyboardOpen);
+    };
+  }, []);
 
   const getPageHeaderTitle = (pathname: string) => {
     if (pathname.startsWith('/admin/orders')) return 'Buyurtmalar';
@@ -74,7 +103,7 @@ const AdminLayout: React.FC = () => {
   const pageHeaderTitle = getPageHeaderTitle(location.pathname);
 
   const layoutVars: React.CSSProperties & Record<string, string> = {
-    '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 60px)',
+    '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 82px)',
     '--admin-nav-clearance': 'calc(env(safe-area-inset-bottom, 0px) + 108px)',
     '--admin-fab-offset': 'calc(env(safe-area-inset-bottom, 0px) + 110px)',
   };
@@ -135,11 +164,11 @@ const AdminLayout: React.FC = () => {
       className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_28%),linear-gradient(180deg,#eef4ff_0%,#f7f9fc_44%,#eef3fb_100%)] font-sans text-slate-950"
       style={layoutVars}
     >
-      <div
-        className="fixed inset-x-0 top-0 z-[70] px-3"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+      <header
+        className="sticky top-0 z-[70] px-3 pb-3"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}
       >
-        <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-3 py-2 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
           {pageHeaderTitle ? (
             <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
               {pageHeaderTitle}
@@ -157,13 +186,13 @@ const AdminLayout: React.FC = () => {
             <NotificationBadge role={UserRoleEnum.ADMIN} />
           </button>
         </div>
-      </div>
+      </header>
 
       <main
         className="mx-auto w-full max-w-[430px] overflow-x-hidden px-4"
         style={{
-          paddingTop: 'var(--admin-header-clearance)',
-          paddingBottom: 'var(--admin-nav-clearance)',
+          paddingTop: '0px',
+          paddingBottom: keyboardOpen ? 'calc(env(safe-area-inset-bottom, 0px) + 24px)' : 'var(--admin-nav-clearance)',
         }}
       >
         <AppErrorBoundary theme="light" homeUrl="/admin">
@@ -172,7 +201,7 @@ const AdminLayout: React.FC = () => {
       </main>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-50 px-3"
+        className={`fixed inset-x-0 bottom-0 z-50 px-3 transition-all duration-200 ${keyboardOpen ? 'pointer-events-none translate-y-[130%] opacity-0' : 'translate-y-0 opacity-100'}`}
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
       >
         <div className="mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] border border-white/80 bg-white/96 px-2 shadow-[0_20px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl">
