@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LayoutDashboard, ShoppingBag, Tag, Truck, UtensilsCrossed } from 'lucide-react';
+import { Bell, ChevronLeft, LayoutDashboard, ShoppingBag, Tag, Truck, UtensilsCrossed } from 'lucide-react';
 import { OrderStatusEnum, UserRoleEnum } from '@turon/shared';
 import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
@@ -124,9 +124,36 @@ const AdminLayout: React.FC = () => {
     return '';
   };
 
+  const getBackFallbackPath = (pathname: string) => {
+    if (pathname.startsWith('/admin/menu/products/') && pathname.endsWith('/edit')) return '/admin/menu/products';
+    if (pathname === '/admin/menu/products/new') return '/admin/menu/products';
+    if (pathname.startsWith('/admin/menu/categories/') && pathname.endsWith('/edit')) return '/admin/menu/categories';
+    if (pathname === '/admin/menu/categories/new') return '/admin/menu/categories';
+    if (pathname.startsWith('/admin/promos/') && pathname.endsWith('/edit')) return '/admin/promos';
+    if (pathname === '/admin/promos/new') return '/admin/promos';
+    if (pathname.startsWith('/admin/orders/')) return '/admin/orders';
+    if (pathname.startsWith('/admin/menu')) return '/admin/dashboard';
+    if (pathname.startsWith('/admin/orders')) return '/admin/dashboard';
+    if (pathname.startsWith('/admin/couriers')) return '/admin/dashboard';
+    if (pathname.startsWith('/admin/promos')) return '/admin/dashboard';
+    if (pathname.startsWith('/admin/reports')) return '/admin/dashboard';
+    if (pathname.startsWith('/admin/notifications')) return '/admin/dashboard';
+    return '/admin/dashboard';
+  };
+
   const pageHeaderTitle = getPageHeaderTitle(location.pathname);
+  const isHomePage = location.pathname === '/admin' || location.pathname === '/admin/dashboard';
   const isAdminFormRoute = /\/(new|edit)$/.test(location.pathname);
   const hideBottomNav = keyboardOpen || modalOpen || isAdminFormRoute;
+
+  const handleBack = () => {
+    const fallback = getBackFallbackPath(location.pathname);
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate(fallback, { replace: true });
+  };
 
   const layoutVars: React.CSSProperties & Record<string, string> = {
     '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 82px)',
@@ -195,13 +222,25 @@ const AdminLayout: React.FC = () => {
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}
       >
         <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
-          {pageHeaderTitle ? (
-            <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
-              {pageHeaderTitle}
-            </h1>
-          ) : (
-            <span />
-          )}
+          <div className="flex min-w-0 items-center gap-2">
+            {!isHomePage ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                aria-label="Orqaga qaytish"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            ) : null}
+            {pageHeaderTitle ? (
+              <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
+                {pageHeaderTitle}
+              </h1>
+            ) : (
+              <span />
+            )}
+          </div>
           <button
             type="button"
             onClick={() => navigate('/admin/notifications')}

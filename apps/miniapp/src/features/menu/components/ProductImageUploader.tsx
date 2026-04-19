@@ -1,5 +1,5 @@
-﻿import React, { useRef, useState } from 'react';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Image as ImageIcon, Upload, X } from 'lucide-react';
 import { imageUploadService } from '../services/imageUploadService';
 
 interface Props {
@@ -13,8 +13,8 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -35,15 +35,14 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
       setError('Rasm yuklanmadi');
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700">Rasm</label>
-
       {currentImageUrl ? (
-        <div className="relative h-52 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+        <div className="relative h-56 w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
           <img
             src={currentImageUrl}
             alt="Mahsulot rasmi"
@@ -52,23 +51,25 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
               (e.target as HTMLImageElement).src = '';
             }}
           />
-          <div className="absolute bottom-3 right-3 flex gap-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-700 shadow-sm active:scale-95"
-            >
-              <Upload size={16} />
-              O'zgartirish
-            </button>
-            <button
-              type="button"
-              onClick={onImageRemove}
-              className="flex h-9 items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-600 shadow-sm active:scale-95"
-            >
-              <X size={16} />
-              Olib tashlash
-            </button>
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/35 to-transparent p-3">
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/70 bg-white/90 px-3 text-xs font-semibold text-slate-700 backdrop-blur active:scale-95"
+              >
+                <Upload size={14} />
+                O'zgartirish
+              </button>
+              <button
+                type="button"
+                onClick={onImageRemove}
+                className="inline-flex h-9 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50/95 px-3 text-xs font-semibold text-rose-600 backdrop-blur active:scale-95"
+              >
+                <X size={14} />
+                Olib tashlash
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -76,15 +77,17 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="flex h-52 w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 transition-colors active:border-blue-400 active:text-blue-600"
+          className="group flex h-56 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 px-4 text-center transition hover:border-blue-300 hover:bg-blue-50/40 active:scale-[0.998] disabled:opacity-70"
         >
           {uploading ? (
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
           ) : (
             <>
-              <ImageIcon size={32} />
-              <span className="text-sm font-bold text-slate-700">Rasm yuklash</span>
-              <span className="text-xs text-slate-500">PNG, JPG - maksimal 5MB</span>
+              <div className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 text-slate-500 shadow-sm">
+                <ImageIcon size={24} />
+              </div>
+              <p className="text-sm font-bold text-slate-800">Rasm yuklash</p>
+              <p className="mt-1 text-xs font-medium text-slate-500">PNG, JPG - maksimal 5MB</p>
             </>
           )}
         </button>
@@ -104,3 +107,4 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
 };
 
 export default ProductImageUploader;
+
