@@ -612,6 +612,7 @@ export const useUpdateCourierLocation = () => {
         speedKmh,
         remainingDistanceKm,
         remainingEtaMinutes,
+        clientTimestamp: new Date().toISOString(),
       }) as Promise<{ orderId: string; tracking?: OrderTrackingState }>;
     },
     onSuccess: (result, variables) => {

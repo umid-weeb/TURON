@@ -677,6 +677,8 @@ export async function updateCourierLocation(
       speedKmh?: number;
       remainingDistanceKm?: number;
       remainingEtaMinutes?: number;
+      /** ISO-8601 timestamp when the GPS fix was taken on the device. */
+      clientTimestamp?: string;
     };
   }>,
   reply: FastifyReply,
@@ -703,23 +705,33 @@ export async function updateCourierLocation(
   //   2. Enqueue to LocationWriteBuffer → flushed to DB every 10 s (100× fewer writes)
   //   3. AuditService REMOVED from this path — GPS coordinates have no audit value
   //      at 1-Hz frequency; stage changes / accept / decline are still audited.
+  //
+  // clientTimestamp guards against offline-sync teleportation:
+  //   live updates always carry the current time → pass staleness check
+  //   offline-synced updates have old timestamps → discarded from SSE + DB buffer
 
-  const { latitude, longitude, heading, speedKmh, remainingDistanceKm, remainingEtaMinutes } =
+  const { latitude, longitude, heading, speedKmh, remainingDistanceKm, remainingEtaMinutes, clientTimestamp } =
     request.body;
+  const clientTimestampMs = clientTimestamp ? new Date(clientTimestamp).getTime() : undefined;
   const now = new Date().toISOString();
 
-  // Step 1 — immediate SSE push (no DB)
-  const tracking = orderTrackingService.publishCourierLocation(order.id, {
-    latitude,
-    longitude,
-    heading,
-    speedKmh,
-    remainingDistanceKm,
-    remainingEtaMinutes,
-    updatedAt: now,
-  });
+  // Step 1 — immediate SSE push (no DB); returns current snapshot if update is stale
+  const tracking = orderTrackingService.publishCourierLocation(
+    order.id,
+    {
+      latitude,
+      longitude,
+      heading,
+      speedKmh,
+      remainingDistanceKm,
+      remainingEtaMinutes,
+      updatedAt: clientTimestamp ?? now,
+    },
+    clientTimestampMs,
+  );
 
   // Step 2 — deferred DB write (buffered, flushed every 10 s)
+  // recordedAtMs prevents stale offline coords from overwriting current DB presence
   locationWriteBuffer.enqueue({
     courierId: requester.id,
     orderId: order.id,
@@ -729,6 +741,7 @@ export async function updateCourierLocation(
     speedKmh: speedKmh ?? null,
     remainingDistanceKm: remainingDistanceKm ?? null,
     remainingEtaMinutes: remainingEtaMinutes ?? null,
+    recordedAtMs: clientTimestampMs,
   });
 
   // Step 3 — AuditService call REMOVED (was 1 extra write per heartbeat)
