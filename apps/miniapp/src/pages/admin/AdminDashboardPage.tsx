@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Badge, Button, Card, Col, Row, Space, Spin, Statistic, Typography } from 'antd';
 import {
   Bell,
   Bike,
   ClipboardList,
-  Loader2,
   MessageCircle,
   Tag,
   TrendingUp,
@@ -38,22 +38,24 @@ const StatCard: React.FC<{
 }> = ({ title, value, hint, icon, tone = 'neutral' }) => {
   const toneClass =
     tone === 'success'
-      ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+      ? 'bg-emerald-50 text-emerald-600'
       : tone === 'warning'
-        ? 'bg-amber-50 text-amber-600 border-amber-100'
+        ? 'bg-amber-50 text-amber-600'
         : tone === 'danger'
-          ? 'bg-rose-50 text-rose-600 border-rose-100'
-          : 'bg-blue-50 text-blue-600 border-blue-100';
+          ? 'bg-rose-50 text-rose-600'
+          : 'bg-blue-50 text-blue-600';
 
   return (
-    <article className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[12px] font-semibold text-slate-500">{title}</p>
-        <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${toneClass}`}>{icon}</span>
-      </div>
-      <p className="mt-3 text-[28px] font-black leading-none tracking-tight text-slate-950">{value}</p>
-      <p className="mt-2 text-xs font-medium text-slate-500">{hint}</p>
-    </article>
+    <Card className="admin-pro-card admin-motion-up">
+      <Space direction="vertical" size={10} className="w-full">
+        <div className="flex items-start justify-between gap-2">
+          <Typography.Text className="text-[12px] font-semibold text-slate-500">{title}</Typography.Text>
+          <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${toneClass}`}>{icon}</span>
+        </div>
+        <Statistic value={value} valueStyle={{ fontSize: 30, fontWeight: 900, color: '#020617' }} />
+        <Typography.Text className="text-xs font-medium text-slate-500">{hint}</Typography.Text>
+      </Space>
+    </Card>
   );
 };
 
@@ -63,21 +65,20 @@ const QuickActionCard: React.FC<{
   onClick: () => void;
   badge?: number;
 }> = ({ label, icon, onClick, badge }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="relative flex h-[108px] flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 text-center shadow-[0_12px_24px_rgba(15,23,42,0.07)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgba(37,99,235,0.16)] active:scale-[0.98]"
-  >
-    {badge && badge > 0 ? (
-      <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
-        {badge}
-      </span>
-    ) : null}
-    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600">
-      {icon}
-    </span>
-    <span className="text-[12px] font-semibold leading-tight text-slate-700">{label}</span>
-  </button>
+  <Badge count={badge} size="small">
+    <Card className="admin-pro-card admin-motion-up admin-shimmer p-0">
+      <Button
+        type="text"
+        onClick={onClick}
+        className="flex h-[94px] w-full flex-col items-center justify-center gap-2 !rounded-xl !text-slate-700 hover:!text-blue-600"
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600">
+          {icon}
+        </span>
+        <span className="text-[12px] font-semibold leading-tight">{label}</span>
+      </Button>
+    </Card>
+  </Badge>
 );
 
 const AdminDashboardPage: React.FC = () => {
@@ -161,54 +162,65 @@ const AdminDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]">
-      <section className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Umumiy holat</p>
-        <p className="mt-2 text-xl font-black tracking-tight text-slate-900">Bugungi admin ko'rsatkichlari</p>
-        <p className="mt-1 text-sm font-medium text-slate-500">Muhim raqamlar va tezkor o'tishlar bir sahifada</p>
-      </section>
+      <Card className="admin-pro-card admin-motion-up">
+        <Typography.Text className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Umumiy holat</Typography.Text>
+        <Typography.Title level={4} className="!mb-1 !mt-2 !text-slate-900">
+          Bugungi admin ko'rsatkichlari
+        </Typography.Title>
+        <Typography.Text className="text-sm font-medium text-slate-500">Muhim raqamlar va tezkor o'tishlar bir sahifada</Typography.Text>
+      </Card>
 
-      <section className="grid grid-cols-2 gap-3">
-        <StatCard
-          title="Yangi buyurtmalar"
-          value={newOrders.length.toString()}
-          hint="Yangi oqim"
-          icon={<ClipboardList size={16} />}
-          tone="neutral"
-        />
-        <StatCard
-          title="Bugungi daromad"
-          value={formatCompactMoney(deliveredRevenue || orders.reduce((sum, order) => sum + order.total, 0))}
-          hint="UZS hisobida"
-          icon={<TrendingUp size={16} />}
-          tone="success"
-        />
-        <StatCard
-          title="Faol kuryerlar"
-          value={`${onlineCouriers}/${couriers.length || 0}`}
-          hint={`${busyCouriers} ta band`}
-          icon={<Bike size={16} />}
-          tone="warning"
-        />
-        <StatCard
-          title="Kutilayotganlar"
-          value={pendingOrders.length.toString()}
-          hint="Tasdiq kutmoqda"
-          icon={<Bell size={16} />}
-          tone="danger"
-        />
-      </section>
+      <Row gutter={[12, 12]}>
+        <Col span={12}>
+          <StatCard
+            title="Yangi buyurtmalar"
+            value={newOrders.length.toString()}
+            hint="Yangi oqim"
+            icon={<ClipboardList size={16} />}
+            tone="neutral"
+          />
+        </Col>
+        <Col span={12}>
+          <StatCard
+            title="Bugungi daromad"
+            value={formatCompactMoney(deliveredRevenue || orders.reduce((sum, order) => sum + order.total, 0))}
+            hint="UZS hisobida"
+            icon={<TrendingUp size={16} />}
+            tone="success"
+          />
+        </Col>
+        <Col span={12}>
+          <StatCard
+            title="Faol kuryerlar"
+            value={`${onlineCouriers}/${couriers.length || 0}`}
+            hint={`${busyCouriers} ta band`}
+            icon={<Bike size={16} />}
+            tone="warning"
+          />
+        </Col>
+        <Col span={12}>
+          <StatCard
+            title="Kutilayotganlar"
+            value={pendingOrders.length.toString()}
+            hint="Tasdiq kutmoqda"
+            icon={<Bell size={16} />}
+            tone="danger"
+          />
+        </Col>
+      </Row>
 
-      <section className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_16px_34px_rgba(15,23,42,0.08)]">
-        <div className="mb-3">
+      <Card className="admin-pro-card admin-motion-up" title={
+        <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Tezkor amallar</p>
           <p className="mt-1 text-lg font-black tracking-tight text-slate-900">Bitta bosishda boshqarish</p>
         </div>
+      }>
         {isLoading && orders.length === 0 ? (
           <div className="flex h-[228px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
-            <Loader2 size={22} className="animate-spin" />
+            <Spin size="large" />
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {quickActions.map((item) => (
               <QuickActionCard
                 key={item.key}
@@ -220,7 +232,7 @@ const AdminDashboardPage: React.FC = () => {
             ))}
           </div>
         )}
-      </section>
+      </Card>
 
       <p className="text-center text-xs font-medium text-slate-400">@turonkafebot</p>
     </div>
