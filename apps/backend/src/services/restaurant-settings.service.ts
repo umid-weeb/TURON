@@ -57,12 +57,59 @@ const DEFAULTS: RestaurantSettings = {
   autoSchedule: true,
 };
 
+let storageReadyPromise: Promise<void> | null = null;
+let storageWarningLogged = false;
+
+async function ensureRestaurantSettingsStorage() {
+  if (!storageReadyPromise) {
+    storageReadyPromise = prisma.$executeRawUnsafe(`
+      create extension if not exists pgcrypto;
+
+      create table if not exists public.restaurant_settings (
+        id          uuid        primary key default gen_random_uuid(),
+        key         text        not null,
+        value       text        not null,
+        data_type   text        not null default 'string',
+        updated_at  timestamptz not null default now(),
+        updated_by  uuid        references public.users(id) on delete set null,
+        constraint restaurant_settings_key_key unique (key),
+        constraint restaurant_settings_key_not_blank check (btrim(key) <> ''),
+        constraint restaurant_settings_data_type_valid check (data_type in ('string', 'number', 'json', 'boolean'))
+      );
+
+      alter table public.restaurant_settings
+        add column if not exists data_type text not null default 'string',
+        add column if not exists updated_at timestamptz not null default now(),
+        add column if not exists updated_by uuid;
+
+      create index if not exists idx_restaurant_settings_key on public.restaurant_settings(key);
+    `).then(() => undefined).catch((error) => {
+      storageReadyPromise = null;
+      throw error;
+    });
+  }
+
+  return storageReadyPromise;
+}
+
 async function getSetting(key: string): Promise<string | null> {
-  const row = await prisma.restaurantSetting.findUnique({ where: { key } });
-  return row?.value ?? null;
+  try {
+    await ensureRestaurantSettingsStorage();
+    const row = await prisma.restaurantSetting.findUnique({ where: { key } });
+    return row?.value ?? null;
+  } catch (error) {
+    if (!storageWarningLogged) {
+      storageWarningLogged = true;
+      console.warn('[restaurant-settings] Storage unavailable; using defaults:', error);
+    }
+
+    return null;
+  }
 }
 
 async function setSetting(key: string, value: string, dataType: string, updatedById?: string) {
+  await ensureRestaurantSettingsStorage();
+
   await prisma.restaurantSetting.upsert({
     where: { key },
     update: { value, dataType, updatedById: updatedById ?? null },
