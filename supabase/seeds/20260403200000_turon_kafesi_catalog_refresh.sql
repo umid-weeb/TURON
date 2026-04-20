@@ -145,7 +145,50 @@ values
 
   -- Muzqaymoq
   ('41000000-0000-4000-8000-000000000039', (select id from public.menu_categories where slug = 'muzqaymoq'), 'Muzqaymoq vanilli', 'Vanilnoe morozhenoe', 'Vanilli muzqaymoq.', 'Vanilnoe morozhenoe.', 12000, null, 'https://images.unsplash.com/photo-1505253758473-96b7015fcd40?auto=format&fit=crop&w=1200&q=80', '120 g', null, false, false, true, false, null, true, 'AVAILABLE', 30, 1),
-  ('41000000-0000-4000-8000-000000000040', (select id from public.menu_categories where slug = 'muzqaymoq'), 'Muzqaymoq shokoladli', 'Shokoladnoe morozhenoe', 'Shokoladli muzqaymoq.', 'Shokoladnoe morozhenoe.', 13000, null, 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=1200&q=80', '120 g', null, false, false, false, false, null, true, 'AVAILABLE', 24, 2)
+  ('41000000-0000-4000-8000-000000000040', (select id from public.menu_categories where slug = 'muzqaymoq'), 'Muzqaymoq shokoladli', 'Shokoladnoe morozhenoe', 'Shokoladli muzqaymoq.', 'Shokoladnoe morozhenoe.', 13000, null, 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=1200&q=80', '120 g', null, false, false, false, false, null, true, 'AVAILABLE', 24, 2),
+
+  -- Qo'shimcha Osh
+  ('41000000-0000-4000-8000-000000000041', (select id from public.menu_categories where slug = 'osh'), 'Osh sabzi bilan', 'Plov s zeleninoy', 'Sabzavotli osh.', 'Plov s zelenyu i speciyami.', 36000, null, 'https://images.unsplash.com/photo-1585238341710-4913d3ca7296?auto=format&fit=crop&w=1200&q=80', '1 porsiya', 'Top', false, true, false, false, null, true, 'AVAILABLE', 15, 3),
+  ('41000000-0000-4000-8000-000000000042', (select id from public.menu_categories where slug = 'osh'), 'Osh mol go''shti', 'Plov s govyadinoy', 'Mol go''shti bilan osh.', 'Plov s govyadinoy i yaycom.', 38000, 44000, 'https://images.unsplash.com/photo-1593080810901-8d1b68aad999?auto=format&fit=crop&w=1200&q=80', '1 porsiya', 'Aksiya', true, false, true, true, 13, true, 'AVAILABLE', 12, 4),
+
+  -- Qo'shimcha Sho'rva
+  ('41000000-0000-4000-8000-000000000043', (select id from public.menu_categories where slug = 'shorva'), 'Xo''rma sho''rva', 'Sup v'kharma', 'Xo''rma va somsa bilan sho''rva.', 'Sup s ha harma.', 28000, null, 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=80', '1 porsiya', null, false, false, false, false, null, true, 'AVAILABLE', 13, 4),
+  ('41000000-0000-4000-8000-000000000044', (select id from public.menu_categories where slug = 'shorva'), 'Jo ''josh sho''rva', 'Sup goryachiy', 'Jo''josh bilan achchiq sho''rva.', 'Ostriy goryachiy sup.', 25000, null, 'https://images.unsplash.com/photo-1547114855-ab107036c474?auto=format&fit=crop&w=1200&q=80', '1 porsiya', 'Yangi', false, true, false, false, null, true, 'AVAILABLE', 17, 5),
+
+  -- Qo'shimcha Fast Food
+  ('41000000-0000-4000-8000-000000000045', (select id from public.menu_categories where slug = 'fast-food'), 'Achchiq qozon', 'Ostryy kazan', 'Achchiq qozonda pishirilgan.', 'S ostrym sousom v kazane.', 82000, null, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80', '1 porsiya', null, false, false, false, false, null, true, 'AVAILABLE', 11, 5),
+  ('41000000-0000-4000-8000-000000000046', (select id from public.menu_categories where slug = 'fast-food'), 'Tavuk tandur', 'Kuritsa tandur', 'Tandurda pishirilgan tavuk.', 'Kuritsa, prigotvlennaya v tandyre.', 68000, 78000, 'https://images.unsplash.com/photo-1555939594-58d7cb561404?auto=format&fit=crop&w=1200&q=80', '1 porsiya', 'Aksiya', false, false, true, true, 12, true, 'AVAILABLE', 14, 6),
+
+  -- Qo'shimcha Lavash
+  ('41000000-0000-4000-8000-000000000047', (select id from public.menu_categories where slug = 'lavash'), 'Lavash achchiqi', 'Ostriy lavash', 'Achchiq sous bilan lavash.', 'Lavash s ostrym sousom.', 32000, null, 'https://images.unsplash.com/photo-1544986991-b53faf72f640?auto=format&fit=crop&w=1200&q=80', '1 dona', null, false, false, false, false, null, true, 'AVAILABLE', 16, 5),
+  ('41000000-0000-4000-8000-000000000048', (select id from public.menu_categories where slug = 'lavash'), 'Lavash tovuq', 'Lavash kuritsa', 'Tovuq go''shti lavash.', 'Lavash s kuritsey.', 31000, null, 'https://images.unsplash.com/photo-1552332386-e2d2ffa2da65?auto=format&fit=crop&w=1200&q=80', '1 dona', 'Yangi', false, true, false, false, null, true, 'AVAILABLE', 18, 6),
+
+  -- Qo'shimcha Burger
+  ('41000000-0000-4000-8000-000000000049', (select id from public.menu_categories where slug = 'burger'), 'Burger vegearian', 'Vegetarianskiy burger', 'Sabzavot bilan burger.', 'Burger s zelenyu i ovoshhami.', 26000, null, 'https://images.unsplash.com/photo-1585340741938-3246dd4ae446?auto=format&fit=crop&w=1200&q=80', '1 dona', null, false, false, false, false, null, true, 'AVAILABLE', 14, 5),
+  ('41000000-0000-4000-8000-000000000050', (select id from public.menu_categories where slug = 'burger'), 'Burger achchiq', 'Burger ostriy', 'Achchiq burger.', 'Burger s ostrym pepperom.', 29000, null, 'https://images.unsplash.com/photo-1556740712-6b33ca2c8f7d?auto=format&fit=crop&w=1200&q=80', '1 dona', null, false, true, false, false, null, true, 'AVAILABLE', 13, 6),
+
+  -- Qo'shimcha Donar
+  ('41000000-0000-4000-8000-000000000051', (select id from public.menu_categories where slug = 'donar'), 'Donar tovuq', 'Doner kuritsa', 'Tovuq donari.', 'Doner iz kuritsy.', 30000, null, 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=1200&q=80', '1 dona', null, false, false, false, false, null, true, 'AVAILABLE', 19, 3),
+  ('41000000-0000-4000-8000-000000000052', (select id from public.menu_categories where slug = 'donar'), 'Donar vegetarian', 'Vegetarianskiy doner', 'Sabzavot donari.', 'Doner iz ovoshchey.', 26000, null, 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=1200&q=80', '1 dona', 'Yangi', false, true, false, false, null, true, 'AVAILABLE', 17, 4),
+
+  -- Qo'shimcha Grill
+  ('41000000-0000-4000-8000-000000000053', (select id from public.menu_categories where slug = 'grill'), 'Grill qo''y go''shti', 'Gril baranina', 'Qo''y go''shti grillda.', 'Baranina na grile.', 89000, null, 'https://images.unsplash.com/photo-1432856712768-6f851b8a23d6?auto=format&fit=crop&w=1200&q=80', '1 porsiya', 'Top', false, false, true, false, null, true, 'AVAILABLE', 8, 5),
+  ('41000000-0000-4000-8000-000000000054', (select id from public.menu_categories where slug = 'grill'), 'Grill lula', 'Gril lula', 'Lula kebab grillda.', 'Lula kebab na grile.', 76000, 88000, 'https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=1200&q=80', '1 porsiya', 'Aksiya', false, false, true, true, 13, true, 'AVAILABLE', 11, 6),
+
+  -- Qo'shimcha Pitsa
+  ('41000000-0000-4000-8000-000000000055', (select id from public.menu_categories where slug = 'pitsa'), 'Pitsa sabzavotli', 'Pitsa s zelenyu', 'Sabzavotli pitsa.', 'Pitsa s zelenyu i speciyami.', 86000, null, 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=1200&q=80', '30 sm', null, false, false, false, false, null, true, 'AVAILABLE', 11, 4),
+  ('41000000-0000-4000-8000-000000000056', (select id from public.menu_categories where slug = 'pitsa'), 'Pitsa Margarita', 'Margarita', 'Klassik margarita pitsa.', 'Klassicheskaya margarita.', 72000, null, 'https://images.unsplash.com/photo-1628840042765-356cda07f4ee?auto=format&fit=crop&w=1200&q=80', '30 sm', 'Yangi', false, true, false, false, null, true, 'AVAILABLE', 13, 5),
+
+  -- Qo'shimcha Ichimliklar
+  ('41000000-0000-4000-8000-000000000057', (select id from public.menu_categories where slug = 'ichimliklar'), 'Qahva latte', 'Latte kofe', 'Latte qahva.', 'Kofe latte.', 24000, null, 'https://images.unsplash.com/photo-1487700307025-ab594b3ec370?auto=format&fit=crop&w=1200&q=80', '250 ml', null, false, false, false, false, null, true, 'AVAILABLE', 15, 6),
+  ('41000000-0000-4000-8000-000000000058', (select id from public.menu_categories where slug = 'ichimliklar'), 'Sharbat', 'Kompot', 'Mevali sharbat.', 'Fruktovyy kompot.', 11000, null, 'https://images.unsplash.com/photo-1437282318942-d5bbb2d9b0ee?auto=format&fit=crop&w=1200&q=80', '300 ml', null, false, false, false, false, null, true, 'AVAILABLE', 25, 7),
+  ('41000000-0000-4000-8000-000000000059', (select id from public.menu_categories where slug = 'ichimliklar'), 'Mineeral suvi', 'Mineralnaya voda', 'Mineralni suv.', 'Mineralnaya voda.', 8000, null, 'https://images.unsplash.com/photo-1608720039177-a92e85f5c0ff?auto=format&fit=crop&w=1200&q=80', '500 ml', null, false, false, false, false, null, true, 'AVAILABLE', 50, 8),
+
+  -- Qo'shimcha Shirinliklar
+  ('41000000-0000-4000-8000-000000000060', (select id from public.menu_categories where slug = 'shirinliklar'), 'Krem-brulee', 'Krem-brulee', 'Kremli krem-brulee.', 'Kremovoe krem-brulee.', 21000, null, 'https://images.unsplash.com/photo-1488477304112-4bae1a6978f9?auto=format&fit=crop&w=1200&q=80', '1 dona', null, false, false, false, false, null, true, 'AVAILABLE', 10, 3),
+
+  -- Qo'shimcha Tortlar
+  ('41000000-0000-4000-8000-000000000061', (select id from public.menu_categories where slug = 'tortlar'), 'Shokoladli tort', 'Shokoladnyy tort', 'Shokoladli tort.', 'Shokoladnyy tort.', 28000, null, 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&q=80', '1 bo''lak', null, false, false, false, false, null, true, 'AVAILABLE', 11, 3)
 on conflict (id) do update
 set
   category_id = excluded.category_id,
