@@ -27,10 +27,16 @@ let cleanupZoomGuard: (() => void) | null = null;
 let lastFullscreenRequestAt = 0;
 const FULLSCREEN_COOLDOWN_MS = 3_000;
 
-const PULL_TO_REFRESH_THRESHOLD_PX = 120;
+const PULL_TO_REFRESH_SCREEN_RATIO = 0.5;
+const PULL_TO_REFRESH_MIN_PX = 260;
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return window.Telegram?.WebApp;
+}
+
+function getPullToRefreshThresholdPx() {
+  const viewportHeight = window.visualViewport?.height || window.innerHeight || 600;
+  return Math.max(PULL_TO_REFRESH_MIN_PX, Math.round(viewportHeight * PULL_TO_REFRESH_SCREEN_RATIO));
 }
 
 function safeCall(action: (() => void) | undefined) {
@@ -131,10 +137,11 @@ function installIosOverscrollGuard() {
     if (isSwipingDown && atTop && pullStartedAtTop) {
       event.preventDefault();
 
-      const progress = Math.min(deltaY / PULL_TO_REFRESH_THRESHOLD_PX, 1.15);
+      const thresholdPx = getPullToRefreshThresholdPx();
+      const progress = Math.min(deltaY / thresholdPx, 1.15);
       window.dispatchEvent(new CustomEvent('turon:pull-progress', { detail: { progress } }));
 
-      if (deltaY >= PULL_TO_REFRESH_THRESHOLD_PX) {
+      if (deltaY >= thresholdPx) {
         pullRefreshArmed = true;
         if (!pullArmedNotified) {
           pullArmedNotified = true;

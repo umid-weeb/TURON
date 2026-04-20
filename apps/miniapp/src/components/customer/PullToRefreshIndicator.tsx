@@ -76,8 +76,19 @@ export const PullToRefreshIndicator: React.FC = () => {
     runStrongHaptic();
 
     try {
+      window.dispatchEvent(new CustomEvent('turon:network-reconnect'));
+      await queryClient.cancelQueries();
       await queryClient.invalidateQueries();
       await queryClient.refetchQueries({ type: 'active' });
+      const hasErroredQuery = queryClient
+        .getQueryCache()
+        .findAll()
+        .some((query) => query.state.status === 'error' || query.state.fetchStatus === 'paused');
+
+      if (hasErroredQuery) {
+        window.location.reload();
+        return;
+      }
     } finally {
       setPhaseSync('done');
       window.setTimeout(() => {

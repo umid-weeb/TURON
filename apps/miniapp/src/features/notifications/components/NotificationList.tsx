@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { AppNotification } from '../notificationTypes';
 import { Bell, CheckCircle2, AlertCircle, Info, Package, ChevronRight, Loader2 } from 'lucide-react';
 import { NotificationTypeEnum, UserRoleEnum } from '@turon/shared';
@@ -40,6 +41,7 @@ interface NotificationListProps {
 
 const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { language } = useCustomerLanguage();
   const { data: notifications = [], isLoading, isError, error } = useNotifications(role);
   const markAsRead = useMarkNotificationAsRead(role);
@@ -83,6 +85,14 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
   const handleNotificationClick = (notification: AppNotification) => {
     if (!notification.isRead) {
       markAsRead.mutate(notification.id);
+    }
+
+    if (notification.relatedOrderId) {
+      queryClient.removeQueries({ queryKey: ['order', notification.relatedOrderId], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['courier-status'] });
     }
 
     if (notification.actionRoute) {

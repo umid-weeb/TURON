@@ -317,6 +317,10 @@ export const useOrderDetails = (id: string) => {
     queryKey: ['order', id],
     queryFn: async () => (await api.get(`/orders/${id}`)) as Order,
     enabled: !!id,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   });
 
   useSyncOrderStore(query.data);
@@ -714,9 +718,16 @@ export const useOrdersRealtimeSync = (enabled = true) => {
   const token = useAuthStore((state) => state.token);
   const updateOrderTracking = useOrdersStore((state) => state.updateOrderTracking);
   const upsertOrder = useOrdersStore((state) => state.upsertOrder);
+  const [reconnectNonce, setReconnectNonce] = useState(0);
   const [connectionState, setConnectionState] = useState<TrackingConnectionState>(
     enabled && ORDER_TRACKING_FEATURE_ENABLED ? 'connecting' : 'idle',
   );
+
+  useEffect(() => {
+    const reconnect = () => setReconnectNonce((value) => value + 1);
+    window.addEventListener('turon:network-reconnect', reconnect);
+    return () => window.removeEventListener('turon:network-reconnect', reconnect);
+  }, []);
 
   useEffect(() => {
     if (!ORDER_TRACKING_FEATURE_ENABLED || !enabled || !token) {
@@ -836,7 +847,7 @@ export const useOrdersRealtimeSync = (enabled = true) => {
         window.clearTimeout(reconnectTimer);
       }
     };
-  }, [enabled, queryClient, token, updateOrderTracking, upsertOrder]);
+  }, [enabled, queryClient, reconnectNonce, token, updateOrderTracking, upsertOrder]);
 
   return {
     connectionState,
@@ -849,9 +860,16 @@ export const useOrderTrackingStream = (orderId: string, enabled = true) => {
   const token = useAuthStore((state) => state.token);
   const updateOrderTracking = useOrdersStore((state) => state.updateOrderTracking);
   const upsertOrder = useOrdersStore((state) => state.upsertOrder);
+  const [reconnectNonce, setReconnectNonce] = useState(0);
   const [connectionState, setConnectionState] = useState<TrackingConnectionState>(
     enabled && orderId && ORDER_TRACKING_FEATURE_ENABLED ? 'connecting' : 'idle',
   );
+
+  useEffect(() => {
+    const reconnect = () => setReconnectNonce((value) => value + 1);
+    window.addEventListener('turon:network-reconnect', reconnect);
+    return () => window.removeEventListener('turon:network-reconnect', reconnect);
+  }, []);
 
   useEffect(() => {
     if (!ORDER_TRACKING_FEATURE_ENABLED || !enabled || !orderId || !token) {
@@ -966,7 +984,7 @@ export const useOrderTrackingStream = (orderId: string, enabled = true) => {
         window.clearTimeout(reconnectTimer);
       }
     };
-  }, [enabled, orderId, queryClient, token, updateOrderTracking, upsertOrder]);
+  }, [enabled, orderId, queryClient, reconnectNonce, token, updateOrderTracking, upsertOrder]);
 
   return {
     connectionState,

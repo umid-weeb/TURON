@@ -30,6 +30,8 @@
     "fastify": "^5.0.0",
     "fastify-plugin": "^5.0.0",
     "fastify-type-provider-zod": "^6.1.0",
+    "bullmq": "^5.56.0",
+    "ioredis": "^5.6.1",
     "pg": "^8.16.3",
     "telegraf": "^4.16.3",
     "tsx": "^4.0.0",

@@ -32,6 +32,8 @@ export class AppErrorBoundary extends React.Component<Props, State> {
 
   private handleReset = () => {
     this.setState({ hasError: false, errorMessage: '' });
+    window.dispatchEvent(new CustomEvent('turon:network-reconnect'));
+    window.location.reload();
   };
 
   render() {

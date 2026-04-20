@@ -95,9 +95,11 @@ function formatTrackingTime(timestamp?: string) {
 const AdminOrderDetailPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const { getOrderById } = useOrdersStore();
+  const storeOrder = useOrdersStore((state) =>
+    orderId ? state.orders.find((candidate) => candidate.id === orderId) : undefined,
+  );
 
-  const [order, setOrder] = useState<Order | undefined>(orderId ? getOrderById(orderId) : undefined);
+  const [order, setOrder] = useState<Order | undefined>(undefined);
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -106,6 +108,7 @@ const AdminOrderDetailPage: React.FC = () => {
   const {
     data: fetchedOrder,
     isLoading,
+    isFetching,
     isError,
     error,
     refetch,
@@ -130,13 +133,22 @@ const AdminOrderDetailPage: React.FC = () => {
       return;
     }
 
-    if (orderId) {
-      const fallbackOrder = getOrderById(orderId);
-      if (fallbackOrder) {
-        setOrder(fallbackOrder);
-      }
+    if (storeOrder && !isFetching) {
+      setOrder(storeOrder);
     }
-  }, [fetchedOrder, getOrderById, orderId]);
+  }, [fetchedOrder, isFetching, storeOrder]);
+
+  useEffect(() => {
+    if (!orderId) {
+      return;
+    }
+
+    void refetch().then((result) => {
+      if (result.data) {
+        setOrder(result.data);
+      }
+    });
+  }, [orderId, refetch]);
 
   const handleStatusUpdate = async (next: OrderStatus) => {
     if (!order) {

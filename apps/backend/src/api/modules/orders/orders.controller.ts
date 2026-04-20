@@ -30,6 +30,7 @@ import {
   serializeOrder,
 } from './order-helpers.js';
 import { evaluatePromoForSubtotal } from '../promos/promo-helpers.js';
+import { enqueueCourierAssignment } from '../../../lib/order.queue.js';
 
 async function addTracking(order: any) {
   return {
@@ -137,8 +138,17 @@ async function syncAdminOrderDecisionNotification(params: {
   }
 }
 
-function triggerPostConfirmationCourierAssignment(orderId: string) {
-  void continueAutoAssignmentAfterOrderCreation(orderId);
+function triggerPostConfirmationCourierAssignment(orderId: string, orderNumber?: bigint) {
+  void (async () => {
+    const enqueued = await enqueueCourierAssignment({
+      orderId,
+      orderNumber: orderNumber ? String(orderNumber) : orderId,
+    });
+    if (!enqueued) {
+      // Redis yo'q — in-process fallback
+      void continueAutoAssignmentAfterOrderCreation(orderId);
+    }
+  })();
 }
 
 function scheduleCourierAssignmentTimeout(params: {
@@ -269,6 +279,11 @@ async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
       });
 
       await publishOrderSnapshot(orderId);
+      if (order && !autoAssignmentResult.assignment.reusedExistingAssignment) {
+        void sendAdminAlert(
+          `<b>Kuryer biriktirildi</b>\n\nBuyurtma <b>#${String(order.orderNumber)}</b> kuryer <b>${autoAssignmentResult.assignment.courierName}</b>ga yuborildi.`,
+        );
+      }
     } else {
       // No eligible courier found — notify admins so they can assign manually
       const order = await prisma.order.findUnique({
@@ -1220,7 +1235,7 @@ export async function handleConfirmOrder(
 
       const serializedOrder = await publishOrderSnapshot(order.id);
       syncTelegramOrderStatusInBackground(order.id, serializedOrder?.orderStatus ?? order.status);
-      triggerPostConfirmationCourierAssignment(order.id);
+      triggerPostConfirmationCourierAssignment(order.id, order.orderNumber);
 
       return reply.send(serializedOrder);
     }
@@ -1254,7 +1269,7 @@ export async function handleConfirmOrder(
     status: OrderStatusEnum.PREPARING,
     source: 'admin',
   });
-  triggerPostConfirmationCourierAssignment(order.id);
+  triggerPostConfirmationCourierAssignment(order.id, order.orderNumber);
 
   return reply.send(serializedOrder);
 }

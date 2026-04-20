@@ -481,93 +481,98 @@ export class CourierAssignmentService {
     options: AssignCourierOptions,
   ): Promise<AssignCourierResult> {
     const db = options.db ?? prisma;
+
+    // ── Dastlabki tezkor tekshiruvlar (transaction tashqarisida) ────────────
     const order = await fetchAssignableOrder(orderId, db);
 
-    if (!order) {
-      throw new Error('Buyurtma topilmadi');
-    }
-
+    if (!order) throw new Error('Buyurtma topilmadi');
     if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
       throw new Error("Yakunlangan buyurtmaga kuryer biriktirib bo'lmaydi");
     }
-
     if (order.status === 'PENDING') {
       throw new Error("Buyurtmani avval admin tasdiqlashi kerak");
     }
 
     const courier = await db.user.findFirst({
-      where: {
-        id: courierId,
-        ...CourierOperationalStatusService.eligibleCourierWhere(),
-      } as any,
-      include: {
-        courierOperationalStatus: true,
-      },
+      where: { id: courierId, ...CourierOperationalStatusService.eligibleCourierWhere() } as any,
+      include: { courierOperationalStatus: true },
     });
 
     if (!courier) {
       throw new Error("Tanlangan kuryer hozir buyurtma qabul qilishga tayyor emas");
     }
 
-    const courierActiveAssignment = await db.courierAssignment.findFirst({
-      where: {
-        courierId,
-        status: {
-          in: [...ACTIVE_ASSIGNMENT_STATUSES] as any,
-        },
-      },
-      select: {
-        id: true,
-        orderId: true,
-      },
-    });
-
-    if (courierActiveAssignment && courierActiveAssignment.orderId !== order.id) {
-      throw new Error("Tanlangan kuryer hozir boshqa buyurtmada band");
-    }
-
-    const activeAssignment = getActiveAssignment(order);
-    if (activeAssignment?.courierId === courierId) {
-      return {
-        assignmentId: activeAssignment.id,
-        orderId: order.id,
-        courierId,
-        courierName: courier.fullName || 'Kuryer',
-        assignedAt: activeAssignment.assignedAt.toISOString(),
-        distanceMeters: activeAssignment.distanceMeters ?? null,
-        etaMinutes: activeAssignment.etaMinutes ?? null,
-        wasReassigned: false,
-        reusedExistingAssignment: true,
-      };
-    }
-
+    // ── Barcha kritik o'zgarishlar bitta atomik transaksiyada ───────────────
     const assignmentTimestamp = new Date();
     const createdAssignment = await runWriteTransaction(db, async (tx) => {
-      const previousActiveAssignments = order.courierAssignments.filter((assignment: any) =>
-        StatusService.isActiveAssignmentStatus(assignment.status),
-      );
+      // ── Row-level lock: bir buyurtmani 2 parallel transaksiya olib qo'yolmaydi ──
+      // PostgreSQL SELECT FOR UPDATE — boshqa transaksiya bu qatorni lock olguncha kutadi.
+      // "NOWAIT" emas, chunki lock tezda ozod bo'ladi va idempotent natija kerak.
+      await tx.$queryRaw`
+        SELECT id FROM "orders" WHERE id = ${orderId}::uuid FOR UPDATE
+      `;
+
+      // ── Transaksiya ichida kuryer va buyurtma holatini qayta tekshirish ───
+      const existingActiveForOrder = await tx.courierAssignment.findFirst({
+        where: {
+          orderId,
+          status: { in: [...ACTIVE_ASSIGNMENT_STATUSES] as any },
+        },
+        select: { id: true, courierId: true, assignedAt: true, distanceMeters: true, etaMinutes: true },
+      });
+
+      // Idempotent: allaqachon shu kuryerga biriktirilgan bo'lsa, qaytaramiz
+      if (existingActiveForOrder?.courierId === courierId) {
+        return {
+          __reused: true as const,
+          id: existingActiveForOrder.id,
+          assignedAt: existingActiveForOrder.assignedAt,
+          distanceMeters: existingActiveForOrder.distanceMeters,
+          etaMinutes: existingActiveForOrder.etaMinutes,
+        };
+      }
+
+      // Boshqa kuryer allaqachon biriktirilgan (race condition yutqazuvchi)
+      if (existingActiveForOrder && existingActiveForOrder.courierId !== courierId) {
+        throw new Error('Buyurtma allaqachon boshqa kuryerga biriktirilgan');
+      }
+
+      // Kuryerning boshqa aktiv assignmenti bor-yo'qligini tekshirish
+      const courierBusy = await tx.courierAssignment.findFirst({
+        where: {
+          courierId,
+          orderId: { not: orderId },
+          status: { in: [...ACTIVE_ASSIGNMENT_STATUSES] as any },
+        },
+        select: { id: true },
+      });
+
+      if (courierBusy) {
+        throw new Error("Tanlangan kuryer hozir boshqa buyurtmada band");
+      }
+
+      // Aktiv assignmentlarni transaksiya ichida olish (stale data emas)
+      const previousActiveAssignments = await tx.courierAssignment.findMany({
+        where: {
+          orderId: order.id,
+          status: { in: [...ACTIVE_ASSIGNMENT_STATUSES] as any },
+        },
+        select: { id: true, courierId: true },
+      });
 
       await tx.order.update({
         where: { id: order.id },
         data: { courierId },
       });
 
-      await tx.courierAssignment.updateMany({
-        where: {
-          orderId: order.id,
-          status: {
-            in: [...ACTIVE_ASSIGNMENT_STATUSES] as any,
-          },
-        },
-        data: {
-          status: 'CANCELLED' as any,
-          cancelledAt: assignmentTimestamp,
-        },
-      });
-
       if (previousActiveAssignments.length > 0) {
+        await tx.courierAssignment.updateMany({
+          where: { id: { in: previousActiveAssignments.map((a) => a.id) } },
+          data: { status: 'CANCELLED' as any, cancelledAt: assignmentTimestamp },
+        });
+
         await tx.courierAssignmentEvent.createMany({
-          data: previousActiveAssignments.map((assignment: any) => ({
+          data: previousActiveAssignments.map((assignment) => ({
             assignmentId: assignment.id,
             orderId: order.id,
             courierId: assignment.courierId,
@@ -622,6 +627,21 @@ export class CourierAssignmentService {
       return assignment;
     });
 
+    // Transaksiya ichida idempotent qaytish signali
+    if ('__reused' in createdAssignment) {
+      return {
+        assignmentId: createdAssignment.id,
+        orderId: order.id,
+        courierId,
+        courierName: courier.fullName || 'Kuryer',
+        assignedAt: createdAssignment.assignedAt.toISOString(),
+        distanceMeters: createdAssignment.distanceMeters ?? null,
+        etaMinutes: createdAssignment.etaMinutes ?? null,
+        wasReassigned: false,
+        reusedExistingAssignment: true,
+      };
+    }
+
     invalidateNotifCache(courierId);
 
     return {
@@ -632,7 +652,7 @@ export class CourierAssignmentService {
       assignedAt: createdAssignment.assignedAt.toISOString(),
       distanceMeters: createdAssignment.distanceMeters ?? null,
       etaMinutes: createdAssignment.etaMinutes ?? null,
-      wasReassigned: Boolean(activeAssignment && activeAssignment.courierId !== courierId),
+      wasReassigned: true,
       reusedExistingAssignment: false,
     };
   }

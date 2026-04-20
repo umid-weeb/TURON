@@ -908,6 +908,9 @@ function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumb
         });
 
         await publishRealtimeOrderSnapshot(orderId);
+        await sendAdminAlert(
+          `<b>Kuryer biriktirildi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> kuryer <b>${escapeHtml(autoAssignmentResult.assignment.courierName)}</b>ga yuborildi.`,
+        );
         return;
       }
 

@@ -62,14 +62,14 @@ export const PaymentVerificationCard: React.FC<{
   onReject: () => void;
   isPending?: boolean;
 }> = ({ order, onApprove, onReject, isPending = false }) => {
-  if (order.paymentStatus !== PaymentStatus.PENDING) return null;
+  if (
+    order.paymentStatus !== PaymentStatus.PENDING ||
+    order.paymentMethod !== PaymentMethod.MANUAL_TRANSFER
+  ) {
+    return null;
+  }
 
-  const paymentMethodLabel =
-    order.paymentMethod === PaymentMethod.CASH
-      ? 'Naqd pul'
-      : order.paymentMethod === PaymentMethod.MANUAL_TRANSFER
-        ? 'Manual transfer'
-        : 'Click / Payme';
+  const paymentMethodLabel = 'Manual transfer';
 
   return (
     <div className="bg-amber-50 rounded-[32px] p-6 border border-amber-100 shadow-xl shadow-amber-200/20 overflow-hidden relative group animate-in zoom-in duration-300">

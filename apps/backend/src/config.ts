@@ -21,6 +21,7 @@ const configSchema = z.object({
   WEB_APP_URL: z.string().url().optional(),
   ADMIN_CHAT_ID: z.string().optional(),
   ADMIN_IDS: z.string().optional(),
+  REDIS_URL: z.string().url().optional(), // BullMQ: e.g. redis://localhost:6379 or upstash URL
 });
 
 const _env = configSchema.safeParse(process.env);

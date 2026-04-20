@@ -5,6 +5,9 @@ import { launchTelegramBot, stopTelegramBot } from '../services/telegram-bot.ser
 import { startOrderExpiryScheduler } from '../services/order-expiry.service.js';
 import { locationWriteBuffer } from '../services/location-write-buffer.service.js';
 import { recoverPendingFallbacks } from '../services/admin-chat-fallback.service.js';
+import { startOrderWorker } from '../lib/order.worker.js';
+import { closeCourierAssignmentQueue } from '../lib/order.queue.js';
+import { closeRedisConnection } from '../lib/redis.js';
 
 const server = fastify({
   logger: true,
@@ -31,6 +34,9 @@ async function main() {
     // Recover any chat messages that were waiting for admin fallback before restart
     void recoverPendingFallbacks();
 
+    // Start BullMQ courier-assignment worker (no-op if REDIS_URL not set)
+    startOrderWorker();
+
     // Never block API health/startup on Telegram bot launch.
     if (env.NODE_ENV === 'production') {
       if (process.env.RUN_TELEGRAM_BOT === 'true') {
@@ -51,8 +57,10 @@ main();
 
 process.once('SIGINT', () => {
   void stopTelegramBot('SIGINT');
+  void closeCourierAssignmentQueue().then(() => closeRedisConnection());
 });
 
 process.once('SIGTERM', () => {
   void stopTelegramBot('SIGTERM');
+  void closeCourierAssignmentQueue().then(() => closeRedisConnection());
 });
