@@ -173,6 +173,79 @@ const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
   );
 };
 
+/* ── Hooks & Data ─────────────────────────────────────────────────────────── */
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+const POPULAR_SEARCHES = [
+  { label: 'Burger', query: 'Burger' },
+  { label: 'Lavash', query: 'Lavash' },
+  { label: 'Pitsa', query: 'Pitsa' },
+  { label: 'Ichimliklar', query: 'Ichimliklar' },
+];
+
+const SearchResultRow: React.FC<{ product: MenuProduct }> = ({ product }) => {
+  const navigate = useNavigate();
+  const { addToCart } = useCartStore();
+  const imageSrc = React.useMemo(
+    () => getProductImageUrl(
+      { id: product.id, name: product.name, imageUrl: product.imageUrl, categoryId: product.categoryId },
+      product.categoryId,
+    ),
+    [product],
+  );
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    addToCart({
+      id: product.id,
+      menuItemId: product.id,
+      categoryId: product.categoryId,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      image: getCartItemImageUrl({ id: product.id, name: product.name, image: imageSrc }),
+      isAvailable: true,
+    });
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(`/customer/product/${product.id}`)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/customer/product/${product.id}`); } }}
+      className="w-full rounded-[18px] border border-[#e5e7eb] bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md"
+      style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
+    >
+      <img
+        src={imageSrc}
+        alt={product.name}
+        className="h-12 w-12 rounded-xl object-cover"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-base font-medium text-[#111827]">{product.name}</div>
+        <div className="mt-1 text-sm text-[#6b7280]">{product.price.toLocaleString()} so'm</div>
+      </div>
+      <button
+        type="button"
+        onClick={handleAdd}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#34d399] text-white shadow-sm"
+        style={{ flexShrink: 0 }}
+        aria-label="Savatga qo'shish"
+      >
+        <Plus size={20} strokeWidth={3} />
+      </button>
+    </div>
+  );
+};
+
 /* ── Page ─────────────────────────────────────────────────────────────────── */
 const SearchPage: React.FC = () => {
   const [query, setQuery] = useState('');
@@ -180,7 +253,8 @@ const SearchPage: React.FC = () => {
   const { data: products = [], isLoading } = useProducts();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const normalizedQuery = useMemo(() => normalize(query), [query]);
+  const debouncedQuery = useDebounce(query, 300);
+  const normalizedQuery = useMemo(() => normalize(debouncedQuery), [debouncedQuery]);
 
   const activeProducts = useMemo(() => products.filter((p) => p.isActive), [products]);
 
@@ -205,6 +279,7 @@ const SearchPage: React.FC = () => {
 
   const applyHistory = (term: string) => {
     setQuery(term);
+    commitSearch(term);
     inputRef.current?.focus();
   };
 
@@ -225,128 +300,127 @@ const SearchPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [query, commitSearch]);
 
-  const showHistory = !normalizedQuery && history.length > 0;
-  const showResults = !!normalizedQuery;
+  const showHistory = !query.trim() && history.length > 0;
+  const showResults = !!query.trim();
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--app-bg)', color: 'var(--app-text)' }}>
-
-      {/* ── Sticky search bar ─────────────────────────────────── */}
-      <div style={{
-        position: 'sticky',
-        top: 'calc(60px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
-        zIndex: 30, background: 'var(--app-card)',
-        borderBottom: '1px solid var(--app-line)', padding: '10px 16px',
-      }}>
-        <label style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          height: 46, background: '#f4f4f5', // explicitly light
-          borderRadius: 14, padding: '0 14px', cursor: 'text',
-        }}>
-          <Search size={19} strokeWidth={2.2} style={{ color: '#8c8c96', flexShrink: 0 }} />
+    <div style={{ minHeight: '100vh', background: '#ffffff', color: '#202020' }}>
+      {/* ── Search bar ─────────────────────────────────── */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 30, background: '#ffffff', padding: 'calc(env(safe-area-inset-top, 0px) + 16px) 16px 12px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, height: 46, background: '#f4f4f5', borderRadius: 14, padding: '0 14px', cursor: 'text' }}>
+          <Search size={19} strokeWidth={2.5} style={{ color: '#8c8c96', flexShrink: 0 }} />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onBlur={() => commitSearch(query)}
-            placeholder="Mahsulot nomini yozing..."
-            style={{
-              flex: 1, minWidth: 0, height: '100%',
-              background: 'transparent', border: 'none', outline: 'none',
-              fontSize: 15, fontWeight: 600, color: '#202020', // explicitly dark
-            }}
+            placeholder="Taomlarni izlash..."
+            style={{ flex: 1, minWidth: 0, height: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: 16, fontWeight: 700, color: '#202020' }}
             autoComplete="off"
             autoFocus
           />
           {query ? (
-            <button type="button" onClick={() => setQuery('')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8c8c96', padding: 0, display: 'flex' }}>
-              <X size={16} />
+            <button type="button" onClick={() => setQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8c8c96', padding: 0, display: 'flex' }}>
+              <X size={18} strokeWidth={2.5} />
             </button>
           ) : null}
         </label>
       </div>
 
-      <main style={{ padding: '16px 16px 100px' }}>
+      <main style={{ padding: '4px 16px 100px' }}>
+        {!showResults && (
+          <>
+            {/* ── History ─────────────────────────────── */}
+            {showHistory && (
+              <div style={{ marginBottom: 24 }}>
+                <h2 style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 10 }}>Tarix</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {history.slice(0, 5).map((term) => (
+                    <button key={term} type="button" onClick={() => applyHistory(term)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        width: '100%',
+                        padding: '14px 0',
+                        background: 'transparent',
+                        border: 'none',
+                        borderBottom: '1px solid #e5e7eb',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <Clock size={16} style={{ color: '#9ca3af', flexShrink: 0 }} strokeWidth={2.2} />
+                      <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#111827' }}>
+                        {term}
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => removeHistory(e, term)}
+                        style={{ color: '#9ca3af', display: 'flex', padding: 4 }}
+                        aria-label="O'chirish"
+                      >
+                        <X size={16} strokeWidth={2.2} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* ── History (shown when search is empty) ─────────────── */}
-        {showHistory && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--app-text)', margin: 0 }}>Tarix</h2>
-              <button type="button" onClick={clearHistory}
-                style={{ fontSize: 13, fontWeight: 700, color: '#C62020', background: 'none', border: 'none', cursor: 'pointer' }}>
-                Tozalash
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {history.map((term) => (
-                <button key={term} type="button" onClick={() => applyHistory(term)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '12px 14px', borderRadius: 14,
-                    background: 'var(--app-card)', border: 'none', cursor: 'pointer',
-                    textAlign: 'left', width: '100%',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-                    marginBottom: 6,
-                  }}
-                >
-                  <Clock size={18} style={{ color: 'var(--app-muted)', flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--app-text)' }}>
-                    {term}
-                  </span>
-                  <ArrowUpLeft size={18} style={{ color: '#C62020', flexShrink: 0 }} />
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => removeHistory(e, term)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') removeHistory(e as any, term); }}
-                    style={{ color: 'var(--app-muted)', display: 'flex', padding: 4, cursor: 'pointer' }}
-                    aria-label="O'chirish"
+            {/* ── Popular Searches ─────────────────────────────── */}
+            <div style={{ marginBottom: 24 }}>
+              <h2 style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 10 }}>Ommabop qidiruvlar</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {POPULAR_SEARCHES.map((item) => (
+                  <button
+                    key={item.query}
+                    onClick={() => applyHistory(item.query)}
+                    type="button"
+                    style={{
+                      borderRadius: 999,
+                      background: '#f3f4f6',
+                      color: '#111827',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      padding: '10px 16px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
-                    <X size={14} />
-                  </span>
-                </button>
-              ))}
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* ── Empty state (no history, no query) ───────────────── */}
-        {!showHistory && !showResults && (
-          <div style={{ marginTop: 60, textAlign: 'center', color: 'var(--app-muted)' }}>
-            <Search size={48} style={{ margin: '0 auto 16px' }} />
-            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--app-text)' }}>Taom qidiring</p>
-            <p style={{ fontSize: 13, marginTop: 6 }}>Mahsulot nomini yozib boshlang</p>
-          </div>
+          </>
         )}
 
         {/* ── Results ───────────────────────────────────────────── */}
         {showResults && (
           <>
-            <p style={{ fontSize: 13, color: 'var(--app-muted)', fontWeight: 600, marginBottom: 12 }}>
-              &ldquo;{query}&rdquo; uchun {filtered.length} ta natija
-            </p>
-
             {isLoading ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 12 }}>
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} style={{ height: 220, borderRadius: 16, background: 'var(--app-card)' }} />
+                  <div key={i} style={{ height: 220, borderRadius: 16, background: '#f4f4f5' }} />
                 ))}
               </div>
             ) : filtered.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
                 {filtered.map((product) => (
-                  <SearchProductCard key={product.id} product={product} />
+                  <SearchResultRow key={product.id} product={product} />
                 ))}
               </div>
             ) : (
-              <div style={{ marginTop: 40, textAlign: 'center', padding: '40px 20px', borderRadius: 18, background: 'var(--app-card)' }}>
-                <Search size={40} style={{ margin: '0 auto 12px', color: 'var(--app-muted)' }} />
-                <p style={{ fontSize: 17, fontWeight: 900, color: 'var(--app-text)', margin: 0 }}>Hech narsa topilmadi</p>
-                <p style={{ fontSize: 13, color: 'var(--app-muted)', marginTop: 8, lineHeight: 1.5 }}>
-                  Boshqacha yozib ko'ring yoki asosiy menyudan tanlang.
+              <div style={{ marginTop: 40, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ width: 64, height: 64, borderRadius: 20, background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8c8c96', marginBottom: 16 }}>
+                  <Search size={32} strokeWidth={2.5} />
+                </div>
+                <p style={{ fontSize: 18, fontWeight: 900, color: '#202020', margin: 0 }}>Hech narsa topilmadi</p>
+                <p style={{ fontSize: 14, color: '#8c8c96', marginTop: 8, lineHeight: 1.5, maxWidth: 260 }}>
+                  Boshqacha yozib ko'ring yoki boshqa nom qidiring.
                 </p>
               </div>
             )}
