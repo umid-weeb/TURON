@@ -16,6 +16,7 @@ import {
   sendAdminAlert,
   sendOrderNotificationToAdmin,
   syncTelegramOrderStatus,
+  sendAdminCourierListOptions,
 } from '../../../services/telegram-bot.service.js';
 import { StatusService } from '../../../services/status.service.js';
 import { SpecialEventsService } from '../../../services/special-events.service.js';
@@ -141,16 +142,8 @@ async function syncAdminOrderDecisionNotification(params: {
 }
 
 function triggerPostConfirmationCourierAssignment(orderId: string, orderNumber?: bigint) {
-  void (async () => {
-    const enqueued = await enqueueCourierAssignment({
-      orderId,
-      orderNumber: orderNumber ? String(orderNumber) : orderId,
-    });
-    if (!enqueued) {
-      // Redis yo'q — in-process fallback
-      void continueAutoAssignmentAfterOrderCreation(orderId);
-    }
-  })();
+  // HOTFIX: Queue worker ulanmagan bo'lishi sababli buyurtmani to'g'ridan-to'g'ri (sinxron) kuryerga uzatamiz
+  void continueAutoAssignmentAfterOrderCreation(orderId);
 }
 
 function scheduleCourierAssignmentTimeout(params: {
@@ -287,14 +280,12 @@ async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
         );
       }
     } else {
-      // No eligible courier found — notify admins so they can assign manually
       const order = await prisma.order.findUnique({
         where: { id: orderId },
         select: { orderNumber: true },
       });
-      void sendAdminAlert(
-        `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${order?.orderNumber ?? orderId}</b> uchun avtomatik tayinlash amalga oshmadi — onlayn kuryerlar yo'q.\n\nAdminlar panel orqali qo'lda tayinlang.`,
-      );
+        // Avtomatik kuryer topilmasa botga telegramdagi inline tugmalarni jo'natamiz
+        await sendAdminCourierListOptions(orderId, String(order?.orderNumber ?? orderId));
     }
   } catch (error) {
     console.error(`Auto courier assignment failed for order ${orderId}:`, error);

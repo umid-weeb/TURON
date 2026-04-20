@@ -914,35 +914,7 @@ function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumb
         return;
       }
 
-      // --- AGAR AVTOMATIK KURYER TOPILMASA, BOTDA RO'YXAT CHIQARAMIZ ---
-      const dispatchCouriers = await CourierAssignmentService.rankDispatchCouriers();
-
-      if (dispatchCouriers.length === 0) {
-        await sendAdminAlert(
-          `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> tasdiqlandi, lekin tizimda umuman onlayn kuryer yo'q!`
-        );
-        return;
-      }
-
-      // Kuryerlar ro'yxatini inline-keyboard tugmalari ko'rinishida yasash
-      const buttons = dispatchCouriers.slice(0, 10).map((c) => {
-        const statusStr = c.isFree ? '🟢 Bo\'sh' : `🟠 Band (~${c.etaMinutes} daq)`;
-        return [Markup.button.callback(`${c.fullName} | ${statusStr}`, `assign_courier:${orderId}:${c.id}`)];
-      });
-
-      const chatIds = resolveOrderNotificationRecipientChatIds();
-      const state = getBotState();
-
-      for (const chatId of chatIds) {
-        await state.bot.telegram.sendMessage(
-          chatId,
-          `⚠️ <b>Avtomatik kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> uchun bo'sh kuryer topilmadi. Quyidagi ro'yxatdan kuryerni qo'lda tayinlang:`,
-          {
-            parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buttons }
-          }
-        ).catch(() => {});
-      }
+            await sendAdminCourierListOptions(orderId, orderNumber);
     } catch (error) {
       console.error(`[Bot] Auto courier assignment failed for order ${orderId}:`, error);
       await sendAdminAlert(
@@ -950,6 +922,36 @@ function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumb
       );
     }
   })();
+}
+
+export async function sendAdminCourierListOptions(orderId: string, orderNumber: string) {
+  const dispatchCouriers = await CourierAssignmentService.rankDispatchCouriers();
+
+  if (dispatchCouriers.length === 0) {
+    await sendAdminAlert(
+      `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> uchun tizimda umuman onlayn kuryer yo'q!`
+    );
+    return;
+  }
+
+  const buttons = dispatchCouriers.slice(0, 10).map((c) => {
+    const statusStr = c.isFree ? '🟢 Bo\'sh' : `🟠 Band (~${c.etaMinutes} daq)`;
+    return [Markup.button.callback(`${c.fullName} | ${statusStr}`, `assign_courier:${orderId}:${c.id}`)];
+  });
+
+  const chatIds = resolveOrderNotificationRecipientChatIds();
+  const state = getBotState();
+
+  for (const chatId of chatIds) {
+    await state.bot.telegram.sendMessage(
+      chatId,
+      `⚠️ <b>Avtomatik kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> uchun bo'sh kuryer topilmadi. Quyidagi ro'yxatdan kuryerni qo'lda tayinlang:`,
+      {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: buttons }
+      }
+    ).catch(() => {});
+  }
 }
 
 async function syncCallbackMessageStatus(
