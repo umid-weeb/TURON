@@ -62,6 +62,17 @@ const DEFAULT_WORKING_HOURS: WorkingHours = {
   sun: { open: '10:00', close: '21:00', closed: false },
 };
 
+const FALLBACK_SETTINGS: RestaurantSettings = {
+  name: 'Turon Kafe',
+  phone: '',
+  addressText: "Yangi Sergeli ko'chasi, 11",
+  longitude: 69.240562,
+  latitude: 41.311081,
+  workingHours: DEFAULT_WORKING_HOURS,
+  isOpen: true,
+  autoSchedule: false,
+};
+
 const DAY_ORDER: DayKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 const DAY_LABELS: Record<DayKey, string> = {
@@ -121,6 +132,8 @@ function useRestaurantSettings() {
     queryKey: ['admin-restaurant-settings'],
     queryFn: async () => normalizeSettings((await api.get('/admin/restaurant/settings')) as RestaurantSettings),
     refetchOnWindowFocus: true,
+    retry: 1,
+    staleTime: 30_000,
   });
 }
 
@@ -129,6 +142,7 @@ function useRestaurantOpenStatus() {
     queryKey: ['admin-restaurant-open-status'],
     queryFn: async () => (await api.get('/admin/restaurant/open-status')) as RestaurantOpenStatus,
     refetchInterval: 60_000,
+    retry: 1,
   });
 }
 
@@ -676,16 +690,16 @@ export default function RestaurantSettingsPage() {
   const updateMutation = useUpdateRestaurantSettings();
 
   const [tab, setTab] = useState<Tab>('basic');
-  const [draft, setDraft] = useState<RestaurantSettings | null>(null);
+  const [draft, setDraft] = useState<RestaurantSettings>(() => normalizeSettings(FALLBACK_SETTINGS));
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (data) {
+    if (data && !dirty) {
       setDraft(normalizeSettings(data));
       setDirty(false);
     }
-  }, [data]);
+  }, [data, dirty]);
 
   const validation = useMemo(() => {
     if (!draft) return { ok: false, message: 'Maʼlumot yuklanmoqda' };
@@ -705,7 +719,7 @@ export default function RestaurantSettingsPage() {
   };
 
   const handleSave = async () => {
-    if (!draft || !validation.ok) return;
+    if (!validation.ok) return;
 
     const payload: RestaurantSettings = {
       ...draft,
@@ -721,37 +735,41 @@ export default function RestaurantSettingsPage() {
     window.setTimeout(() => setSaved(false), 2200);
   };
 
-  if (isLoading || !draft) {
-    return (
-      <div className="flex min-h-[55vh] items-center justify-center">
-        <div className="rounded-[28px] border border-white/80 bg-white px-6 py-5 text-center shadow-xl">
-          <RefreshCw className="mx-auto animate-spin text-blue-600" size={28} />
-          <p className="mt-3 text-sm font-black text-slate-900">Restoran sozlamalari yuklanmoqda</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="rounded-[30px] border border-rose-200 bg-rose-50 p-5 text-center">
-        <XCircle className="mx-auto text-rose-500" size={34} />
-        <p className="mt-3 text-base font-black text-rose-900">Sozlamalar yuklanmadi</p>
-        <button
-          type="button"
-          onClick={() => void refetch()}
-          className="mt-4 rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white"
-        >
-          Qayta urinish
-        </button>
-      </div>
-    );
-  }
-
   const effectiveOpen = openStatus?.isOpen ?? draft.isOpen;
+  const initialSyncing = isLoading && !data;
 
   return (
     <div className="space-y-5 pb-6">
+      {initialSyncing ? (
+        <div className="rounded-[24px] border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-black text-blue-700">
+          <div className="flex items-center gap-2">
+            <RefreshCw size={15} className="animate-spin" />
+            Sozlamalar serverdan sinxronlanmoqda. Sahifa ishlashga tayyor.
+          </div>
+        </div>
+      ) : null}
+
+      {isError ? (
+        <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <XCircle size={20} className="mt-0.5 shrink-0 text-amber-600" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-amber-900">Backend sozlamalari vaqtincha kelmadi</p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-amber-800/80">
+                Sahifa default qiymatlar bilan ochildi. Internet yoki backend tiklanganda qayta yuklab olamiz.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="rounded-2xl bg-amber-600 px-3 py-2 text-[11px] font-black text-white active:scale-95"
+            >
+              Qayta
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <section className="relative overflow-hidden rounded-[32px] bg-slate-950 p-5 text-white shadow-[0_22px_52px_rgba(15,23,42,0.28)]">
         <div className="absolute -right-12 -top-14 h-40 w-40 rounded-full bg-emerald-400/25 blur-2xl" />
         <div className="absolute -bottom-16 left-4 h-36 w-36 rounded-full bg-blue-500/25 blur-2xl" />
