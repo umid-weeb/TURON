@@ -606,27 +606,27 @@ function buildAdminOrderNotificationText(order: {
   const deliveryDistance = formatDistanceMeters(order.deliveryDistanceMeters);
 
   return [
-    `<b>Buyurtma ${escapeHtml(formatTelegramOrderDisplayNumber(order.orderNumber))}</b>`,
+    `🧾 <b>Buyurtma ${escapeHtml(formatTelegramOrderDisplayNumber(order.orderNumber))}</b>`,
     '',
-    `Vaqt: <b>${escapeHtml(formatTelegramOrderDate(order.createdAt))}</b>`,
-    `Holat: <b>${escapeHtml(getTelegramOrderStatusLabel(order.orderStatus))}</b>`,
+    `🕒 Vaqt: <b>${escapeHtml(formatTelegramOrderDate(order.createdAt))}</b>`,
+    `📌 Holat: <b>${escapeHtml(getTelegramOrderStatusLabel(order.orderStatus))}</b>`,
     '',
-    `<b>Mijoz ma'lumotlari</b>`,
-    `Ism: ${escapeHtml(order.customerName)}`,
-    order.customerPhone ? `Telefon: ${escapeHtml(order.customerPhone)}` : null,
-    `Manzil: ${escapeHtml(order.customerAddress)}`,
-    deliveryDistance ? `Buyurtmagacha masofa: ${escapeHtml(deliveryDistance)}` : null,
-    order.customerAddressNote ? `Izoh: ${escapeHtml(order.customerAddressNote)}` : null,
+    `👤 <b>Mijoz ma'lumotlari</b>`,
+    `🙍 Ism: ${escapeHtml(order.customerName)}`,
+    order.customerPhone ? `📞 Telefon: ${escapeHtml(order.customerPhone)}` : null,
+    `📍 Manzil: ${escapeHtml(order.customerAddress)}`,
+    deliveryDistance ? `📏 Buyurtmagacha masofa: ${escapeHtml(deliveryDistance)}` : null,
+    order.customerAddressNote ? `📝 Izoh: ${escapeHtml(order.customerAddressNote)}` : null,
     '',
-    `<b>Buyurtma tarkibi</b>`,
+    `🍽 <b>Buyurtma tarkibi</b>`,
     itemLines,
     '',
-    `<b>To'lov</b>`,
-    `Usul: ${escapeHtml(paymentLabel)}`,
-    order.hasReceipt ? `Chek: yuborilgan` : null,
-    `Mahsulotlar: ${formatMoney(order.subtotal)} so'm`,
-    `Yetkazib berish: ${formatMoney(order.deliveryFee)} so'm`,
-    `<b>Jami: ${formatMoney(order.total)} so'm</b>`,
+    `💳 <b>To'lov</b>`,
+    `💼 Usul: ${escapeHtml(paymentLabel)}`,
+    order.hasReceipt ? `🧾 Chek: yuborilgan` : null,
+    `🛍 Mahsulotlar: ${formatMoney(order.subtotal)} so'm`,
+    `🚚 Yetkazib berish: ${formatMoney(order.deliveryFee)} so'm`,
+    `💰 <b>Jami: ${formatMoney(order.total)} so'm</b>`,
   ].filter((line) => line !== null).join('\n');
 }
 
@@ -668,7 +668,7 @@ function buildOrderConfirmKeyboard(isApprove: boolean, orderId: string) {
 
 
 function updateTelegramOrderStatusLine(messageText: string, statusLabel: string): string {
-  const nextStatusLine = `Holat: <b>${escapeHtml(statusLabel)}</b>`;
+  const nextStatusLine = `📌 Holat: <b>${escapeHtml(statusLabel)}</b>`;
 
   // Support both legacy plain-text lines (`Holat: Kutilmoqda`) and
   // current HTML-formatted lines (`Holat: <b>Kutilmoqda</b>`).
@@ -687,17 +687,17 @@ function updateTelegramOrderStatusLine(messageText: string, statusLabel: string)
 
 function buildStatusOnlyMessage(statusLabel: string) {
   return [
-    '<b>Buyurtma holati yangilandi</b>',
+    '🔄 <b>Buyurtma holati yangilandi</b>',
     '',
-    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
+    `📌 Holat: <b>${escapeHtml(statusLabel)}</b>`,
   ].join('\n');
 }
 
 function buildStatusFallbackForOrder(orderId: string, statusLabel: string) {
   return [
-    `<b>Buyurtma ${escapeHtml(orderId)}</b>`,
+    `🧾 <b>Buyurtma ${escapeHtml(orderId)}</b>`,
     '',
-    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
+    `📌 Holat: <b>${escapeHtml(statusLabel)}</b>`,
   ].join('\n');
 }
 
