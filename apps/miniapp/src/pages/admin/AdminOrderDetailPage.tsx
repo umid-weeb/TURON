@@ -7,12 +7,14 @@ import {
   Clock,
   MapPin,
   MessageCircle,
+  Phone,
   Radio,
   Route,
   TimerReset,
   Truck,
   User,
 } from 'lucide-react';
+import { initiateCall, openTelegramProfile } from '../../lib/callUtils';
 import { useOrdersStore } from '../../store/useOrdersStore';
 import {
   useAdminCouriers,
@@ -495,20 +497,41 @@ const AdminOrderDetailPage: React.FC = () => {
 
         {order.courierName ? (
           <div className="flex items-center gap-4 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-            <div className="w-12 h-12 bg-indigo-500 text-white rounded-xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-indigo-500 text-white rounded-xl flex items-center justify-center shrink-0">
               <User size={24} />
             </div>
-            <div className="flex-1">
-              <p className="font-black text-indigo-900">{order.courierName}</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-indigo-900 truncate">{order.courierName}</p>
               <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5">
                 Kuryer biriktirilgan
               </p>
             </div>
-            {assignCourierMutation.isPending ? (
-              <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
-                Yangilanmoqda
-              </div>
-            ) : null}
+            <div className="flex items-center gap-2 shrink-0">
+              {order.courierPhone ? (
+                <button
+                  type="button"
+                  onClick={() => initiateCall(order.courierPhone)}
+                  title={`Kuryerga qo'ng'iroq: ${order.courierPhone}`}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 active:scale-90 transition-transform hover:bg-emerald-100"
+                >
+                  <Phone size={18} />
+                </button>
+              ) : order.courierTelegramId || order.courierUsername ? (
+                <button
+                  type="button"
+                  onClick={() => openTelegramProfile(order.courierUsername)}
+                  title="Telegram orqali bog'lanish"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-500 active:scale-90 transition-transform hover:bg-sky-100"
+                >
+                  <MessageCircle size={18} />
+                </button>
+              ) : null}
+              {assignCourierMutation.isPending ? (
+                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                  Yangilanmoqda
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 opacity-60">
@@ -600,9 +623,30 @@ const AdminOrderDetailPage: React.FC = () => {
       ) : null}
 
       <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-1">
-          Mijoz va Manzil
-        </h3>
+        <div className="flex items-center justify-between mb-4 px-1">
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Mijoz va Manzil
+          </h3>
+          {(order.customerName || order.customerPhone) && (
+            <div className="flex items-center gap-2">
+              {order.customerPhone && (
+                <button
+                  type="button"
+                  onClick={() => initiateCall(order.customerPhone)}
+                  title={`Mijozga qo'ng'iroq: ${order.customerPhone}`}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 active:scale-90 transition-transform hover:bg-emerald-100"
+                >
+                  <Phone size={17} />
+                </button>
+              )}
+              {order.customerName && (
+                <span className="text-xs font-bold text-slate-600 max-w-[120px] truncate">
+                  {order.customerName}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         <div className="space-y-4">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center shrink-0">

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Check, CheckCheck, Loader2, MessageCircle, Phone, Send, X } from 'lucide-react';
 import { useOrderChat, type ChatMessage } from '../../hooks/queries/useOrderChat';
 import { useAuthStore } from '../../store/useAuthStore';
+import { initiateCall } from '../../lib/callUtils';
 
 // ── Quick reply chips ─────────────────────────────────────────────────────────
 const COURIER_QUICK = [
@@ -108,12 +109,7 @@ function UnreadReminderBanner({
     return () => clearTimeout(t);
   }, []);
 
-  const handleCall = () => {
-    if (!phoneNumber) return;
-    if (window.confirm('Qo\'ng\'iroq qilishni tasdiqlaysizmi?')) {
-      window.location.href = `tel:${phoneNumber}`;
-    }
-  };
+  const handleCall = () => initiateCall(phoneNumber);
 
   return (
     <div
@@ -235,10 +231,7 @@ export const OrderChatPanel: React.FC<OrderChatPanelProps> = ({
   };
 
   const handleCall = () => {
-    if (!otherPartyPhone) return;
-    if (window.confirm('Qo\'ng\'iroq qilishni tasdiqlaysizmi?')) {
-      window.location.href = `tel:${otherPartyPhone}`;
-    }
+    initiateCall(otherPartyPhone);
   };
 
   const content = (

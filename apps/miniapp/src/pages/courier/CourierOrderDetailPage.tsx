@@ -14,6 +14,7 @@ import {
   Send,
 } from 'lucide-react';
 import { DeliveryStage } from '../../data/types';
+import { initiateCall } from '../../lib/callUtils';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import { getCourierPaymentLabel } from '../../components/courier/CourierComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
@@ -323,12 +324,14 @@ const CourierOrderDetailPage: React.FC = () => {
             )}
           </div>
           {order.customerPhone && (
-            <a
-              href={`tel:${order.customerPhone}`}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-600 active:scale-95 transition-transform"
+            <button
+              type="button"
+              onClick={() => initiateCall(order.customerPhone)}
+              title={`Mijozga qo'ng'iroq: ${order.customerPhone}`}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-600 active:scale-95 transition-transform hover:bg-emerald-100"
             >
               <Phone size={20} />
-            </a>
+            </button>
           )}
         </div>
 

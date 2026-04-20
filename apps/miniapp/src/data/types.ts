@@ -108,7 +108,8 @@ export interface Order {
   externalTransactionId?: string;
   customerUserId?: string;
   customerName?: string;
-  customerPhone?: string;
+  customerPhone?: string | null;
+  courierPhone?: string | null;
   pickupLat?: number;
   pickupLng?: number;
   destinationLat?: number;
