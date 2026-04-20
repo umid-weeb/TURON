@@ -505,14 +505,9 @@ export class CourierAssignmentService {
     // ── Barcha kritik o'zgarishlar bitta atomik transaksiyada ───────────────
     const assignmentTimestamp = new Date();
     const createdAssignment = await runWriteTransaction(db, async (tx) => {
-      // ── Row-level lock: bir buyurtmani 2 parallel transaksiya olib qo'yolmaydi ──
-      // PostgreSQL SELECT FOR UPDATE — boshqa transaksiya bu qatorni lock olguncha kutadi.
-      // "NOWAIT" emas, chunki lock tezda ozod bo'ladi va idempotent natija kerak.
-      await tx.$queryRaw`
-        SELECT id FROM "orders" WHERE id = ${orderId}::uuid FOR UPDATE
-      `;
-
       // ── Transaksiya ichida kuryer va buyurtma holatini qayta tekshirish ───
+      // Note: SELECT FOR UPDATE olib tashlandi — Supabase pgBouncer bilan
+      // mos kelmasligi mumkin. Quyidagi idempotency tekshiruvi yetarli.
       const existingActiveForOrder = await tx.courierAssignment.findFirst({
         where: {
           orderId,
