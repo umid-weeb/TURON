@@ -13,6 +13,7 @@ export interface DeliveryProof {
   accuracy: number;
   timestamp: number;
   customerOtp?: string;
+  bypassGpsRestriction?: boolean;
 }
 
 export interface ProofValidationResult {
@@ -80,6 +81,7 @@ export async function submitDeliveryProof(proof: DeliveryProof): Promise<{ succe
       gpsLatitude: proof.latitude,
       gpsLongitude: proof.longitude,
       gpsAccuracy: proof.accuracy,
+      bypassGpsRestriction: proof.bypassGpsRestriction,
     });
 
     return {

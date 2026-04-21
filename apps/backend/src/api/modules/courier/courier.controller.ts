@@ -14,7 +14,7 @@ import { CourierStatsService } from '../../../services/courier-stats.service.js'
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import { StorageService } from '../../../services/storage.service.js';
 import { OrderReassignmentQueue } from '../../../services/order-reassignment-queue.service.js';
-import { getBotState } from '../../../services/telegram-bot.service.js';
+import { sendAdminAlert } from '../../../services/telegram-bot.service.js';
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ORDER_INCLUDE,
@@ -279,6 +279,7 @@ export async function getCourierOrders(request: FastifyRequest, reply: FastifyRe
     },
     include: ORDER_INCLUDE as any,
     orderBy: { createdAt: 'desc' },
+    take: 30, // PERF-FIX: Kuryerning telefoni qizib ketmasligi va tez ochilishi uchun
   });
 
   const formattedOrders = orders.map((order: any) => {
@@ -403,13 +404,13 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
 export async function deliverCourierOrder(
   request: FastifyRequest<{
     Params: { id: string };
-    Body: { gpsLatitude: number; gpsLongitude: number; gpsAccuracy?: number };
+    Body: { gpsLatitude: number; gpsLongitude: number; gpsAccuracy?: number; bypassGpsRestriction?: boolean };
   }>,
   reply: FastifyReply,
 ) {
   const requester = request.user as any;
   const { id: orderId } = request.params;
-  const { gpsLatitude, gpsLongitude } = request.body;
+  const { gpsLatitude, gpsLongitude, bypassGpsRestriction } = request.body;
   const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
 
   // Return cached response for duplicate delivery confirmation requests
@@ -444,9 +445,15 @@ export async function deliverCourierOrder(
     const distanceMeters = haversineMeters(gpsLatitude, gpsLongitude, destLat, destLng);
 
     if (distanceMeters > MAX_DELIVERY_DISTANCE_METERS) {
-      return reply.status(400).send({
-        error: `Siz mijoz manzilidan ${Math.round(distanceMeters)}m uzoqdasiz. Topshirish uchun ${MAX_DELIVERY_DISTANCE_METERS}m yaqin bo'lishingiz kerak.`,
-      });
+      if (!bypassGpsRestriction) {
+        return reply.status(400).send({
+          error: `Siz mijoz manzilidan ${Math.round(distanceMeters)}m uzoqdasiz. Topshirish uchun ${MAX_DELIVERY_DISTANCE_METERS}m yaqin bo'lishingiz kerak. Agar manzil xato bo'lsa "Bypass" orqali yoping.`,
+          requiresBypass: true
+        });
+      }
+      
+      // Bypass ishladi -> Adminga darhol Alert yuboramiz
+      void sendAdminAlert(`⚠️ <b>GPS Cheklovi Buzildi</b>\n\nKuryer <b>${requester.fullName || 'Noma\'lum'}</b> buyurtma <b>#${order.orderNumber}</b> ni mijozdan ${Math.round(distanceMeters)}m uzoqlikda "Topshirdim" deb majburan yopdi.\n\nSababi: Mijoz lokatsiyasi noto'g'ri ko'rsatilgan yoki Kuryer qoidani buzdi.`);
     }
 
     // 3. Confirm courier is in DELIVERING status
@@ -500,6 +507,7 @@ export async function deliverCourierOrder(
         assignmentId: result.assignmentId,
         eventId: result.eventId,
         action: 'DELIVER',
+        bypassedGpsDistance: bypassGpsRestriction ? Math.round(distanceMeters) : undefined,
       },
     });
 
@@ -726,6 +734,9 @@ export async function updateCourierLocation(
     request.body;
   const clientTimestampMs = clientTimestamp ? new Date(clientTimestamp).getTime() : undefined;
   const now = new Date().toISOString();
+
+  // Step 0 - Non-blocking auto-geofence triggers
+  void checkAndApplyAutoGeofence(order, requester, latitude, longitude);
 
   // Step 1 — immediate SSE push (no DB); returns current snapshot if update is stale
   let tracking;

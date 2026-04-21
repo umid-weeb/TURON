@@ -203,6 +203,7 @@ async function listAccessibleOrders(requester: any) {
     return prisma.order.findMany({
       include: ORDER_LIST_INCLUDE,
       orderBy: { createdAt: 'desc' },
+      take: 50, // PERF-FIX: Admin uchun ham cheksiz ma'lumot yuklanishini bloklash
     });
   }
 
@@ -220,6 +221,7 @@ async function listAccessibleOrders(requester: any) {
       },
       include: ORDER_LIST_INCLUDE,
       orderBy: { createdAt: 'desc' },
+      take: 30, // PERF-FIX: Kuryer ilovasi qotmasligi uchun max 30 ta zakaz
     });
   }
 
@@ -227,6 +229,7 @@ async function listAccessibleOrders(requester: any) {
     where: { userId: requester.id },
     include: ORDER_LIST_INCLUDE,
     orderBy: { createdAt: 'desc' },
+    take: 20, // PERF-FIX: Mijoz tarixi uchun faqat so'nggi 20 tasi yetarli
   });
 }
 
@@ -523,7 +526,14 @@ export async function handleCreateOrder(
   const user = request.user as any;
   const { items, deliveryAddressId, paymentMethod, promoCode, note, receiptImageBase64, idempotencyKey } = request.body as any;
 
-  // ── Idempotency check: if duplicate request, return cached order ──────────
+  // ── 1. SECURITY: Muvaffaqiyatli Idempotency-Key majburiyati ─────────────
+  if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
+    return reply.status(400).send({
+      code: 'IDEMPOTENCY_REQUIRED',
+      error: "Xavfsizlik: Buyurtma takrorlanmasligi uchun 'idempotencyKey' talab qilinadi.",
+    });
+  }
+
   if (idempotencyKey) {
     try {
       const cached = await prisma.idempotencyKey.findUnique({
@@ -536,6 +546,22 @@ export async function handleCreateOrder(
     } catch {
       // idempotency_keys table may not exist yet (migration pending) — skip check
     }
+  }
+
+  // ── 2. SECURITY: Anti-Flood (Spam & Promocode Double-Spend himoyasi) ────
+  const recentOrder = await prisma.order.findFirst({
+    where: {
+      userId: user.id,
+      createdAt: { gte: new Date(Date.now() - 10000) } // Oxirgi 10 soniya
+    },
+    select: { id: true }
+  });
+
+  if (recentOrder) {
+    return reply.status(429).send({
+      code: 'TOO_MANY_REQUESTS',
+      error: "Siz hozirgina buyurtma berdingiz. Dublikat oldini olish uchun 10 soniya kuting.",
+    });
   }
 
   // ── Phone number is required to place an order ─────────────────────────────
@@ -592,40 +618,185 @@ export async function handleCreateOrder(
   const { deliveryAddress, orderItemsData, promo, quote } = orderPricing;
   const restaurantSettings = await getRestaurantSettings();
 
-  if (!orderQueue) {
-    return reply.status(503).send({ error: 'Buyurtma navbati (Queue) ishlamayapti. Redisni tekshiring.' });
+  // Navbatdagi (Queue) mijozlar sonini tekshiramiz
+  let activeJobsCount = 0;
+  if (orderQueue) {
+    try {
+      const counts = await orderQueue.getJobCounts('waiting', 'active');
+      activeJobsCount = counts.waiting + counts.active;
+    } catch (e) {
+      console.warn('[Queue] Redis ga ulanib bolmadi, sinxron davom etamiz.');
+    }
   }
 
-  const targetIdempotencyKey = idempotencyKey || `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  // Agar tizimda 10 tadan ko'p buyurtma kutilayotgan bo'lsa, navbatga (Queue) tashlaymiz
+  if (orderQueue && activeJobsCount > 10) {
+    const job = await orderQueue.add(
+      'process-order',
+      {
+        idempotencyKey,
+        userId: user.id,
+        deliveryAddressId,
+        paymentMethod,
+        note,
+        receiptImageBase64,
+        quote,
+        orderItemsData,
+        promoId: promo?.id,
+        destinationLat: Number(deliveryAddress.latitude),
+        destinationLng: Number(deliveryAddress.longitude),
+        restaurantSettings,
+      },
+      {
+        jobId: idempotencyKey, // BullMQ Redis'da bu kalit orqali 2 marta ishlashni bloklaydi
+        removeOnComplete: true,
+        removeOnFail: 1000,
+      }
+    );
 
-  const job = await orderQueue.add(
-    'process-order',
-    {
-      idempotencyKey: targetIdempotencyKey,
-      userId: user.id,
-      deliveryAddressId,
-      paymentMethod,
-      note,
-      receiptImageBase64,
-      quote,
-      orderItemsData,
-      promoId: promo?.id,
-      destinationLat: Number(deliveryAddress.latitude),
-      destinationLng: Number(deliveryAddress.longitude),
-      restaurantSettings,
-    },
-    {
-      jobId: targetIdempotencyKey, // BullMQ Redis darajasida duplicate joblarni bloklaydi
-      removeOnComplete: true,
-      removeOnFail: 1000,
+    return reply.status(202).send({
+      status: 'PROCESSING',
+      jobId: job.id,
+    });
+  }
+
+  // --- SINXRON YARATISH (Yuklama kamligida yoki Redis ishlamaganda darhol yaratiladi) ---
+  
+  let uploadedReceiptUrl = receiptImageBase64;
+  if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER && receiptImageBase64) {
+    const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
+    if (!uploadedUrl) {
+      return reply.status(500).send({ error: "Chek rasmini yuklashda xatolik yuz berdi" });
     }
-  );
+    uploadedReceiptUrl = uploadedUrl;
+  }
 
-  // Yandex Go uslubida `202 Accepted` va JobId qaytaramiz
-  return reply.status(202).send({
-    status: 'PROCESSING',
-    jobId: job.id,
+  const createdOrder = await prisma.$transaction(async (tx) => {
+    if (promo?.id) {
+      const updated = await tx.promoCode.update({
+        where: { id: promo.id },
+        data: { timesUsed: { increment: 1 } },
+      });
+
+      if (typeof updated.usageLimit === 'number' && updated.usageLimit > 0 && updated.timesUsed > updated.usageLimit) {
+        throw new Error('Promokod limiti tugagan');
+      }
+
+      const existingUserUsage = await tx.order.count({
+        where: {
+          userId: user.id,
+          promoCodeId: promo.id,
+          status: { not: 'CANCELLED' as any },
+        },
+      });
+      if (existingUserUsage > 0) {
+        throw new Error('Siz bu promokoddan avval foydalangansiz');
+      }
+    }
+
+    const order = await tx.order.create({
+      data: {
+        userId: user.id,
+        deliveryAddressId,
+        courierId: null,
+        promoCodeId: promo?.id ?? null,
+        status: OrderStatusEnum.PENDING as any,
+        subtotal: quote.subtotal,
+        discountAmount: quote.discountAmount,
+        deliveryFee: quote.deliveryFee,
+        deliveryDistanceMeters: quote.distanceMeters,
+        deliveryEtaMinutes: quote.etaMinutes,
+        deliveryFeeRuleCode: quote.feeRuleCode,
+        deliveryFeeBaseAmount: quote.feeBaseAmount,
+        deliveryFeeExtraAmount: quote.feeExtraAmount,
+        totalAmount: quote.totalAmount,
+        paymentMethod,
+        paymentStatus: PaymentStatusEnum.PENDING as any,
+        note: note?.trim() || null,
+        destinationLat: Number(deliveryAddress.latitude),
+        destinationLng: Number(deliveryAddress.longitude),
+        restaurantName: restaurantSettings.name || null,
+        restaurantPhone: restaurantSettings.phone || null,
+        restaurantAddressText: restaurantSettings.addressText || null,
+        restaurantLon: restaurantSettings.longitude,
+        restaurantLat: restaurantSettings.latitude,
+        items: {
+          create: orderItemsData,
+        },
+        payment: {
+          create: {
+            method: paymentMethod,
+            status: PaymentStatusEnum.PENDING as any,
+            amount: quote.totalAmount,
+            provider:
+              paymentMethod === 'MANUAL_TRANSFER'
+                ? 'Manual transfer'
+                : paymentMethod === 'EXTERNAL_PAYMENT'
+                  ? 'External payment'
+                  : null,
+            receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? uploadedReceiptUrl : null,
+            receiptUploadedAt: paymentMethod === 'MANUAL_TRANSFER' ? new Date() : null,
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    // ── 3. SECURITY: Bazadagi Transaction poygasini (Race Condition) bloklash ──
+    await tx.idempotencyKey.create({
+      data: {
+        key: idempotencyKey,
+        orderId: order.id,
+        responseJson: JSON.stringify({ id: order.id, status: 'CREATED' }),
+      },
+    }); // DIQQAT: .catch() olib tashlandi. Shunda ikkinchi xaker so'rovi qulab tushadi va buyurtma yozilmaydi!
+
+    return order;
   });
+
+  const serializedOrder = await getSerializedOrder(createdOrder.id);
+
+  if (serializedOrder) {
+    orderTrackingService.publishOrderUpdate(createdOrder.id, serializedOrder);
+
+    void InAppNotificationsService.notifyAdmins({
+      type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+      title: 'Yangi buyurtma tushdi',
+      message: `#${serializedOrder.orderNumber} buyurtma tasdiq kutmoqda`,
+      relatedOrderId: createdOrder.id,
+    });
+
+    recordOrderCreatedAudit({
+      userId: user.id,
+      actorRole: user.role,
+      orderId: createdOrder.id,
+      serializedOrder,
+    });
+
+    void sendOrderNotificationToAdmin({
+      orderId: createdOrder.id,
+      orderNumber: serializedOrder.orderNumber,
+      createdAt: serializedOrder.createdAt,
+      orderStatus: serializedOrder.orderStatus,
+      customerName: serializedOrder.customerName ?? 'Mijoz',
+      customerPhone: serializedOrder.customerPhone ?? null,
+      customerAddress: serializedOrder.customerAddress?.addressText ?? 'Manzil yo\'q',
+      customerAddressNote: serializedOrder.customerAddress?.note ?? null,
+      deliveryDistanceMeters: typeof serializedOrder.deliveryDistanceMeters === 'number' ? serializedOrder.deliveryDistanceMeters : null,
+      paymentMethod,
+      items: (serializedOrder.items ?? []).map((item: any) => ({
+        name: item.name ?? item.itemName ?? 'Taom',
+        quantity: item.quantity,
+        totalPrice: (item.price ?? item.priceAtOrder ?? 0) * item.quantity,
+      })),
+      subtotal: Number(serializedOrder.subtotal ?? 0),
+      deliveryFee: Number(serializedOrder.deliveryFee ?? 0),
+      total: Number(serializedOrder.total ?? 0),
+      receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? receiptImageBase64 : undefined,
+    });
+  }
+
+  return reply.status(201).send(serializedOrder);
 }
 
 export async function getMyOrders(request: FastifyRequest, reply: FastifyReply) {
@@ -638,6 +809,7 @@ export async function getAllOrders(request: FastifyRequest, reply: FastifyReply)
   const orders = await prisma.order.findMany({
     include: ORDER_LIST_INCLUDE,
     orderBy: { createdAt: 'desc' },
+    take: 50, // PERF-FIX: Barcha buyurtmalar ro'yxati payloadini yengillashtirish
   });
   return reply.send(await addTrackingBatch(orders));
 }
