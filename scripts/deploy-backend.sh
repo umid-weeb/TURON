@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 echo "[deploy] Installing workspace dependencies..."
-pnpm install --no-frozen-lockfile
+pnpm install --frozen-lockfile
 
 echo "[deploy] Verifying backend runtime dependencies..."
 pnpm --filter @turon/backend exec node -e "await import('bullmq'); await import('ioredis'); console.log('runtime deps ok')"

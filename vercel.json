@@ -8,6 +8,7 @@
   "outputDirectory": "apps/miniapp/dist",
   "build": {
     "env": {
+      "VITE_API_URL": "https://turonkafe.duckdns.org",
       "VITE_MAPS_PROVIDER": "yandex",
       "VITE_MAP_API_KEY": "c3e2b675-cbbf-4886-b77a-3ed4e0d4f3f8",
       "VITE_MAP_LANGUAGE": "uz_UZ"

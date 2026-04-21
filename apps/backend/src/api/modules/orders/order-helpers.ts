@@ -31,6 +31,13 @@ export const ORDER_LIST_INCLUDE = {
           fullName: true,
         },
       },
+      events: {
+        orderBy: [
+          { eventAt: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        take: 1,
+      },
     },
     orderBy: { assignedAt: 'desc' },
     take: 1, // Only need the latest for list
@@ -71,6 +78,18 @@ export type OrderWithRelations = Prisma.OrderGetPayload<{
   include: typeof ORDER_DETAIL_INCLUDE;
 }>;
 
+export type OrderDispatchState =
+  | 'UNASSIGNED'
+  | 'SEARCHING'
+  | 'MANUAL_ASSIGNMENT_REQUIRED'
+  | 'AWAITING_COURIER_ACCEPTANCE'
+  | 'COURIER_EN_ROUTE_TO_RESTAURANT'
+  | 'COURIER_AT_RESTAURANT'
+  | 'COURIER_PICKED_UP'
+  | 'COURIER_DELIVERING'
+  | 'DELIVERED'
+  | 'CANCELLED';
+
 export function getActiveCourierAssignment(order: any) {
   return (
     order.courierAssignments?.find((assignment: any) =>
@@ -92,6 +111,80 @@ function pickLocalizedText(record: any, fields: string[]) {
   }
 
   return '';
+}
+
+function getLatestAssignment(order: any) {
+  return order.courierAssignments?.[0] || null;
+}
+
+function getAssignmentEventReason(event: any): string | null {
+  const payload = event?.payload;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+
+  const reason = (payload as Record<string, unknown>).reason;
+  return typeof reason === 'string' ? reason : null;
+}
+
+export function deriveDispatchState(order: any): OrderDispatchState {
+  const latestAssignment = getLatestAssignment(order);
+  const latestAssignmentEvent = latestAssignment?.events?.[0];
+  const latestReason = getAssignmentEventReason(latestAssignmentEvent);
+
+  if (order.status === OrderStatusEnum.CANCELLED) {
+    return 'CANCELLED';
+  }
+
+  if (
+    order.status === OrderStatusEnum.DELIVERED ||
+    latestAssignment?.status === 'DELIVERED'
+  ) {
+    return 'DELIVERED';
+  }
+
+  if (
+    latestAssignmentEvent?.eventType === 'ARRIVED_AT_DESTINATION' ||
+    latestAssignment?.status === 'DELIVERING' ||
+    order.status === OrderStatusEnum.DELIVERING
+  ) {
+    return 'COURIER_DELIVERING';
+  }
+
+  if (
+    latestAssignmentEvent?.eventType === 'PICKED_UP' ||
+    latestAssignment?.status === 'PICKED_UP'
+  ) {
+    return 'COURIER_PICKED_UP';
+  }
+
+  if (latestAssignmentEvent?.eventType === 'ARRIVED_AT_RESTAURANT') {
+    return 'COURIER_AT_RESTAURANT';
+  }
+
+  if (
+    latestAssignmentEvent?.eventType === 'ACCEPTED' ||
+    latestAssignment?.status === 'ACCEPTED'
+  ) {
+    return 'COURIER_EN_ROUTE_TO_RESTAURANT';
+  }
+
+  if (latestAssignment?.status === 'ASSIGNED' || Boolean(order.courierId)) {
+    return 'AWAITING_COURIER_ACCEPTANCE';
+  }
+
+  if (latestReason === 'manual_dispatch_required') {
+    return 'MANUAL_ASSIGNMENT_REQUIRED';
+  }
+
+  if (
+    latestAssignment?.status === 'REJECTED' ||
+    latestReason === 'courier_response_timeout'
+  ) {
+    return 'SEARCHING';
+  }
+
+  return 'UNASSIGNED';
 }
 
 export function serializeAddress(address: any) {
@@ -136,9 +229,11 @@ export function serializeOrderItem(item: any) {
 }
 
 export function serializeOrder(order: any) {
-  const latestAssignment = order.courierAssignments?.[0];
+  const latestAssignment = getLatestAssignment(order);
   const courier = latestAssignment?.courier || order.courier;
   const latestAssignmentEvent = latestAssignment?.events?.[0];
+  const dispatchState = deriveDispatchState(order);
+  const dispatchFailureReason = getAssignmentEventReason(latestAssignmentEvent);
 
   return {
     id: order.id,
@@ -191,6 +286,9 @@ export function serializeOrder(order: any) {
     restaurantAddress: order.restaurantAddressText ?? RESTAURANT_COORDINATES.address,
     destinationLat: Number(order.destinationLat ?? order.deliveryAddress?.latitude ?? 0),
     destinationLng: Number(order.destinationLng ?? order.deliveryAddress?.longitude ?? 0),
+    dispatchState,
+    dispatchFailureReason,
+    dispatchNeedsManualAssignment: dispatchState === 'MANUAL_ASSIGNMENT_REQUIRED',
     courierAssignmentStatus: latestAssignment?.status,
     courierLastEventType: latestAssignmentEvent?.eventType ?? null,
     courierLastEventAt: latestAssignmentEvent?.eventAt?.toISOString?.() ?? null,

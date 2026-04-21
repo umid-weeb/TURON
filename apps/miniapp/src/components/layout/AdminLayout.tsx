@@ -1,7 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, ChevronLeft, LayoutDashboard, ShoppingBag, Store, Tag, Truck, UtensilsCrossed } from 'lucide-react';
-import { App as AntApp, ConfigProvider, theme as antdTheme } from 'antd';
 import { OrderStatusEnum, UserRoleEnum } from '@turon/shared';
 import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
@@ -217,144 +216,113 @@ const AdminLayout: React.FC = () => {
   };
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: antdTheme.defaultAlgorithm,
-        token: {
-          colorPrimary: '#2563eb',
-          colorInfo: '#2563eb',
-          colorSuccess: '#059669',
-          colorWarning: '#d97706',
-          colorError: '#dc2626',
-          borderRadius: 14,
-          borderRadiusLG: 18,
-          colorBgLayout: '#eef4ff',
-          colorBgContainer: '#ffffff',
-          boxShadowSecondary: '0 16px 40px rgba(15,23,42,0.12)',
-          fontFamily: 'Inter, Segoe UI, system-ui, sans-serif',
-        },
-        components: {
-          Card: {
-            borderRadiusLG: 20,
-          },
-          Button: {
-            borderRadius: 12,
-            controlHeight: 40,
-            fontWeight: 700,
-          },
-        },
-      }}
+    <div
+      className="admin-pro-shell min-h-screen font-sans text-slate-950"
+      style={layoutVars}
     >
-      <AntApp>
-        <div
-          className="admin-pro-shell min-h-screen font-sans text-slate-950"
-          style={layoutVars}
-        >
-          <header
-            className="sticky top-0 z-[70] px-3 pb-3 admin-motion-up"
-            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}
-          >
-            <div className="admin-pro-card mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
-              <div className="flex min-w-0 items-center gap-2">
-                {!isHomePage ? (
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    aria-label="Orqaga qaytish"
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                ) : null}
-                {pageHeaderTitle ? (
-                  <div className="min-w-0">
-                    <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
-                      {pageHeaderTitle}
-                    </h1>
-                    <div className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${syncBadgeClass}`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${syncDotClass}`} />
-                      <span>{syncLabel}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <span />
-                )}
+      <header
+        className="sticky top-0 z-[70] px-3 pb-3 admin-motion-up"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}
+      >
+        <div className="admin-pro-card mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+          <div className="flex min-w-0 items-center gap-2">
+            {!isHomePage ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                aria-label="Orqaga qaytish"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            ) : null}
+            {pageHeaderTitle ? (
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
+                  {pageHeaderTitle}
+                </h1>
+                <div className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${syncBadgeClass}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${syncDotClass}`} />
+                  <span>{syncLabel}</span>
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigate('/admin/restaurant')}
-                  aria-label="Restoran sozlamalari"
-                  className={`relative flex h-11 items-center justify-center gap-2 rounded-full border px-3 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95 ${
-                    location.pathname.startsWith('/admin/restaurant')
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      : 'border-slate-200 bg-white/90 text-slate-600'
-                  }`}
-                >
-                  <Store size={19} />
-                  <span className="hidden text-[11px] font-black sm:inline">Sozlama</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/admin/notifications')}
-                  aria-label="Bildirishnomalar"
-                  className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95"
-                >
-                  <Bell size={20} />
-                  <NotificationBadge role={UserRoleEnum.ADMIN} />
-                </button>
-              </div>
-            </div>
-          </header>
-
-          <main
-            className="mx-auto w-full max-w-[430px] overflow-x-hidden px-4"
-            style={{
-              paddingTop: '0px',
-              paddingBottom: hideBottomNav ? 'calc(env(safe-area-inset-bottom, 0px) + 24px)' : 'var(--admin-nav-clearance)',
-            }}
-          >
-            <AppErrorBoundary theme="light" homeUrl="/admin">
-              <Outlet />
-            </AppErrorBoundary>
-          </main>
-
-          <nav
-            className={`fixed inset-x-0 bottom-0 z-50 px-3 transition-all duration-200 ${hideBottomNav ? 'pointer-events-none translate-y-[130%] opacity-0' : 'translate-y-0 opacity-100'}`}
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
-          >
-            <div className="admin-pro-card mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] border border-white/80 bg-white/96 px-2 shadow-[0_20px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl">
-              <NavItem
-                path="/admin/dashboard"
-                icon={<LayoutDashboard size={21} />}
-                label="Bosh"
-              />
-              <NavItem
-                path="/admin/orders"
-                icon={<ShoppingBag size={21} className={flashActive ? 'text-rose-500' : ''} />}
-                label="Buyurtma"
-                badge={newOrdersCount}
-              />
-              <NavItem
-                path="/admin/menu"
-                icon={<UtensilsCrossed size={21} />}
-                label="Menyu"
-              />
-              <NavItem
-                path="/admin/couriers"
-                icon={<Truck size={21} />}
-                label="Kuryer"
-              />
-              <NavItem
-                path="/admin/promos"
-                icon={<Tag size={21} />}
-                label="Promokod"
-              />
-            </div>
-          </nav>
+            ) : (
+              <span />
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/restaurant')}
+              aria-label="Restoran sozlamalari"
+              className={`relative flex h-11 items-center justify-center gap-2 rounded-full border px-3 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95 ${
+                location.pathname.startsWith('/admin/restaurant')
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-200 bg-white/90 text-slate-600'
+              }`}
+            >
+              <Store size={19} />
+              <span className="hidden text-[11px] font-black sm:inline">Sozlama</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/notifications')}
+              aria-label="Bildirishnomalar"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95"
+            >
+              <Bell size={20} />
+              <NotificationBadge role={UserRoleEnum.ADMIN} />
+            </button>
+          </div>
         </div>
-      </AntApp>
-    </ConfigProvider>
+      </header>
+
+      <main
+        className="mx-auto w-full max-w-[430px] overflow-x-hidden px-4"
+        style={{
+          paddingTop: '0px',
+          paddingBottom: hideBottomNav ? 'calc(env(safe-area-inset-bottom, 0px) + 24px)' : 'var(--admin-nav-clearance)',
+        }}
+      >
+        <AppErrorBoundary theme="light" homeUrl="/admin">
+          <Outlet />
+        </AppErrorBoundary>
+      </main>
+
+      <nav
+        className={`fixed inset-x-0 bottom-0 z-50 px-3 transition-all duration-200 ${hideBottomNav ? 'pointer-events-none translate-y-[130%] opacity-0' : 'translate-y-0 opacity-100'}`}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
+      >
+        <div className="admin-pro-card mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] border border-white/80 bg-white/96 px-2 shadow-[0_20px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+          <NavItem
+            path="/admin/dashboard"
+            icon={<LayoutDashboard size={21} />}
+            label="Bosh"
+          />
+          <NavItem
+            path="/admin/orders"
+            icon={<ShoppingBag size={21} className={flashActive ? 'text-rose-500' : ''} />}
+            label="Buyurtma"
+            badge={newOrdersCount}
+          />
+          <NavItem
+            path="/admin/menu"
+            icon={<UtensilsCrossed size={21} />}
+            label="Menyu"
+          />
+          <NavItem
+            path="/admin/couriers"
+            icon={<Truck size={21} />}
+            label="Kuryer"
+          />
+          <NavItem
+            path="/admin/promos"
+            icon={<Tag size={21} />}
+            label="Promokod"
+          />
+        </div>
+      </nav>
+    </div>
   );
 };
 

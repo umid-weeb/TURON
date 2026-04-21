@@ -99,6 +99,10 @@ const OrderDetailPage: React.FC = () => {
   const isActiveOrder =
     order.orderStatus !== OrderStatus.DELIVERED && order.orderStatus !== OrderStatus.CANCELLED;
   const trackingMeta = getCustomerTrackingMeta(order, language);
+  const canOpenLiveTracking =
+    isActiveOrder &&
+    !trackingMeta.isCancelled &&
+    (Boolean(order.courierId) || Boolean(order.tracking?.courierLocation));
   const courierLocation = order.tracking?.courierLocation;
   const destinationLocation =
     order.destinationLat != null && order.destinationLng != null
@@ -247,7 +251,7 @@ const OrderDetailPage: React.FC = () => {
 
       <section className="px-4 pt-5">
         <div className="grid grid-cols-2 gap-3">
-          {isActiveOrder ? (
+          {canOpenLiveTracking ? (
             <button
               type="button"
               onClick={() => navigate(`/customer/orders/${order.id}/tracking`)}
@@ -281,14 +285,16 @@ const OrderDetailPage: React.FC = () => {
               )}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => navigate(`/customer/support?orderId=${order.id}&topic=cancel`)}
-            className="flex flex-col items-center justify-center gap-2 rounded-[12px] border border-rose-300/16 bg-rose-400/10 px-3 py-3.5 text-rose-200"
-          >
-            <XCircle size={18} />
-            <span className="text-[11px] font-black">Bekor qilish</span>
-          </button>
+          {isActiveOrder ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/customer/support?orderId=${order.id}&topic=cancel`)}
+              className="flex flex-col items-center justify-center gap-2 rounded-[12px] border border-rose-300/16 bg-rose-400/10 px-3 py-3.5 text-rose-200"
+            >
+              <XCircle size={18} />
+              <span className="text-[11px] font-black">Bekor qilishni so'rash</span>
+            </button>
+          ) : null}
         </div>
       </section>
 

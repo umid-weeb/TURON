@@ -24,7 +24,7 @@ async function main() {
     await server.listen({ port, host });
     console.log(`Turon API is running at http://${host}:${port}`);
 
-    // Start auto-cancellation scheduler (unaccepted 5h + delivery timeout 3h)
+    // Start order timeout scheduler (warnings always on, system cancellation optional via env)
     startOrderExpiryScheduler();
 
     // Start location write buffer — batches courier GPS DB writes every 10s

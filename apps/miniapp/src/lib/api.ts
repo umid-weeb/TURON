@@ -13,9 +13,7 @@ function resolveApiBaseUrl() {
     return 'http://localhost:3000';
   }
 
-  // Production must never point at localhost inside Telegram WebView.
-  // Use a same-origin proxy only when Vercel/Nginx is configured for /api.
-  return '/api';
+  throw new Error('Production build uchun VITE_API_URL majburiy. Qiymat: https://turonkafe.duckdns.org');
 }
 
 const API_BASE_URL = resolveApiBaseUrl();

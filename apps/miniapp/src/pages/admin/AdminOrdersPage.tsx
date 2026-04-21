@@ -105,6 +105,22 @@ function matchesSearch(order: Order, query: string) {
   return searchableValues.some((value) => value?.toLowerCase().includes(normalizedQuery));
 }
 
+function needsCourierAssignment(order: Order) {
+  if (
+    order.orderStatus === OrderStatus.PENDING ||
+    order.orderStatus === OrderStatus.CANCELLED ||
+    order.orderStatus === OrderStatus.DELIVERED
+  ) {
+    return false;
+  }
+
+  return (
+    !order.courierId ||
+    order.dispatchState === 'MANUAL_ASSIGNMENT_REQUIRED' ||
+    order.dispatchState === 'SEARCHING'
+  );
+}
+
 const OrdersSkeleton: React.FC = () => (
   <div className="space-y-4 animate-pulse">
     <div className="h-12 rounded-[20px] bg-white" />
@@ -124,6 +140,9 @@ interface OrderListCardProps {
   isMutating: boolean;
   onOpen: () => void;
   onPrimaryAction: () => void;
+  primaryActionLabel?: string;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 }
 
 const OrderListCard: React.FC<OrderListCardProps> = ({
@@ -131,9 +150,12 @@ const OrderListCard: React.FC<OrderListCardProps> = ({
   isMutating,
   onOpen,
   onPrimaryAction,
+  primaryActionLabel,
+  secondaryActionLabel,
+  onSecondaryAction,
 }) => {
   const meta = STATUS_META[order.orderStatus];
-  const actionLabel = ACTION_LABELS[order.orderStatus] || "Ko'rish";
+  const actionLabel = primaryActionLabel || ACTION_LABELS[order.orderStatus] || "Ko'rish";
 
   return (
     <article className="rounded-[18px] bg-white px-4 py-4 shadow-[0_14px_32px_rgba(15,23,42,0.06)]">
@@ -162,14 +184,26 @@ const OrderListCard: React.FC<OrderListCardProps> = ({
         <p className="text-sm font-semibold text-slate-500">
           {order.items.length} ta mahsulot
         </p>
-        <button
-          type="button"
-          onClick={onPrimaryAction}
-          disabled={isMutating}
-          className="flex h-10 min-w-[70px] items-center justify-center rounded-full bg-blue-600 px-5 text-sm font-black text-white active:scale-[0.98] disabled:opacity-60"
-        >
-          {isMutating ? <Loader2 size={16} className="animate-spin" /> : actionLabel}
-        </button>
+        <div className="flex items-center gap-2">
+          {secondaryActionLabel && onSecondaryAction ? (
+            <button
+              type="button"
+              onClick={onSecondaryAction}
+              disabled={isMutating}
+              className="flex h-10 min-w-[92px] items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 active:scale-[0.98] disabled:opacity-60"
+            >
+              {secondaryActionLabel}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onPrimaryAction}
+            disabled={isMutating}
+            className="flex h-10 min-w-[70px] items-center justify-center rounded-full bg-blue-600 px-5 text-sm font-black text-white active:scale-[0.98] disabled:opacity-60"
+          >
+            {isMutating ? <Loader2 size={16} className="animate-spin" /> : actionLabel}
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -235,6 +269,10 @@ const AdminOrdersPage: React.FC = () => {
     }
 
     void handleStatusUpdate(order, nextStatus);
+  };
+
+  const handleCourierAssignment = (order: Order) => {
+    navigate(`/admin/orders/${order.id}?assignCourier=1`);
   };
 
   if (isLoading && storeOrders.length === 0) {
@@ -336,13 +374,19 @@ const AdminOrdersPage: React.FC = () => {
       ) : (
         <section className="space-y-3">
           {filteredOrders.map((order) => (
-            <OrderListCard
-              key={order.id}
-              order={order}
-              isMutating={mutatingOrderId === order.id}
-              onOpen={() => navigate(`/admin/orders/${order.id}`)}
-              onPrimaryAction={() => handlePrimaryAction(order)}
-            />
+          <OrderListCard
+            key={order.id}
+            order={order}
+            isMutating={mutatingOrderId === order.id}
+            onOpen={() => navigate(`/admin/orders/${order.id}`)}
+            onPrimaryAction={() => handlePrimaryAction(order)}
+            secondaryActionLabel={needsCourierAssignment(order) ? 'Biriktirish' : undefined}
+            onSecondaryAction={
+              needsCourierAssignment(order)
+                ? () => handleCourierAssignment(order)
+                : undefined
+            }
+          />
           ))}
         </section>
       )}

@@ -19,6 +19,9 @@ import { prisma } from '../lib/prisma.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { sendAdminAlert } from './telegram-bot.service.js';
 
+const SYSTEM_ORDER_CANCELLATION_ENABLED =
+  String(process.env.ORDER_SYSTEM_CANCELLATION_ENABLED || '').toLowerCase() === 'true';
+
 const UNACCEPTED_TIMEOUT_MS  = 2 * 60 * 60 * 1000; // 2 hours
 const UNACCEPTED_WARNING_MS  = 30 * 60 * 1000;      // warn admin when 1 h 30 min remains
 const DELIVERY_TIMEOUT_MS    = 2 * 60 * 60 * 1000; // 2 hours
@@ -323,6 +326,10 @@ async function runExpiryCheck(): Promise<void> {
     await warnUnacceptedOrders();
   } catch (err) {
     console.error('[OrderExpiry] Unaccepted orders warning check failed:', err);
+  }
+
+  if (!SYSTEM_ORDER_CANCELLATION_ENABLED) {
+    return;
   }
 
   try {

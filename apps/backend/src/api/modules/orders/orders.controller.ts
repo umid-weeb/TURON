@@ -13,6 +13,10 @@ import { DeliveryQuoteService } from '../../../services/delivery-quote.service.j
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { orderTrackingService, sseConnectionRegistry } from '../../../services/order-tracking.service.js';
 import {
+  OrderReassignmentQueue,
+  scheduleCourierAcceptanceTimeout,
+} from '../../../services/order-reassignment-queue.service.js';
+import {
   sendAdminAlert,
   sendOrderNotificationToAdmin,
   syncTelegramOrderStatus,
@@ -152,73 +156,12 @@ function scheduleCourierAssignmentTimeout(params: {
   assignmentId: string;
   courierId: string;
 }) {
-  setTimeout(() => {
-    void (async () => {
-      const assignment = await prisma.courierAssignment.findUnique({
-        where: { id: params.assignmentId },
-        select: {
-          id: true,
-          status: true,
-          orderId: true,
-          courierId: true,
-        },
-      });
-
-      if (!assignment || assignment.status !== 'ASSIGNED') {
-        return;
-      }
-
-      const now = new Date();
-      await prisma.$transaction(async (tx) => {
-        await tx.courierAssignment.update({
-          where: { id: assignment.id },
-          data: {
-            status: 'CANCELLED' as any,
-            cancelledAt: now,
-          },
-        });
-
-        await tx.order.updateMany({
-          where: {
-            id: params.orderId,
-            courierId: params.courierId,
-          },
-          data: {
-            courierId: null,
-          },
-        });
-
-        await tx.courierAssignmentEvent.create({
-          data: {
-            assignmentId: assignment.id,
-            orderId: params.orderId,
-            courierId: params.courierId,
-            eventType: 'CANCELLED' as any,
-            eventAt: now,
-            payload: {
-              reason: 'courier_response_timeout',
-              timeoutSeconds: 30,
-            },
-          },
-        });
-      });
-
-      await InAppNotificationsService.notifyAdmins({
-        type: NotificationTypeEnum.WARNING,
-        title: 'Kuryer javob bermadi',
-        message: `#${String(params.orderNumber)} buyurtma 30 soniyada qabul qilinmadi. Qayta dispatch qiling.`,
-        relatedOrderId: params.orderId,
-      });
-
-      await publishOrderSnapshot(params.orderId);
-    })().catch((error) => {
-      console.warn('[Orders] Courier assignment timeout failed.', {
-        orderId: params.orderId,
-        assignmentId: params.assignmentId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-  }, 30_000);
+  scheduleCourierAcceptanceTimeout({
+    orderId: params.orderId,
+    orderNumber: String(params.orderNumber),
+    assignmentId: params.assignmentId,
+    courierId: params.courierId,
+  });
 }
 
 function recordOrderCreatedAudit(params: {
@@ -239,6 +182,18 @@ function recordOrderCreatedAudit(params: {
 
 async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
   try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { orderNumber: true },
+    });
+
+    if (!order) {
+      return;
+    }
+
+    OrderReassignmentQueue.enqueue(orderId, order.orderNumber);
+    return;
+
     const autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(orderId);
 
     if (autoAssignmentResult?.assignment) {

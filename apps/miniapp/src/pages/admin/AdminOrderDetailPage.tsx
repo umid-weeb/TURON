@@ -1,6 +1,6 @@
 import { OrderDistanceDisplay } from '../../components/OrderDistanceDisplay';
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowLeft,
@@ -95,6 +95,7 @@ function formatTrackingTime(timestamp?: string) {
 
 const AdminOrderDetailPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const storeOrder = useOrdersStore((state) =>
     orderId ? state.orders.find((candidate) => candidate.id === orderId) : undefined,
@@ -126,6 +127,8 @@ const AdminOrderDetailPage: React.FC = () => {
     isLoading: isLoadingCouriers,
   } = useAdminCouriers(isCourierModalOpen);
 
+  const hasConsumedAssignIntent = React.useRef(false);
+
   useEffect(() => {
     if (fetchedOrder) {
       setOrder(fetchedOrder);
@@ -149,6 +152,27 @@ const AdminOrderDetailPage: React.FC = () => {
       }
     });
   }, [orderId, refetch]);
+
+  useEffect(() => {
+    hasConsumedAssignIntent.current = false;
+  }, [orderId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('assignCourier') !== '1' || !order || hasConsumedAssignIntent.current) {
+      return;
+    }
+
+    hasConsumedAssignIntent.current = true;
+
+    if (order.orderStatus === OrderStatus.PENDING) {
+      setAssignmentError('Avval buyurtmani tasdiqlang, keyin kuryer biriktiring');
+      return;
+    }
+
+    setAssignmentError(null);
+    setIsCourierModalOpen(true);
+  }, [location.search, order]);
 
   const handleStatusUpdate = async (next: OrderStatus) => {
     if (!order) {
@@ -456,6 +480,24 @@ const AdminOrderDetailPage: React.FC = () => {
         isPending={approvePaymentMutation.isPending || rejectPaymentMutation.isPending}
       />
 
+      {order.dispatchState === 'MANUAL_ASSIGNMENT_REQUIRED' ? (
+        <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-4">
+          <p className="text-sm font-black text-amber-900">Qo'lda kuryer biriktirish kerak</p>
+          <p className="mt-1 text-xs font-bold leading-relaxed text-amber-700">
+            Avtomatik urinishlar tugadi. Buyurtma saqlanib qolgan, endi admin mos kuryerni qo'lda biriktirishi kerak.
+          </p>
+        </div>
+      ) : null}
+
+      {order.dispatchState === 'SEARCHING' && !order.courierId ? (
+        <div className="rounded-[24px] border border-sky-100 bg-sky-50 p-4">
+          <p className="text-sm font-black text-sky-900">Tizim boshqa kuryerni qidirmoqda</p>
+          <p className="mt-1 text-xs font-bold leading-relaxed text-sky-700">
+            Oldingi kuryer buyurtmani olmadi. Agar kerak bo'lsa, shu yerning o'zidan qo'lda biriktirishingiz mumkin.
+          </p>
+        </div>
+      ) : null}
+
       <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
         <div className="flex justify-between items-center mb-4 px-1">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -478,8 +520,8 @@ const AdminOrderDetailPage: React.FC = () => {
             {order.orderStatus === OrderStatus.PENDING
               ? 'Avval tasdiqlang'
               : order.courierId
-                ? "O'zgartirish"
-                : 'Dispatch'}
+                ? "Qayta biriktirish"
+                : 'Kuryer biriktirish'}
           </button>
         </div>
 

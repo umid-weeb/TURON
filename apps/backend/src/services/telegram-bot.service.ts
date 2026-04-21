@@ -1310,8 +1310,17 @@ function bindHandlers(bot: Telegraf) {
     }
 
     // ── Kuryerni qo'lda biriktirish (Tugma bosilganda) ─────────────────────
-    if (data.startsWith('assign_courier:')) {
-      const [, orderId, courierId] = data.split(':');
+    if (data.startsWith('ac:')) {
+      const shortId = data.slice(3);
+      const payloadRow = await prisma.restaurantSetting.findUnique({
+        where: { key: `_cb_assign_${shortId}` }
+      });
+
+      if (!payloadRow) {
+        return ctx.answerCbQuery('Tugma eskirgan yoki xatolik yuz berdi', { show_alert: true });
+      }
+
+      const { orderId, courierId } = JSON.parse(payloadRow.value);
 
       try {
         const adminUserId = ctx.from?.id ? await resolveTelegramAdminUserId(ctx.from.id) : null;

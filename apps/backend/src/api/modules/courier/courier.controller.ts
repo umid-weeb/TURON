@@ -7,7 +7,6 @@ import {
   type CourierActionName,
 } from '../../../services/courier-order-actions.service.js';
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
-import { getBotState } from '../../../services/telegram-bot.service.js';
 import { CourierOperationalStatusService } from '../../../services/courier-operational-status.service.js';
 import { CourierPresenceService } from '../../../services/courier-presence.service.js';
 import { locationWriteBuffer } from '../../../services/location-write-buffer.service.js';
@@ -674,7 +673,7 @@ export async function notifyApproaching(
 
 export async function updateCourierLocation(
   request: FastifyRequest<{
-    Params: { id: string };
+    Params: { id?: string };
     Body: {
       latitude: number;
       longitude: number;
@@ -689,18 +688,25 @@ export async function updateCourierLocation(
   reply: FastifyReply,
 ) {
   const requester = request.user as any;
-  const result = await getAccessibleCourierOrder(request.params.id, requester);
+  const orderId = request.params.id;
 
-  if (!result) {
-    return reply.status(403).send({ error: 'Ruxsat etilmadi.' });
-  }
+  let order: any = null;
 
-  const { order, relevantAssignment } = result;
+  if (orderId && orderId !== 'free' && orderId !== 'live' && orderId !== 'undefined') {
+    const result = await getAccessibleCourierOrder(orderId, requester);
 
-  if (!ACTIVE_ASSIGNMENT_STATUSES.includes(relevantAssignment.status as any)) {
-    return reply.status(400).send({
-      error: 'Kuryer lokatsiyasi faqat faol biriktirish uchun yuboriladi',
-    });
+    if (!result) {
+      return reply.status(403).send({ error: 'Ruxsat etilmadi.' });
+    }
+
+    const { relevantAssignment } = result;
+    order = result.order;
+
+    if (!ACTIVE_ASSIGNMENT_STATUSES.includes(relevantAssignment.status as any)) {
+      return reply.status(400).send({
+        error: 'Kuryer lokatsiyasi faqat faol biriktirish uchun yuboriladi',
+      });
+    }
   }
 
   // ── HOT PATH OPTIMISATION ──────────────────────────────────────────────────
@@ -721,25 +727,28 @@ export async function updateCourierLocation(
   const now = new Date().toISOString();
 
   // Step 1 — immediate SSE push (no DB); returns current snapshot if update is stale
-  const tracking = orderTrackingService.publishCourierLocation(
-    order.id,
-    {
-      latitude,
-      longitude,
-      heading,
-      speedKmh,
-      remainingDistanceKm,
-      remainingEtaMinutes,
-      updatedAt: clientTimestamp ?? now,
-    },
-    clientTimestampMs,
-  );
+  let tracking;
+  if (order) {
+    tracking = orderTrackingService.publishCourierLocation(
+      order.id,
+      {
+        latitude,
+        longitude,
+        heading,
+        speedKmh,
+        remainingDistanceKm,
+        remainingEtaMinutes,
+        updatedAt: clientTimestamp ?? now,
+      },
+      clientTimestampMs,
+    );
+  }
 
   // Step 2 — deferred DB write (buffered, flushed every 10 s)
   // recordedAtMs prevents stale offline coords from overwriting current DB presence
   locationWriteBuffer.enqueue({
     courierId: requester.id,
-    orderId: order.id,
+    orderId: order ? order.id : null,
     latitude,
     longitude,
     heading: heading ?? null,
@@ -751,7 +760,7 @@ export async function updateCourierLocation(
 
   // Step 3 — AuditService call REMOVED (was 1 extra write per heartbeat)
 
-  return reply.send({ orderId: order.id, tracking: tracking ?? { isLive: true, lastEventAt: now } });
+  return reply.send({ orderId: order ? order.id : null, tracking: tracking ?? { isLive: true, lastEventAt: now } });
 }
 
 export async function getNextAvailableOrder(
@@ -817,10 +826,6 @@ export async function getNextAvailableOrder(
 
 type CustomerContactMethod = 'telegram_message' | 'telegram_call' | 'phone_call';
 
-/**
- * POST /courier/order/:id/notify-customer
- * Contacts the customer through Telegram first, then returns phone-call fallback metadata.
- */
 export async function notifyCustomer(
   request: FastifyRequest<{ Params: { id: string }; Body?: { method?: CustomerContactMethod } }>,
   reply: FastifyReply,
@@ -834,76 +839,76 @@ export async function notifyCustomer(
   }
 
   const { order } = access;
+  const botState = getBotState();
   const customerTelegramId = (order.user as any)?.telegramId as bigint | undefined;
   const customerPhone = (order.user as any)?.phoneNumber || null;
   const courierName = String(requester.fullName || 'Kuryer');
   const orderNumber = order.orderNumber ? `#${order.orderNumber}` : '';
-  const deliveryAddress =
-    (order.deliveryAddress as any)?.address ||
-    (order.deliveryAddress as any)?.addressText ||
-    "Manzil ko'rsatilmagan";
-  const { bot } = getBotState();
 
-  if (!customerTelegramId || !bot) {
+  const sendTelegramMessage = async (text: string) => {
+    if (!customerTelegramId) {
+      throw new Error("Mijoz Telegram ID'si topilmadi");
+    }
+
+    await botState.bot.telegram.sendMessage(customerTelegramId.toString(), text);
+  };
+
+  try {
     if (method === 'phone_call') {
+      let warningSent = false;
+
+      if (customerTelegramId) {
+        try {
+          await sendTelegramMessage(
+            `${courierName} ${orderNumber} buyurtma bo'yicha sizga hozir telefon qiladi. Iltimos, qo'ng'iroqqa javob bering.`,
+          );
+          warningSent = true;
+        } catch {
+          warningSent = false;
+        }
+      }
+
       return reply.send({
         ok: true,
         action: 'phone_call',
-        warningSent: false,
+        warningSent,
         customerPhone,
-        reason: !customerTelegramId ? 'customer_telegram_missing' : 'bot_unavailable',
       });
     }
 
-    return reply
-      .status(!customerTelegramId ? 422 : 503)
-      .send({
-        error: !customerTelegramId ? "Mijozning Telegram ID'si topilmadi." : 'Bot hozirda mavjud emas.',
+    if (!customerTelegramId) {
+      return reply.status(422).send({
+        error: "Mijoz Telegram ID'si topilmadi",
+        action: method,
+        customerPhone,
+        reason: 'customer_telegram_missing',
       });
-  }
+    }
 
-  const text =
-    method === 'phone_call'
-      ? `Kuryer ${courierName} sizga telefon qilmoqchi.\n\n` +
-        `Buyurtma: ${orderNumber}\n` +
-        `Agar noma'lum raqamdan qo'ng'iroq kelsa, bu sizning kuryeringiz bo'ladi.`
-      : `Kuryer ${courierName} siz bilan bog'lanmoqchi.\n\n` +
-        `Buyurtma: ${orderNumber}\n` +
-        `Manzil: ${deliveryAddress}\n\n` +
-        `Agar savol bo'lsa, shu Telegram chatda javob bering.`;
+    const messageText =
+      method === 'telegram_call'
+        ? `${courierName} ${orderNumber} buyurtma bo'yicha siz bilan Telegram orqali bog'lanmoqchi. Iltimos, chatni tekshiring.`
+        : `${courierName} ${orderNumber} buyurtma bo'yicha siz bilan bog'lanmoqchi. Iltimos, xabarga javob bering.`;
 
-  try {
-    await bot.telegram.sendMessage(String(customerTelegramId), text);
+    await sendTelegramMessage(messageText);
 
-    InAppNotificationsService.notifyUser({
+    await InAppNotificationsService.notifyUser({
       userId: order.userId,
       roleTarget: 'CUSTOMER' as any,
       type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
-      title: method === 'phone_call' ? "Kuryer qo'ng'iroq qilmoqchi" : "Kuryer bog'lanmoqchi",
-      message: `${courierName} buyurtma ${orderNumber} bo'yicha siz bilan aloqa qilmoqda`,
+      title: 'Kuryer siz bilan bog\'lanmoqchi',
+      message: `${courierName} ${orderNumber} buyurtma bo'yicha sizga yozdi.`,
       relatedOrderId: order.id,
     }).catch(() => {});
 
     return reply.send({
       ok: true,
       action: method,
-      warningSent: method === 'phone_call',
       customerPhone,
-      customerTelegramId: String(customerTelegramId),
     });
-  } catch (err: any) {
-    console.warn('[notifyCustomer] Telegram send failed:', err?.message);
-
-    if (method === 'phone_call') {
-      return reply.send({
-        ok: true,
-        action: 'phone_call',
-        warningSent: false,
-        customerPhone,
-        reason: 'telegram_send_failed',
-      });
-    }
-
-    return reply.status(502).send({ error: 'Xabar yuborishda xatolik yuz berdi.' });
+  } catch (error) {
+    return reply.status(400).send({
+      error: error instanceof Error ? error.message : "Mijoz bilan bog'lanib bo'lmadi",
+    });
   }
 }

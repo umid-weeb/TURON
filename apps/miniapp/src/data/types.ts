@@ -8,6 +8,18 @@ import {
 
 export { OrderStatus, PaymentMethod, PaymentStatus, DeliveryStage, DiscountType };
 
+export type OrderDispatchState =
+  | 'UNASSIGNED'
+  | 'SEARCHING'
+  | 'MANUAL_ASSIGNMENT_REQUIRED'
+  | 'AWAITING_COURIER_ACCEPTANCE'
+  | 'COURIER_EN_ROUTE_TO_RESTAURANT'
+  | 'COURIER_AT_RESTAURANT'
+  | 'COURIER_PICKED_UP'
+  | 'COURIER_DELIVERING'
+  | 'DELIVERED'
+  | 'CANCELLED';
+
 export interface ProductSnapshot {
   id: string;
   menuItemId?: string | null;
@@ -117,6 +129,9 @@ export interface Order {
   pickupLng?: number;
   destinationLat?: number;
   destinationLng?: number;
+  dispatchState?: OrderDispatchState;
+  dispatchFailureReason?: string | null;
+  dispatchNeedsManualAssignment?: boolean;
   courierAssignmentStatus?: string;
   courierLastEventType?: string | null;
   courierLastEventAt?: string | null;
