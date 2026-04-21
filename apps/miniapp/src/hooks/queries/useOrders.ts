@@ -565,6 +565,7 @@ export const useDeclineCourierOrder = () => {
       );
       queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
       queryClient.invalidateQueries({ queryKey: ['courier-status'] });
+      queryClient.invalidateQueries({ queryKey: ['courier-profile'] });
     },
   });
 };
