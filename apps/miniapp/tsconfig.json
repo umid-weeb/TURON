@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -10,11 +9,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "typeRoots": ["./src/types", "../../node_modules/@types"],
-    "paths": {
-      "@/*": ["./src/*"],
-      "@turon/shared": ["../../packages/shared/src/index.ts"]
-    }
+    "typeRoots": ["./src/types", "../../node_modules/@types"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

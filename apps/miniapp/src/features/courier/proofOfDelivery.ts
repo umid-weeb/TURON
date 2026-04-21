@@ -8,7 +8,6 @@ import { api } from '../../lib/api';
 
 export interface DeliveryProof {
   orderId: string;
-  photoBase64: string;
   latitude: number;
   longitude: number;
   accuracy: number;
@@ -57,31 +56,6 @@ export function validateGpsAccuracy(
 }
 
 /**
- * Validate photo quality
- */
-export function validatePhoto(photoBase64: string): ProofValidationResult {
-  const errors: string[] = [];
-
-  if (!photoBase64 || typeof photoBase64 !== 'string') {
-    errors.push('Rasm yuklangan bo\'lishi kerak');
-    return { isValid: false, errors };
-  }
-
-  if (photoBase64.length < 5000) {
-    errors.push('Rasm sifati past. Yangi rasm oling.');
-  }
-
-  if (!photoBase64.startsWith('data:image/')) {
-    errors.push('Noto\'g\'ri rasm formati');
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
-}
-
-/**
  * Validate OTP if required by restaurant
  */
 export function validateOtp(enteredOtp: string, correctOtp: string): ProofValidationResult {
@@ -106,7 +80,6 @@ export async function submitDeliveryProof(proof: DeliveryProof): Promise<{ succe
       gpsLatitude: proof.latitude,
       gpsLongitude: proof.longitude,
       gpsAccuracy: proof.accuracy,
-      photoBase64: proof.photoBase64 || undefined,
     });
 
     return {
@@ -127,35 +100,6 @@ export async function getDeliveryProofs(orderId: string) {
     return response;
   } catch (error) {
     throw new Error('POD tarixini olishda xatolik');
-  }
-}
-
-/**
- * Convert image file to base64
- */
-export async function imageToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-/**
- * Take photo from camera
- */
-export async function capturePhotoFromCamera(): Promise<string | null> {
-  try {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    
-    // This would normally use getUserMedia API
-    // For now, returning null as placeholder
-    return null;
-  } catch (error) {
-    console.error('Kamera xatosi:', error);
-    return null;
   }
 }
 

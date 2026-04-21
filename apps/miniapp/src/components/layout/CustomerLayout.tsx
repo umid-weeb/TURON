@@ -10,10 +10,11 @@ import { playSound } from '../../utils/soundEffects';
 const RED = '#C62020';
 const HOME_PATH = '/customer';
 
-// Only Profile and Home manage their own headers
+// Only Profile, Home, and Search manage their own headers
 const NO_HEADER_PATHS = [
   /^\/customer\/profile$/,
   /^\/customer$/,
+  /^\/customer\/search$/,
 ];
 
 const HIDE_BOTTOM_NAV_PATHS = [

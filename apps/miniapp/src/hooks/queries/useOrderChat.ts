@@ -13,6 +13,8 @@ export interface ChatMessage {
   content: string;
   isRead: boolean;
   createdAt: string;
+  /** Only on optimistic messages while waiting for server confirmation */
+  _status?: 'sending' | 'sent' | 'error';
 }
 
 interface ChatReadPayload {
@@ -175,13 +177,12 @@ export function useOrderChat(
                 appendMessage(payload.chatMessage);
               }
 
-              // Update isRead flag on our own messages when the other party reads them
+              // Update isRead flag on our own messages when ANY other party reads them
               if (payload.type === 'chat.read' && payload.chatRead) {
                 const { readerRole } = payload.chatRead;
-                // My messages are read by the other role
                 const myRole = role === 'courier' ? 'COURIER' : 'CUSTOMER';
-                const otherRole = myRole === 'COURIER' ? 'CUSTOMER' : 'COURIER';
-                if (readerRole === otherRole) {
+                // Any role other than me reading = my messages are now read (covers ADMIN reader too)
+                if (readerRole !== myRole) {
                   queryClient.setQueryData<ChatMessage[]>(chatKey(orderId), (prev) =>
                     prev
                       ? prev.map((m) =>
@@ -231,10 +232,53 @@ export function useOrderChat(
     };
   }, [orderId, token, role, appendMessage]);
 
-  // ── Send mutation ─────────────────────────────────────────────────────────
+  // ── Send mutation with optimistic update ──────────────────────────────────
+  const userId = useAuthStore((s) => s.user?.id ?? '');
+  const userName = useAuthStore((s) => s.user?.fullName ?? '');
+  const senderRole: ChatMessage['senderRole'] = role === 'courier' ? 'COURIER' : 'CUSTOMER';
+
   const sendMutation = useMutation({
     mutationFn: (content: string) => postMessage(orderId, role, content),
-    onSuccess: (msg) => appendMessage(msg),
+
+    onMutate: (content: string) => {
+      const tempId = `optimistic-${Date.now()}-${Math.random()}`;
+      const optimistic: ChatMessage = {
+        id: tempId,
+        orderId,
+        senderId: userId,
+        senderRole,
+        senderName: userName,
+        content,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        _status: 'sending',
+      };
+      queryClient.setQueryData<ChatMessage[]>(chatKey(orderId), (prev) =>
+        prev ? [...prev, optimistic] : [optimistic],
+      );
+      return { tempId };
+    },
+
+    onSuccess: (msg, _content, context) => {
+      // Replace temp message with confirmed server message
+      queryClient.setQueryData<ChatMessage[]>(chatKey(orderId), (prev) => {
+        if (!prev) return [{ ...msg, _status: 'sent' as const }];
+        // Remove temp, add real (appendMessage handles dedup for SSE echo)
+        const without = prev.filter((m) => m.id !== context?.tempId);
+        if (without.some((m) => m.id === msg.id)) return without; // SSE already added it
+        return [...without, { ...msg, _status: 'sent' as const }];
+      });
+      queryClient.invalidateQueries({ queryKey: ['order-chat-unread', orderId] });
+    },
+
+    onError: (_err, _content, context) => {
+      // Remove the failed optimistic message
+      if (context?.tempId) {
+        queryClient.setQueryData<ChatMessage[]>(chatKey(orderId), (prev) =>
+          prev ? prev.filter((m) => m.id !== context.tempId) : prev,
+        );
+      }
+    },
   });
 
   return {

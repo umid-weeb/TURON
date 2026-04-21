@@ -175,10 +175,17 @@ export class CourierOperationalStatusService {
       throw new Error("Buyurtma qabul qilishni yoqish uchun avval onlayn bo'ling");
     }
 
-    const nextIsAcceptingOrders =
-      input.isOnline === false || currentActiveAssignmentCount > 0
-        ? false
-        : input.isAcceptingOrders ?? current.isAcceptingOrders;
+    let nextIsAcceptingOrders = current.isAcceptingOrders;
+    if (input.isAcceptingOrders !== undefined) {
+      nextIsAcceptingOrders = input.isAcceptingOrders;
+    } else if (nextIsOnline === true && !current.isOnline) {
+      // HOTFIX: Kuryer onlayn bo'lganda avtomat zakaz olish yoqiladi
+      nextIsAcceptingOrders = true;
+    }
+
+    if (nextIsOnline === false || currentActiveAssignmentCount > 0) {
+      nextIsAcceptingOrders = false;
+    }
 
     const now = new Date();
     const updated = await db.courierOperationalStatus.upsert({

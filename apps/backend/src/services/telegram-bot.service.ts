@@ -12,6 +12,7 @@ import { AuditService } from './audit.service.js';
 import { CourierAssignmentService } from './courier-assignment.service.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { orderTrackingService } from './order-tracking.service.js';
+import { OrderReassignmentQueue } from './order-reassignment-queue.service.js';
 import { SupportService } from './support.service.js';
 import { ORDER_INCLUDE, serializeOrder } from '../api/modules/orders/order-helpers.js';
 
@@ -877,6 +878,10 @@ function scheduleTelegramCourierAssignmentTimeout(params: {
 function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumber: string) {
   void (async () => {
     try {
+      OrderReassignmentQueue.enqueue(orderId, orderNumber);
+      return;
+
+      /*
       const autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(orderId);
 
       if (autoAssignmentResult?.assignment) {
@@ -914,9 +919,8 @@ function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumb
         return;
       }
 
-      await sendAdminAlert(
-        `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> tasdiqlandi, lekin onlayn bo'sh kuryer topilmadi.\n\nAdmin panel orqali qo'lda tayinlang.`,
-      );
+            await sendAdminCourierListOptions(orderId, orderNumber);
+      */
     } catch (error) {
       console.error(`[Bot] Auto courier assignment failed for order ${orderId}:`, error);
       await sendAdminAlert(
@@ -924,6 +928,46 @@ function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumb
       );
     }
   })();
+}
+
+export async function sendAdminCourierListOptions(orderId: string, orderNumber: string) {
+  const dispatchCouriers = await CourierAssignmentService.rankDispatchCouriers();
+
+  if (dispatchCouriers.length === 0) {
+    await sendAdminAlert(
+      `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> uchun tizimda umuman onlayn kuryer yo'q!`
+    );
+    return;
+  }
+
+  const buttons = dispatchCouriers.slice(0, 10).map((courier) => {
+    const c = {
+      ...courier,
+      isFree: courier.isAcceptingOrders && courier.activeAssignments === 0,
+      etaMinutes:
+        courier.isAcceptingOrders && courier.activeAssignments === 0
+          ? courier.metrics.etaMinutes
+          : typeof courier.metrics.remainingDeliveryDistanceMeters === 'number'
+            ? Math.max(1, Math.ceil((courier.metrics.remainingDeliveryDistanceMeters / 1000 / 24) * 60))
+            : null,
+    };
+    const statusStr = c.isFree ? '🟢 Bo\'sh' : `🟠 Band (~${c.etaMinutes} daq)`;
+    return [Markup.button.callback(`${c.fullName} | ${statusStr}`, `assign_courier:${orderId}:${c.id}`)];
+  });
+
+  const chatIds = resolveOrderNotificationRecipientChatIds();
+  const state = getBotState();
+
+  for (const chatId of chatIds) {
+    await state.bot.telegram.sendMessage(
+      chatId,
+      `⚠️ <b>Avtomatik kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> uchun bo'sh kuryer topilmadi. Quyidagi ro'yxatdan kuryerni qo'lda tayinlang:`,
+      {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: buttons }
+      }
+    ).catch(() => {});
+  }
 }
 
 async function syncCallbackMessageStatus(
@@ -1278,6 +1322,45 @@ function bindHandlers(bot: Telegraf) {
       }
 
       await ctx.answerCbQuery();
+      return;
+    }
+
+    // ── Kuryerni qo'lda biriktirish (Tugma bosilganda) ─────────────────────
+    if (data.startsWith('ac:')) {
+      const shortId = data.slice(3);
+      const payloadRow = await prisma.restaurantSetting.findUnique({
+        where: { key: `_cb_assign_${shortId}` }
+      });
+
+      if (!payloadRow) {
+        return ctx.answerCbQuery('Tugma eskirgan yoki xatolik yuz berdi', { show_alert: true });
+      }
+
+      const { orderId, courierId } = JSON.parse(payloadRow.value);
+
+      try {
+        const adminUserId = ctx.from?.id ? await resolveTelegramAdminUserId(ctx.from.id) : null;
+        const assignment = await CourierAssignmentService.assignCourierToOrder(orderId, courierId, {
+          mode: 'MANUAL',
+          assignedByUserId: adminUserId ?? undefined,
+        });
+
+        const msgId = (ctx.callbackQuery as any).message?.message_id;
+        const chatId = (ctx.callbackQuery as any).message?.chat?.id;
+
+        if (msgId && chatId) {
+          await ctx.telegram.editMessageText(
+            chatId, msgId, undefined,
+            `✅ <b>Kuryer tayinlandi!</b>\n\nBuyurtma kuryer <b>${escapeHtml(assignment.courierName)}</b> ga muvaffaqiyatli biriktirildi.`,
+            { parse_mode: 'HTML' }
+          ).catch(() => {});
+        }
+
+        await publishRealtimeOrderSnapshot(orderId);
+        await ctx.answerCbQuery("Kuryer biriktirildi!", { show_alert: true });
+      } catch (err) {
+        await ctx.answerCbQuery(err instanceof Error ? err.message : 'Xatolik yuz berdi', { show_alert: true });
+      }
       return;
     }
 

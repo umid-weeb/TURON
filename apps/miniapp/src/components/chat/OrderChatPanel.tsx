@@ -42,7 +42,7 @@ function ReadReceipt({ isRead, isDark }: { isRead: boolean; isDark: boolean }) {
 }
 
 // ── Message bubble ────────────────────────────────────────────────────────────
-function MessageBubble({
+const MessageBubble = React.memo(function MessageBubble({
   msg,
   isMine,
   theme,
@@ -52,11 +52,14 @@ function MessageBubble({
   theme: 'light' | 'dark';
 }) {
   const isDark = theme === 'dark';
+  const isSending = msg._status === 'sending';
 
   return (
     <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[75%] rounded-[18px] px-3.5 py-2.5 ${
+        className={`max-w-[75%] rounded-[18px] px-3.5 py-2.5 transition-opacity ${
+          isSending ? 'opacity-60' : 'opacity-100'
+        } ${
           isMine
             ? isDark
               ? 'rounded-br-[6px] bg-indigo-500 text-white'
@@ -82,14 +85,18 @@ function MessageBubble({
               isMine ? 'text-white/60' : isDark ? 'text-white/35' : 'text-slate-400'
             }`}
           >
-            {formatTime(msg.createdAt)}
+            {isSending ? '...' : formatTime(msg.createdAt)}
           </p>
-          {isMine && <ReadReceipt isRead={msg.isRead} isDark={isDark} />}
+          {isMine && (
+            isSending
+              ? <Loader2 size={10} className="ml-1 animate-spin text-white/50" />
+              : <ReadReceipt isRead={msg.isRead} isDark={isDark} />
+          )}
         </div>
       </div>
     </div>
   );
-}
+});
 
 // ── Unread reminder banner ────────────────────────────────────────────────────
 function UnreadReminderBanner({
@@ -205,10 +212,26 @@ export const OrderChatPanel: React.FC<OrderChatPanelProps> = ({
   );
 
   const quickReplies = role === 'courier' ? COURIER_QUICK : CUSTOMER_QUICK;
+  const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Scroll to bottom on new messages
+  // Initial scroll to bottom when messages first load
+  const didInitialScrollRef = useRef(false);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!isLoading && messages.length > 0 && !didInitialScrollRef.current) {
+      didInitialScrollRef.current = true;
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+    }
+  }, [isLoading, messages.length]);
+
+  // Smart scroll: only auto-scroll when user is already near the bottom
+  useEffect(() => {
+    if (!didInitialScrollRef.current) return; // wait for initial scroll first
+    const list = listRef.current;
+    if (!list) return;
+    const isNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+    if (isNearBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages.length]);
 
   const handleSend = async () => {
@@ -300,7 +323,7 @@ export const OrderChatPanel: React.FC<OrderChatPanelProps> = ({
       )}
 
       {/* ── Messages list ─────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 size={22} className="animate-spin text-slate-400" />

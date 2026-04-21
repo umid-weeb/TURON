@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -25,6 +25,14 @@ export interface AdminChatMessage {
   content: string;
   isRead: boolean;
   createdAt: string;
+  /** Only set on ADMIN messages — which party it's directed to. null = all. */
+  targetRole: 'COURIER' | 'CUSTOMER' | null;
+  /** Optimistic-only: tracks in-flight send state */
+  _status?: 'sending' | 'sent' | 'error';
+}
+
+function chatKey(orderId: string) {
+  return ['admin-order-chat', orderId] as const;
 }
 
 /** Fetch admin inbox (orders with unread messages from couriers/customers) */
@@ -37,31 +45,42 @@ export function useAdminInbox() {
   });
 }
 
-/** Fetch messages for one order (admin view) — marks all as read on load */
-export function useAdminOrderChat(orderId: string) {
+/**
+ * Admin order chat hook.
+ *
+ * Real-time delivery is handled by the global `/orders/stream` SSE (opened in
+ * AdminLayout via `useOrdersRealtimeSync`). That hook dispatches
+ * `turon:chat-message` and `turon:chat-read` custom DOM events, which this
+ * hook listens to — so zero per-order SSE connections are needed here.
+ *
+ * Falls back to 10-second polling when the global stream is not connected.
+ */
+export function useAdminOrderChat(
+  orderId: string,
+  /** Whether the global SSE stream (useOrdersRealtimeSync) is connected */
+  globalConnected = false,
+) {
   const queryClient = useQueryClient();
-  const token = useAuthStore((s) => s.token);
-  const [connected, setConnected] = useState(false);
+  const adminId = useAuthStore((s) => s.user?.id ?? '');
+  const adminName = useAuthStore((s) => s.user?.fullName ?? 'Admin');
 
   const { data: messages = [], isLoading } = useQuery({
-    queryKey: ['admin-order-chat', orderId],
-    queryFn: () => api.get(`/orders/${orderId}/admin-chat`) as Promise<AdminChatMessage[]>,
+    queryKey: chatKey(orderId),
+    queryFn: async () => {
+      const msgs = await (api.get(`/orders/${orderId}/admin-chat`) as Promise<AdminChatMessage[]>);
+      // Invalidate inbox counters since fetching marks messages as read
+      queryClient.invalidateQueries({ queryKey: ['admin-inbox'] });
+      return msgs;
+    },
     enabled: Boolean(orderId),
-    staleTime: 5_000,
-    refetchInterval: connected ? false : 10_000,
+    staleTime: 10_000,
+    refetchInterval: globalConnected ? false : 10_000,
   });
 
-  // Invalidate inbox unread counts when we load messages (since they were just marked read)
-  useEffect(() => {
-    if (orderId) {
-      queryClient.invalidateQueries({ queryKey: ['admin-inbox'] });
-    }
-  }, [orderId, queryClient]);
-
-  // Append via SSE
+  // ── Append helper (dedup by id) ────────────────────────────────────────────
   const appendMessage = useCallback(
     (msg: AdminChatMessage) => {
-      queryClient.setQueryData<AdminChatMessage[]>(['admin-order-chat', orderId], (prev) => {
+      queryClient.setQueryData<AdminChatMessage[]>(chatKey(orderId), (prev) => {
         if (!prev) return [msg];
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -71,79 +90,93 @@ export function useAdminOrderChat(orderId: string) {
     [queryClient, orderId],
   );
 
-  // SSE listener — piggyback on order tracking stream
-  const disposeRef = useRef<(() => void) | null>(null);
-
+  // ── DOM event listeners — fed by useOrdersRealtimeSync global stream ──────
   useEffect(() => {
-    if (!orderId || !token) { setConnected(false); return; }
+    if (!orderId) return;
 
-    const streamUrl = `${(api.defaults as any).baseURL}/orders/${orderId}/tracking/stream`;
-    let isDisposed = false;
-    const abortController = new AbortController();
-    let reconnectTimer: number | null = null;
-
-    const connect = async () => {
-      try {
-        const response = await fetch(streamUrl, {
-          headers: { Accept: 'text/event-stream', Authorization: `Bearer ${token}` },
-          signal: abortController.signal,
-        });
-        if (!response.ok || !response.body) throw new Error('stream failed');
-
-        setConnected(true);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (!isDisposed) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          let boundary = buffer.indexOf('\n\n');
-          while (boundary >= 0) {
-            const chunk = buffer.slice(0, boundary);
-            buffer = buffer.slice(boundary + 2);
-            boundary = buffer.indexOf('\n\n');
-
-            const dataLines = chunk
-              .split('\n')
-              .filter((l) => l.startsWith('data:'))
-              .map((l) => l.slice(5).trimStart());
-            if (!dataLines.length) continue;
-
-            try {
-              const payload = JSON.parse(dataLines.join('\n'));
-              if (payload.type === 'chat.message' && payload.chatMessage) {
-                appendMessage(payload.chatMessage as AdminChatMessage);
-              }
-            } catch { /* ignore */ }
-          }
-        }
-      } catch { /* ignore abort */ }
-
-      if (!isDisposed) {
-        setConnected(false);
-        reconnectTimer = window.setTimeout(() => { reconnectTimer = null; void connect(); }, 4000);
-      }
+    const handleChatMessage = (e: Event) => {
+      const { orderId: evtOrderId, chatMessage } = (e as CustomEvent).detail;
+      if (evtOrderId !== orderId) return;
+      appendMessage(chatMessage as AdminChatMessage);
     };
 
-    void connect();
-    disposeRef.current = () => {
-      isDisposed = true;
-      abortController.abort();
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+    const handleChatRead = (e: Event) => {
+      const { orderId: evtOrderId } = (e as CustomEvent).detail;
+      if (evtOrderId !== orderId) return;
+      // Mark all messages in this order as read (admin opened the chat)
+      queryClient.setQueryData<AdminChatMessage[]>(chatKey(orderId), (prev) =>
+        prev ? prev.map((m) => ({ ...m, isRead: true })) : prev,
+      );
     };
-    return () => { disposeRef.current?.(); disposeRef.current = null; };
-  }, [orderId, token, appendMessage]);
 
+    window.addEventListener('turon:chat-message', handleChatMessage);
+    window.addEventListener('turon:chat-read', handleChatRead);
+    return () => {
+      window.removeEventListener('turon:chat-message', handleChatMessage);
+      window.removeEventListener('turon:chat-read', handleChatRead);
+    };
+  }, [orderId, appendMessage, queryClient]);
+
+  // ── Send mutation with optimistic update ──────────────────────────────────
   const sendMutation = useMutation({
-    mutationFn: (content: string) =>
-      api.post(`/orders/${orderId}/admin-chat`, { content }) as Promise<AdminChatMessage>,
-    onSuccess: (msg) => appendMessage(msg),
+    mutationFn: ({
+      content,
+      targetRole,
+    }: {
+      content: string;
+      targetRole: 'COURIER' | 'CUSTOMER' | null;
+    }) =>
+      api.post(`/orders/${orderId}/admin-chat`, {
+        content,
+        targetRole: targetRole ?? undefined,
+      }) as Promise<AdminChatMessage>,
+
+    onMutate: ({ content, targetRole }) => {
+      const tempId = `optimistic-${Date.now()}-${Math.random()}`;
+      const optimistic: AdminChatMessage = {
+        id: tempId,
+        orderId,
+        senderId: adminId,
+        senderRole: 'ADMIN',
+        senderName: adminName,
+        content,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        targetRole: targetRole ?? null,
+        _status: 'sending',
+      };
+      queryClient.setQueryData<AdminChatMessage[]>(chatKey(orderId), (prev) =>
+        prev ? [...prev, optimistic] : [optimistic],
+      );
+      return { tempId };
+    },
+
+    onSuccess: (msg, _vars, context) => {
+      queryClient.setQueryData<AdminChatMessage[]>(chatKey(orderId), (prev) => {
+        if (!prev) return [{ ...msg, _status: 'sent' as const }];
+        const without = prev.filter((m) => m.id !== context?.tempId);
+        if (without.some((m) => m.id === msg.id)) return without; // SSE already added it
+        return [...without, { ...msg, _status: 'sent' as const }];
+      });
+      queryClient.invalidateQueries({ queryKey: ['admin-inbox'] });
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.tempId) {
+        queryClient.setQueryData<AdminChatMessage[]>(chatKey(orderId), (prev) =>
+          prev ? prev.filter((m) => m.id !== context.tempId) : prev,
+        );
+      }
+    },
   });
 
-  return { messages, isLoading, connected, sendMessage: (c: string) => sendMutation.mutateAsync(c), isSending: sendMutation.isPending };
+  return {
+    messages,
+    isLoading,
+    sendMessage: (content: string, targetRole: 'COURIER' | 'CUSTOMER' | null = null) =>
+      sendMutation.mutateAsync({ content, targetRole }),
+    isSending: sendMutation.isPending,
+  };
 }
 
 /** Total unread count across all orders (for dashboard badge) */
@@ -152,7 +185,10 @@ export function useAdminUnreadTotal() {
     queryKey: ['admin-inbox'],
     queryFn: () => api.get('/orders/chats') as Promise<AdminInbox>,
     select: (data) =>
-      [...data.courierMessages, ...data.customerMessages].reduce((sum, e) => sum + e.unreadCount, 0),
+      [...data.courierMessages, ...data.customerMessages].reduce(
+        (sum, e) => sum + e.unreadCount,
+        0,
+      ),
     refetchInterval: 15_000,
     staleTime: 5_000,
   });

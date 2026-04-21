@@ -26,12 +26,14 @@ export interface ChatMessagePayload {
   content: string;
   isRead: boolean;
   createdAt: string;
+  /** Only present on ADMIN messages. null/undefined = broadcast to all parties. */
+  targetRole?: 'COURIER' | 'CUSTOMER' | null;
 }
 
 export interface ChatReadPayload {
   orderId: string;
   /** Role that just read the messages (the OTHER role's messages are now read) */
-  readerRole: 'COURIER' | 'CUSTOMER';
+  readerRole: 'COURIER' | 'CUSTOMER' | 'ADMIN';
   readAt: string;
 }
 
@@ -187,10 +189,11 @@ class OrderTrackingService {
   }
 
   /**
-   * Notify the sender that their messages have been read.
-   * Emitted when the receiver opens the chat (markRead is called).
+   * Notify all parties that messages have been read.
+   * Emitted when any role opens the chat (markRead is called).
+   * ADMIN readerRole → courier/customer get ✓✓ on their messages.
    */
-  publishChatRead(orderId: string, readerRole: 'COURIER' | 'CUSTOMER') {
+  publishChatRead(orderId: string, readerRole: 'COURIER' | 'CUSTOMER' | 'ADMIN') {
     this.emit({
       type: 'chat.read',
       orderId,

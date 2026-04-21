@@ -32,7 +32,8 @@ export async function getOrderChat(
   // Mark inbound messages as read on open
   await OrderChatService.markRead(orderId, role);
 
-  const messages = await OrderChatService.getMessages(orderId);
+  // Return only messages visible to this role (admin→other-party messages filtered out)
+  const messages = await OrderChatService.getMessages(orderId, role);
   return reply.send(messages);
 }
 

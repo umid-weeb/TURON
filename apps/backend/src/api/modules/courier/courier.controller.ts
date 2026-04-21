@@ -13,6 +13,8 @@ import { locationWriteBuffer } from '../../../services/location-write-buffer.ser
 import { CourierStatsService } from '../../../services/courier-stats.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import { StorageService } from '../../../services/storage.service.js';
+import { OrderReassignmentQueue } from '../../../services/order-reassignment-queue.service.js';
+import { getBotState } from '../../../services/telegram-bot.service.js';
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ORDER_INCLUDE,
@@ -20,7 +22,6 @@ import {
   serializeOrder,
 } from '../orders/order-helpers.js';
 import { eligibleCourierCache } from '../../../services/courier-assignment.service.js';
-import { getBotState } from '../../../services/telegram-bot.service.js';
 
 const COURIER_LIST_ASSIGNMENT_STATUSES = [
   'ASSIGNED',
@@ -299,7 +300,7 @@ export async function getCourierOrders(request: FastifyRequest, reply: FastifyRe
       total: serialized.total,
       deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
-      restaurantName: serialized.restaurantName || RESTAURANT_COORDINATES.name,
+      restaurantName: RESTAURANT_COORDINATES.name,
       distanceToRestaurantMeters:
         typeof relevantAssignment?.distanceMeters === 'number' ? relevantAssignment.distanceMeters : null,
       etaToRestaurantMinutes:
@@ -402,13 +403,13 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
 export async function deliverCourierOrder(
   request: FastifyRequest<{
     Params: { id: string };
-    Body: { gpsLatitude: number; gpsLongitude: number; gpsAccuracy?: number; photoBase64?: string };
+    Body: { gpsLatitude: number; gpsLongitude: number; gpsAccuracy?: number };
   }>,
   reply: FastifyReply,
 ) {
   const requester = request.user as any;
   const { id: orderId } = request.params;
-  const { gpsLatitude, gpsLongitude, photoBase64 } = request.body;
+  const { gpsLatitude, gpsLongitude } = request.body;
   const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
 
   // Return cached response for duplicate delivery confirmation requests
@@ -459,12 +460,6 @@ export async function deliverCourierOrder(
       });
     }
 
-    // 3.5. Rasmni Supabase Storage-ga yuklash
-    let uploadedPhotoUrl = null;
-    if (photoBase64) {
-      uploadedPhotoUrl = await StorageService.uploadBase64(photoBase64, 'deliveries');
-    }
-
     // 4. Atomic: save DeliveryProof + perform DELIVER in one transaction
     const result = await prisma.$transaction(async (tx) => {
       await (tx as any).deliveryProof.create({
@@ -474,7 +469,6 @@ export async function deliverCourierOrder(
           gpsLatitude,
           gpsLongitude,
           distanceMeters: Math.round(distanceMeters),
-          photoBase64: uploadedPhotoUrl ?? null,
         },
       });
 
@@ -632,10 +626,13 @@ export async function declineCourierOrder(
 
     InAppNotificationsService.notifyAdmins({
       type: NotificationTypeEnum.WARNING,
-      title: 'Kuryer buyurtmani rad etdi',
-      message: `#${String((order as any).orderNumber)} buyurtma qayta dispatch qilishni kutmoqda`,
+      title: 'Kuryer buyurtmani rad etdi (Qayta biriktirilmoqda)',
+      message: `#${String((order as any).orderNumber)} buyurtmani kuryer rad etdi. Tizim avtomatik boshqa kuryer qidirmoqda...`,
       relatedOrderId: orderId,
     }).catch(() => {});
+
+    // Avtomatik zanjir bo'yicha keyingi kuryerni qidirish (Auto-Reassignment)
+    OrderReassignmentQueue.enqueue(orderId, (order as any).orderNumber);
 
     return reply.send({ success: true, orderId });
   } catch (error) {
@@ -677,7 +674,7 @@ export async function notifyApproaching(
 
 export async function updateCourierLocation(
   request: FastifyRequest<{
-    Params: { id: string };
+    Params: { id?: string };
     Body: {
       latitude: number;
       longitude: number;
@@ -692,18 +689,25 @@ export async function updateCourierLocation(
   reply: FastifyReply,
 ) {
   const requester = request.user as any;
-  const result = await getAccessibleCourierOrder(request.params.id, requester);
+  const orderId = request.params.id;
 
-  if (!result) {
-    return reply.status(403).send({ error: 'Ruxsat etilmadi.' });
-  }
+  let order: any = null;
 
-  const { order, relevantAssignment } = result;
+  if (orderId && orderId !== 'free' && orderId !== 'live' && orderId !== 'undefined') {
+    const result = await getAccessibleCourierOrder(orderId, requester);
 
-  if (!ACTIVE_ASSIGNMENT_STATUSES.includes(relevantAssignment.status as any)) {
-    return reply.status(400).send({
-      error: 'Kuryer lokatsiyasi faqat faol biriktirish uchun yuboriladi',
-    });
+    if (!result) {
+      return reply.status(403).send({ error: 'Ruxsat etilmadi.' });
+    }
+
+    const { relevantAssignment } = result;
+    order = result.order;
+
+    if (!ACTIVE_ASSIGNMENT_STATUSES.includes(relevantAssignment.status as any)) {
+      return reply.status(400).send({
+        error: 'Kuryer lokatsiyasi faqat faol biriktirish uchun yuboriladi',
+      });
+    }
   }
 
   // ── HOT PATH OPTIMISATION ──────────────────────────────────────────────────
@@ -724,25 +728,28 @@ export async function updateCourierLocation(
   const now = new Date().toISOString();
 
   // Step 1 — immediate SSE push (no DB); returns current snapshot if update is stale
-  const tracking = orderTrackingService.publishCourierLocation(
-    order.id,
-    {
-      latitude,
-      longitude,
-      heading,
-      speedKmh,
-      remainingDistanceKm,
-      remainingEtaMinutes,
-      updatedAt: clientTimestamp ?? now,
-    },
-    clientTimestampMs,
-  );
+  let tracking;
+  if (order) {
+    tracking = orderTrackingService.publishCourierLocation(
+      order.id,
+      {
+        latitude,
+        longitude,
+        heading,
+        speedKmh,
+        remainingDistanceKm,
+        remainingEtaMinutes,
+        updatedAt: clientTimestamp ?? now,
+      },
+      clientTimestampMs,
+    );
+  }
 
   // Step 2 — deferred DB write (buffered, flushed every 10 s)
   // recordedAtMs prevents stale offline coords from overwriting current DB presence
   locationWriteBuffer.enqueue({
     courierId: requester.id,
-    orderId: order.id,
+    orderId: order ? order.id : null,
     latitude,
     longitude,
     heading: heading ?? null,
@@ -754,7 +761,7 @@ export async function updateCourierLocation(
 
   // Step 3 — AuditService call REMOVED (was 1 extra write per heartbeat)
 
-  return reply.send({ orderId: order.id, tracking: tracking ?? { isLive: true, lastEventAt: now } });
+  return reply.send({ orderId: order ? order.id : null, tracking: tracking ?? { isLive: true, lastEventAt: now } });
 }
 
 export async function getNextAvailableOrder(
@@ -801,7 +808,7 @@ export async function getNextAvailableOrder(
       total: serialized.total,
       deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
-      restaurantName: serialized.restaurantName || RESTAURANT_COORDINATES.name,
+      restaurantName: RESTAURANT_COORDINATES.name,
       distanceToRestaurantMeters:
         typeof ra?.distanceMeters === 'number' ? ra.distanceMeters : null,
       etaToRestaurantMinutes:
@@ -820,137 +827,89 @@ export async function getNextAvailableOrder(
 
 type CustomerContactMethod = 'telegram_message' | 'telegram_call' | 'phone_call';
 
-/**
- * POST /courier/order/:id/notify-customer
- * Contacts the customer through Telegram first, then returns phone-call fallback metadata.
- */
 export async function notifyCustomer(
   request: FastifyRequest<{ Params: { id: string }; Body?: { method?: CustomerContactMethod } }>,
   reply: FastifyReply,
 ) {
   const requester = request.user as any;
   const method = request.body?.method ?? 'telegram_message';
-
   const access = await getAccessibleCourierOrder(request.params.id, requester);
+
   if (!access) {
     return reply.status(403).send({ error: 'Ruxsat etilmadi: Bu buyurtma sizga tegishli emas.' });
   }
 
   const { order } = access;
+  const botState = getBotState();
   const customerTelegramId = (order.user as any)?.telegramId as bigint | undefined;
   const customerPhone = (order.user as any)?.phoneNumber || null;
   const courierName = String(requester.fullName || 'Kuryer');
   const orderNumber = order.orderNumber ? `#${order.orderNumber}` : '';
-  const deliveryAddress =
-    (order.deliveryAddress as any)?.address ||
-    (order.deliveryAddress as any)?.addressText ||
-    "Manzil ko'rsatilmagan";
-  const { bot } = getBotState();
 
-  if (!customerTelegramId || !bot) {
+  const sendTelegramMessage = async (text: string) => {
+    if (!customerTelegramId) {
+      throw new Error("Mijoz Telegram ID'si topilmadi");
+    }
+
+    await botState.bot.telegram.sendMessage(customerTelegramId.toString(), text);
+  };
+
+  try {
     if (method === 'phone_call') {
+      let warningSent = false;
+
+      if (customerTelegramId) {
+        try {
+          await sendTelegramMessage(
+            `${courierName} ${orderNumber} buyurtma bo'yicha sizga hozir telefon qiladi. Iltimos, qo'ng'iroqqa javob bering.`,
+          );
+          warningSent = true;
+        } catch {
+          warningSent = false;
+        }
+      }
+
       return reply.send({
         ok: true,
         action: 'phone_call',
-        warningSent: false,
+        warningSent,
         customerPhone,
-        reason: !customerTelegramId ? 'customer_telegram_missing' : 'bot_unavailable',
       });
     }
 
-    return reply
-      .status(!customerTelegramId ? 422 : 503)
-      .send({
-        error: !customerTelegramId
-          ? "Mijozning Telegram ID'si topilmadi."
-          : 'Bot hozirda mavjud emas.',
+    if (!customerTelegramId) {
+      return reply.status(422).send({
+        error: "Mijoz Telegram ID'si topilmadi",
+        action: method,
+        customerPhone,
+        reason: 'customer_telegram_missing',
       });
-  }
+    }
 
-  const text =
-    method === 'phone_call'
-      ? `Kuryer ${courierName} sizga telefon qilmoqchi.\n\n` +
-        `Buyurtma: ${orderNumber}\n` +
-        `Agar noma'lum raqamdan qo'ng'iroq kelsa, bu sizning kuryeringiz bo'ladi.`
-      : `Kuryer ${courierName} siz bilan bog'lanmoqchi.\n\n` +
-        `Buyurtma: ${orderNumber}\n` +
-        `Manzil: ${deliveryAddress}\n\n` +
-        `Agar savol bo'lsa, shu Telegram chatda javob bering.`;
+    const messageText =
+      method === 'telegram_call'
+        ? `${courierName} ${orderNumber} buyurtma bo'yicha siz bilan Telegram orqali bog'lanmoqchi. Iltimos, chatni tekshiring.`
+        : `${courierName} ${orderNumber} buyurtma bo'yicha siz bilan bog'lanmoqchi. Iltimos, xabarga javob bering.`;
 
-  try {
-    await bot.telegram.sendMessage(String(customerTelegramId), text);
+    await sendTelegramMessage(messageText);
 
-    InAppNotificationsService.notifyUser({
+    await InAppNotificationsService.notifyUser({
       userId: order.userId,
       roleTarget: 'CUSTOMER' as any,
       type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
-      title: method === 'phone_call' ? "Kuryer qo'ng'iroq qilmoqchi" : "Kuryer bog'lanmoqchi",
-      message: `${courierName} buyurtma ${orderNumber} bo'yicha siz bilan aloqa qilmoqda`,
+      title: 'Kuryer siz bilan bog\'lanmoqchi',
+      message: `${courierName} ${orderNumber} buyurtma bo'yicha sizga yozdi.`,
       relatedOrderId: order.id,
     }).catch(() => {});
 
     return reply.send({
       ok: true,
       action: method,
-      warningSent: method === 'phone_call',
       customerPhone,
-      customerTelegramId: String(customerTelegramId),
     });
-  } catch (err: any) {
-    console.warn('[notifyCustomer] Telegram send failed:', err?.message);
-
-    if (method === 'phone_call') {
-      return reply.send({
-        ok: true,
-        action: 'phone_call',
-        warningSent: false,
-        customerPhone,
-        reason: 'telegram_send_failed',
-      });
-    }
-
-    return reply.status(502).send({ error: 'Xabar yuborishda xatolik yuz berdi.' });
-  }
-}
-
-/**
- * POST /courier/order/:id/notify-customer
- * Sends a Telegram message to the customer to be ready at the door.
- */
-export async function notifyCustomerLegacy(
-  request: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply,
-) {
-  const requester = request.user as any;
-
-  const access = await getAccessibleCourierOrder(request.params.id, requester);
-  if (!access) {
-    return reply.status(403).send({ error: 'Ruxsat etilmadi: Bu buyurtma sizga tegishli emas.' });
-  }
-
-  const { order } = access;
-  const customerTelegramId = (order.user as any)?.telegramId as bigint | undefined;
-
-  if (!customerTelegramId) {
-    return reply.status(422).send({ error: "Mijozning Telegram ID'si topilmadi." });
-  }
-
-  const { bot } = getBotState();
-  if (!bot) {
-    return reply.status(503).send({ error: 'Bot hozirda mavjud emas.' });
-  }
-
-  const orderNumber = order.orderNumber ? `#${order.orderNumber}` : '';
-  const text =
-    `🛵 Kuryer yetib kelmoqda!\n\n` +
-    `Buyurtma ${orderNumber} — iltimos, eshik oldida tayyor bo'ling.\n` +
-    `Kuryer: ${requester.fullName || 'Kuryer'}`;
-
-  try {
-    await bot.telegram.sendMessage(String(customerTelegramId), text);
-    return reply.send({ ok: true });
-  } catch (err: any) {
-    console.warn('[notifyCustomer] Telegram send failed:', err?.message);
-    return reply.status(502).send({ error: 'Xabar yuborishda xatolik yuz berdi.' });
+  } catch (error) {
+    return reply.status(400).send({
+      error: error instanceof Error ? error.message : "Mijoz bilan bog'lanib bo'lmadi",
+    });
   }
 }

@@ -5,6 +5,8 @@ export type CustomerTrackingLanguage = 'uz-latn' | 'uz-cyrl' | 'ru';
 type CustomerTrackingPhase =
   | 'PENDING'
   | 'PREPARING'
+  | 'REASSIGNING'
+  | 'MANUAL_ASSIGNMENT_REQUIRED'
   | 'ASSIGNED'
   | 'ACCEPTED'
   | 'ARRIVED'
@@ -13,41 +15,47 @@ type CustomerTrackingPhase =
   | 'DELIVERED'
   | 'CANCELLED';
 
-// ── Proximity thresholds (metres) ────────────────────────────────────────────
 const PROXIMITY_VERY_NEAR_M = 50;
 const PROXIMITY_NEAR_M = 500;
 
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6_371_000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
+  const earthRadiusMeters = 6_371_000;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const latDelta = toRadians(lat2 - lat1);
+  const lonDelta = toRadians(lon2 - lon1);
+  const leftLat = toRadians(lat1);
+  const rightLat = toRadians(lat2);
   const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(leftLat) * Math.cos(rightLat) * Math.sin(lonDelta / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/**
- * Returns estimated remaining metres from courier to customer during delivery,
- * or `null` if data is unavailable or phase is not yet in delivery.
- */
 function getDeliveryProximityMeters(order: Order, phase: CustomerTrackingPhase): number | null {
-  if (phase !== 'DELIVERING' && phase !== 'PICKED_UP') return null;
-
-  const loc = order.tracking?.courierLocation;
-  if (!loc) return null;
-
-  // Prefer live route-based remaining distance reported by the courier app
-  if (typeof loc.remainingDistanceKm === 'number' && loc.remainingDistanceKm >= 0) {
-    return loc.remainingDistanceKm * 1000;
+  if (phase !== 'DELIVERING' && phase !== 'PICKED_UP') {
+    return null;
   }
 
-  // Fall back to straight-line haversine distance
-  const destLat = order.destinationLat;
-  const destLng = order.destinationLng;
-  if (typeof destLat === 'number' && typeof destLng === 'number') {
-    return haversineMeters(loc.latitude, loc.longitude, destLat, destLng);
+  const courierLocation = order.tracking?.courierLocation;
+  if (!courierLocation) {
+    return null;
+  }
+
+  if (
+    typeof courierLocation.remainingDistanceKm === 'number' &&
+    courierLocation.remainingDistanceKm >= 0
+  ) {
+    return courierLocation.remainingDistanceKm * 1000;
+  }
+
+  if (typeof order.destinationLat === 'number' && typeof order.destinationLng === 'number') {
+    return haversineMeters(
+      courierLocation.latitude,
+      courierLocation.longitude,
+      order.destinationLat,
+      order.destinationLng,
+    );
   }
 
   return null;
@@ -66,11 +74,16 @@ function getCourierFallbackLabel(language: CustomerTrackingLanguage) {
 }
 
 export function resolveCustomerTrackingPhase(order: Order): CustomerTrackingPhase {
-  if (
-    order.orderStatus === OrderStatus.CANCELLED ||
-    order.courierAssignmentStatus === 'CANCELLED'
-  ) {
+  if (order.orderStatus === OrderStatus.CANCELLED) {
     return 'CANCELLED';
+  }
+
+  if (order.dispatchState === 'MANUAL_ASSIGNMENT_REQUIRED') {
+    return 'MANUAL_ASSIGNMENT_REQUIRED';
+  }
+
+  if (order.dispatchState === 'SEARCHING') {
+    return 'REASSIGNING';
   }
 
   if (
@@ -82,6 +95,7 @@ export function resolveCustomerTrackingPhase(order: Order): CustomerTrackingPhas
   }
 
   if (
+    order.dispatchState === 'COURIER_DELIVERING' ||
     order.deliveryStage === DeliveryStage.DELIVERING ||
     order.deliveryStage === DeliveryStage.ARRIVED_AT_DESTINATION ||
     order.courierAssignmentStatus === 'DELIVERING' ||
@@ -91,6 +105,7 @@ export function resolveCustomerTrackingPhase(order: Order): CustomerTrackingPhas
   }
 
   if (
+    order.dispatchState === 'COURIER_PICKED_UP' ||
     order.deliveryStage === DeliveryStage.PICKED_UP ||
     order.courierAssignmentStatus === 'PICKED_UP'
   ) {
@@ -98,6 +113,7 @@ export function resolveCustomerTrackingPhase(order: Order): CustomerTrackingPhas
   }
 
   if (
+    order.dispatchState === 'COURIER_AT_RESTAURANT' ||
     order.deliveryStage === DeliveryStage.ARRIVED_AT_RESTAURANT ||
     order.courierLastEventType === 'ARRIVED_AT_RESTAURANT'
   ) {
@@ -105,6 +121,7 @@ export function resolveCustomerTrackingPhase(order: Order): CustomerTrackingPhas
   }
 
   if (
+    order.dispatchState === 'COURIER_EN_ROUTE_TO_RESTAURANT' ||
     order.deliveryStage === DeliveryStage.GOING_TO_RESTAURANT ||
     order.courierAssignmentStatus === 'ACCEPTED' ||
     order.courierLastEventType === 'ACCEPTED'
@@ -112,7 +129,11 @@ export function resolveCustomerTrackingPhase(order: Order): CustomerTrackingPhas
     return 'ACCEPTED';
   }
 
-  if (order.courierAssignmentStatus === 'ASSIGNED' || Boolean(order.courierId)) {
+  if (
+    order.dispatchState === 'AWAITING_COURIER_ACCEPTANCE' ||
+    order.courierAssignmentStatus === 'ASSIGNED' ||
+    Boolean(order.courierId)
+  ) {
     return 'ASSIGNED';
   }
 
@@ -128,13 +149,13 @@ function getStageLabel(
   language: CustomerTrackingLanguage,
   proximityMeters: number | null,
 ) {
-  // Proximity-aware override for DELIVERING phase
   if (phase === 'DELIVERING' && proximityMeters !== null) {
     if (proximityMeters <= PROXIMITY_VERY_NEAR_M) {
       if (language === 'ru') return 'Курьер прибыл!';
       if (language === 'uz-cyrl') return 'Курьер келди!';
       return 'Kuryer keldi!';
     }
+
     if (proximityMeters <= PROXIMITY_NEAR_M) {
       if (language === 'ru') return 'Почти здесь!';
       if (language === 'uz-cyrl') return 'Деярли етиб келди!';
@@ -146,6 +167,10 @@ function getStageLabel(
     switch (phase) {
       case 'PREPARING':
         return 'Готовится';
+      case 'REASSIGNING':
+        return 'Ищем другого курьера';
+      case 'MANUAL_ASSIGNMENT_REQUIRED':
+        return 'Оператор ищет курьера';
       case 'ASSIGNED':
         return 'Ожидает курьера';
       case 'ACCEPTED':
@@ -170,6 +195,10 @@ function getStageLabel(
     switch (phase) {
       case 'PREPARING':
         return 'Тайёрланмоқда';
+      case 'REASSIGNING':
+        return 'Янги курьер қидирилмоқда';
+      case 'MANUAL_ASSIGNMENT_REQUIRED':
+        return 'Оператор курьер қидиряпти';
       case 'ASSIGNED':
         return 'Курьер кутилмоқда';
       case 'ACCEPTED':
@@ -193,6 +222,10 @@ function getStageLabel(
   switch (phase) {
     case 'PREPARING':
       return 'Tayyorlanmoqda';
+    case 'REASSIGNING':
+      return 'Yangi kuryer qidirilmoqda';
+    case 'MANUAL_ASSIGNMENT_REQUIRED':
+      return 'Operator kuryer qidirmoqda';
     case 'ASSIGNED':
       return 'Kuryer kutilmoqda';
     case 'ACCEPTED':
@@ -213,14 +246,15 @@ function getStageLabel(
   }
 }
 
-function getHeroTitle(
-  phase: CustomerTrackingPhase,
-  language: CustomerTrackingLanguage,
-) {
+function getHeroTitle(phase: CustomerTrackingPhase, language: CustomerTrackingLanguage) {
   if (language === 'ru') {
     switch (phase) {
       case 'PREPARING':
         return 'Заказ готовится';
+      case 'REASSIGNING':
+        return 'Ищем нового курьера';
+      case 'MANUAL_ASSIGNMENT_REQUIRED':
+        return 'Оператор подбирает курьера';
       case 'ASSIGNED':
         return 'Курьер назначен';
       case 'ACCEPTED':
@@ -245,6 +279,10 @@ function getHeroTitle(
     switch (phase) {
       case 'PREPARING':
         return 'Таом тайёрланмоқда';
+      case 'REASSIGNING':
+        return 'Янги курьер қидирилмоқда';
+      case 'MANUAL_ASSIGNMENT_REQUIRED':
+        return 'Оператор курьер бириктирмоқда';
       case 'ASSIGNED':
         return 'Курьер бириктирилди';
       case 'ACCEPTED':
@@ -268,6 +306,10 @@ function getHeroTitle(
   switch (phase) {
     case 'PREPARING':
       return 'Taom tayyorlanmoqda';
+    case 'REASSIGNING':
+      return 'Yangi kuryer qidirilmoqda';
+    case 'MANUAL_ASSIGNMENT_REQUIRED':
+      return 'Operator kuryer biriktirmoqda';
     case 'ASSIGNED':
       return 'Kuryer biriktirildi';
     case 'ACCEPTED':
@@ -294,36 +336,37 @@ function getStatusLine(
   courierLabel: string,
   proximityMeters: number | null,
 ) {
-  // ── Proximity-aware overrides for DELIVERING ──────────────────────────────
   if (phase === 'DELIVERING' && proximityMeters !== null) {
-    const m = Math.round(proximityMeters);
+    const roundedMeters = Math.round(proximityMeters);
 
     if (proximityMeters <= PROXIMITY_VERY_NEAR_M) {
       if (language === 'ru') return `${courierLabel} уже у вашей двери!`;
-      if (language === 'uz-cyrl') return `${courierLabel} eshigingiz oldida!`;
+      if (language === 'uz-cyrl') return `${courierLabel} эшигингиз олдида!`;
       return `${courierLabel} eshigingiz oldida!`;
     }
 
     if (proximityMeters <= PROXIMITY_NEAR_M) {
-      const display = m >= 100 ? `${Math.round(m / 10) * 10} m` : `${m} m`;
+      const display = roundedMeters >= 100 ? `${Math.round(roundedMeters / 10) * 10} m` : `${roundedMeters} m`;
       if (language === 'ru') return `${courierLabel} почти у вас — осталось ${display}!`;
-      if (language === 'uz-cyrl') return `${courierLabel} deyarli yetib keldi — ${display} qoldi!`;
+      if (language === 'uz-cyrl') return `${courierLabel} деярли етиб келди — ${display} қолди!`;
       return `${courierLabel} deyarli yetib keldi — ${display} qoldi!`;
     }
 
-    // More than 500 m but we have live location — show encouraging message
     if (language === 'ru') return `${courierLabel} уже в пути и скоро будет у вас!`;
-    if (language === 'uz-cyrl') return `${courierLabel} kelmoqda — tez yetib boradi!`;
+    if (language === 'uz-cyrl') return `${courierLabel} келмоқда — тез етиб боради!`;
     return `${courierLabel} kelmoqda — tez yetib boradi!`;
   }
 
-  // ── Standard messages ─────────────────────────────────────────────────────
   if (language === 'ru') {
     switch (phase) {
       case 'PREPARING':
         return 'Ресторан готовит ваш заказ.';
+      case 'REASSIGNING':
+        return 'Предыдущий курьер не взял заказ. Мы уже ищем другого.';
+      case 'MANUAL_ASSIGNMENT_REQUIRED':
+        return 'Заказ сохранен. Оператор вручную подбирает курьера.';
       case 'ASSIGNED':
-        return `${courierLabel} назначен на ваш заказ. Подтверждение ожидается.`;
+        return `${courierLabel} назначен на ваш заказ. Ожидаем подтверждение.`;
       case 'ACCEPTED':
         return `${courierLabel} принял заказ и едет в ресторан.`;
       case 'ARRIVED':
@@ -346,6 +389,10 @@ function getStatusLine(
     switch (phase) {
       case 'PREPARING':
         return 'Ресторан буюртмангизни тайёрламоқда.';
+      case 'REASSIGNING':
+        return 'Аввалги курьер қабул қилмади. Ҳозир бошқа курьер қидириляпти.';
+      case 'MANUAL_ASSIGNMENT_REQUIRED':
+        return 'Буюртмангиз сақланди. Оператор қўлда мос курьерни бириктиряпти.';
       case 'ASSIGNED':
         return `${courierLabel} буюртмангизга бириктирилди. Қабул қилиши кутилмоқда.`;
       case 'ACCEPTED':
@@ -369,6 +416,10 @@ function getStatusLine(
   switch (phase) {
     case 'PREPARING':
       return 'Restoran buyurtmangizni tayyorlamoqda.';
+    case 'REASSIGNING':
+      return 'Oldingi kuryer buyurtmani olmadi. Hozir boshqa kuryer qidirilyapti.';
+    case 'MANUAL_ASSIGNMENT_REQUIRED':
+      return "Buyurtmangiz saqlanib qolgan. Operator hozir mos kuryerni qo'lda biriktiryapti.";
     case 'ASSIGNED':
       return `${courierLabel} buyurtmangiz uchun biriktirildi. Qabul qilishi kutilmoqda.`;
     case 'ACCEPTED':
@@ -385,17 +436,20 @@ function getStatusLine(
       return 'Buyurtma bekor qilindi.';
     case 'PENDING':
     default:
-      return "Buyurtma qabul qilindi va tasdiq kutilmoqda.";
+      return 'Buyurtma qabul qilindi va tasdiq kutilmoqda.';
   }
 }
 
-export function getCustomerTrackingMeta(
-  order: Order,
-  language: CustomerTrackingLanguage,
-) {
+export function getCustomerTrackingMeta(order: Order, language: CustomerTrackingLanguage) {
   const phase = resolveCustomerTrackingPhase(order);
   const courierLabel = order.courierName?.trim() || getCourierFallbackLabel(language);
-  const isCourierAssigned = phase !== 'PENDING' && phase !== 'PREPARING' && phase !== 'CANCELLED';
+  const isCourierAssigned = ![
+    'PENDING',
+    'PREPARING',
+    'REASSIGNING',
+    'MANUAL_ASSIGNMENT_REQUIRED',
+    'CANCELLED',
+  ].includes(phase);
   const isCourierAccepted =
     phase === 'ACCEPTED' ||
     phase === 'ARRIVED' ||
@@ -416,27 +470,21 @@ export function getCustomerTrackingMeta(
     heroTitle: getHeroTitle(phase, language),
     statusLine: getStatusLine(phase, language, courierLabel, proximityMeters),
     showCourierMarker: isCourierAccepted,
-    shouldUseCourierRouteOrigin:
-      Boolean(order.tracking?.courierLocation) &&
-      isCourierAccepted,
+    shouldUseCourierRouteOrigin: Boolean(order.tracking?.courierLocation) && isCourierAccepted,
     currentTarget: isCourierEnRouteToCustomer ? 'customer' : 'restaurant',
     isAwaitingCourierAcceptance: phase === 'ASSIGNED',
     isCourierAccepted,
     isDelivered: phase === 'DELIVERED',
     isCancelled: phase === 'CANCELLED',
-    /** Remaining metres from courier to customer (DELIVERING phase only, null if unavailable) */
+    isReassigning: phase === 'REASSIGNING',
+    needsManualAssignment: phase === 'MANUAL_ASSIGNMENT_REQUIRED',
     proximityMeters,
-    /** True when courier is ≤ 500 m away */
     isNearArrival: isNear,
-    /** True when courier is ≤ 50 m away — trigger haptic/notification */
     isArrivingNow: isVeryNear,
   };
 }
 
-export function getCustomerTrackingEtaFallbackMinutes(
-  order: Order,
-  routeEtaMinutes: number,
-) {
+export function getCustomerTrackingEtaFallbackMinutes(order: Order, routeEtaMinutes: number) {
   const phase = resolveCustomerTrackingPhase(order);
   const quotedEtaMinutes =
     typeof order.deliveryEtaMinutes === 'number' && order.deliveryEtaMinutes > 0
@@ -452,6 +500,10 @@ export function getCustomerTrackingEtaFallbackMinutes(
       return (quotedEtaMinutes ?? routeEtaMinutes) + 12;
     case 'PREPARING':
       return (quotedEtaMinutes ?? routeEtaMinutes) + 10;
+    case 'REASSIGNING':
+      return (quotedEtaMinutes ?? routeEtaMinutes) + 10;
+    case 'MANUAL_ASSIGNMENT_REQUIRED':
+      return (quotedEtaMinutes ?? routeEtaMinutes) + 12;
     case 'ASSIGNED':
       return routeEtaMinutes + 8;
     case 'ACCEPTED':
@@ -466,10 +518,7 @@ export function getCustomerTrackingEtaFallbackMinutes(
   }
 }
 
-export function getCustomerTrackingDistanceFallbackKm(
-  order: Order,
-  routeDistanceKm: number,
-) {
+export function getCustomerTrackingDistanceFallbackKm(order: Order, routeDistanceKm: number) {
   const phase = resolveCustomerTrackingPhase(order);
 
   if (

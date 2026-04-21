@@ -26,11 +26,12 @@ export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginO
   const allowedOrigins = env.CORS_ORIGIN.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+  const allowAnyOrigin = allowedOrigins.includes('*');
   fastify.register(cors, {
     origin: (origin, cb) => {
       // Allow non-browser clients / server-to-server requests
       if (!origin) return cb(null, true);
-      const isAllowed = allowedOrigins.includes(origin);
+      const isAllowed = allowAnyOrigin || allowedOrigins.includes(origin);
       cb(isAllowed ? null : new Error('Not allowed by CORS'), isAllowed);
     },
     credentials: false,

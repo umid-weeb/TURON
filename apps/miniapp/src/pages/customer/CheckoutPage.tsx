@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { createRouteInfoFromMeters } from '../../features/maps/route';
 
-// ── Phone entry modal ─────────────────────────────────────────────────────────
+// ── Phone helpers ─────────────────────────────────────────────────────────────
 
 function normalizePhone(raw: string): string | null {
   const d = raw.replace(/\D/g, '');
@@ -27,6 +27,104 @@ function normalizePhone(raw: string): string | null {
   if (d.length === 9) return `+998${d}`;
   return null;
 }
+
+// ── Inline phone entry (shown when user has no phone) ────────────────────────
+
+function InlinePhoneEntry() {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const updateUser = useAuthStore((s) => s.updateUser);
+
+  const handleRequestTelegramPhone = () => {
+    const tg = window.Telegram?.WebApp;
+    if (!tg?.requestPhoneContact) {
+      setError("Telegram kontakt so'rashni qo'llab-quvvatlamadi. Raqamni qo'lda kiriting.");
+      return;
+    }
+    tg.requestPhoneContact((response: any) => {
+      const phone = response?.response_data?.contact?.phone_number;
+      const normalized = phone ? normalizePhone(phone) : null;
+      if (response?.status === 'sent' && normalized) {
+        setValue(normalized);
+        setError('');
+      } else {
+        setError("Telefon olinmadi. Raqamni qo'lda kiriting.");
+      }
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const normalized = normalizePhone(value);
+    if (!normalized) {
+      setError("Noto'g'ri format. Masalan: +998 90 123 45 67");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await api.patch('/users/me/phone', { phone: normalized }) as { phoneNumber: string };
+      updateUser({ phoneNumber: res.phoneNumber });
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "Saqlashda xatolik");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-[18px] border border-red-200 bg-red-50 px-4 py-4">
+      <div className="mb-3 flex items-center gap-2.5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#C62020]">
+          <Phone size={17} className="text-white" />
+        </div>
+        <div>
+          <p className="text-[14px] font-black text-slate-900">Telefon raqam kerak</p>
+          <p className="text-[11px] font-medium text-slate-500">Kuryer siz bilan bog'lanishi uchun</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleRequestTelegramPhone}
+        className="mb-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-[13px] border border-red-200 bg-white text-[12px] font-black text-[#C62020] transition-colors active:scale-[0.98]"
+      >
+        <Phone size={15} />
+        <span>Telegramdan raqamni olish</span>
+      </button>
+
+      <form onSubmit={(e) => void handleSubmit(e)} className="flex gap-2">
+        <input
+          type="tel"
+          inputMode="tel"
+          value={value}
+          onChange={(e) => { setValue(e.target.value); setError(''); }}
+          placeholder="+998 90 123 45 67"
+          className={`h-11 flex-1 rounded-[13px] border px-3 text-[14px] font-bold outline-none transition-colors ${
+            error
+              ? 'border-red-300 bg-red-100 text-red-700 placeholder:text-red-300'
+              : 'border-red-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#C62020]'
+          }`}
+        />
+        <button
+          type="submit"
+          disabled={saving || !value.trim()}
+          className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-[13px] bg-[#C62020] px-4 text-[12px] font-black text-white transition-all active:scale-[0.97] disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+          {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+        </button>
+      </form>
+
+      {error && (
+        <p className="mt-2 text-[11px] font-semibold text-red-600">{error}</p>
+      )}
+    </div>
+  );
+}
+
+// ── Phone entry modal (fallback) ──────────────────────────────────────────────
 
 interface PhoneModalProps {
   onSaved: (phone: string) => void;
@@ -182,6 +280,8 @@ const CheckoutPage: React.FC = () => {
   const { items, getSubtotal, getDiscount, appliedPromo, clearCart, setPromo, syncWithProducts } = useCartStore();
   const { paymentMethod, note, receiptImage, resetCheckout } = useCheckoutStore();
   const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
+  const user = useAuthStore((s) => s.user);
+  const hasPhone = Boolean(user?.phoneNumber);
   const createOrderMutation = useCreateOrder();
   const autoDetectAddressMutation = useAutoDetectAndSaveAddress();
   const { data: addresses = [], isLoading: isAddressesLoading } = useAddresses();
@@ -192,6 +292,10 @@ const CheckoutPage: React.FC = () => {
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   // Holds the payload to re-submit after user saves their phone
   const pendingPayloadRef = useRef<object | null>(null);
+  // Stable idempotency key — same UUID for every retry of this checkout session.
+  // Rotated to a fresh UUID only after a successful order so the next checkout
+  // gets its own key. This prevents duplicate orders on double-tap / network retry.
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
   const subtotal = getSubtotal();
@@ -279,7 +383,7 @@ const CheckoutPage: React.FC = () => {
     }
 
     const payload = {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: idempotencyKeyRef.current,
       items: quoteItems,
       deliveryAddressId: selectedAddress.id,
       paymentMethod,
@@ -293,6 +397,8 @@ const CheckoutPage: React.FC = () => {
     createOrderMutation.mutate(payload, {
       onSuccess: (order) => {
         pendingPayloadRef.current = null;
+        // Rotate key so the next checkout session gets a fresh idempotency scope
+        idempotencyKeyRef.current = crypto.randomUUID();
         if (window.Telegram?.WebApp?.HapticFeedback) {
           window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
@@ -372,6 +478,13 @@ const CheckoutPage: React.FC = () => {
 
 
       <main className="mx-auto max-w-[430px] px-5 pb-6 pt-2">
+        {/* Phone entry — shown inline when user hasn't set a phone number yet */}
+        {!hasPhone && (
+          <section className="pt-4 pb-5 border-b border-slate-100">
+            <InlinePhoneEntry />
+          </section>
+        )}
+
         {/* Delivery Address Section */}
         <section className="py-5 border-b border-slate-100 last:border-none">
           <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#202020]">Yetkazish manzili</h3>
@@ -505,6 +618,7 @@ const CheckoutPage: React.FC = () => {
             type="button"
             onClick={handleConfirmOrder}
             disabled={
+              !hasPhone ||
               !paymentMethod ||
               !selectedAddress ||
               createOrderMutation.isPending ||

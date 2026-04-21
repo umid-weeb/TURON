@@ -6,6 +6,7 @@ import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { useAdminOrders, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 import { useOrdersStore } from '../../store/useOrdersStore';
+import '../../styles/admin-pro.css';
 
 function playNewOrderBeep() {
   try {
@@ -216,14 +217,14 @@ const AdminLayout: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_28%),linear-gradient(180deg,#eef4ff_0%,#f7f9fc_44%,#eef3fb_100%)] font-sans text-slate-950"
+      className="admin-pro-shell min-h-screen font-sans text-slate-950"
       style={layoutVars}
     >
       <header
-        className="sticky top-0 z-[70] px-3 pb-3"
+        className="sticky top-0 z-[70] px-3 pb-3 admin-motion-up"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}
       >
-        <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+        <div className="admin-pro-card mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
           <div className="flex min-w-0 items-center gap-2">
             {!isHomePage ? (
               <button
@@ -236,9 +237,15 @@ const AdminLayout: React.FC = () => {
               </button>
             ) : null}
             {pageHeaderTitle ? (
-              <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
-                {pageHeaderTitle}
-              </h1>
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
+                  {pageHeaderTitle}
+                </h1>
+                <div className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${syncBadgeClass}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${syncDotClass}`} />
+                  <span>{syncLabel}</span>
+                </div>
+              </div>
             ) : (
               <span />
             )}
@@ -286,7 +293,7 @@ const AdminLayout: React.FC = () => {
         className={`fixed inset-x-0 bottom-0 z-50 px-3 transition-all duration-200 ${hideBottomNav ? 'pointer-events-none translate-y-[130%] opacity-0' : 'translate-y-0 opacity-100'}`}
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
       >
-        <div className="mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] border border-white/80 bg-white/96 px-2 shadow-[0_20px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+        <div className="admin-pro-card mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] border border-white/80 bg-white/96 px-2 shadow-[0_20px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl">
           <NavItem
             path="/admin/dashboard"
             icon={<LayoutDashboard size={21} />}

@@ -4,7 +4,6 @@ import {
   Bell,
   Bike,
   ClipboardList,
-  Loader2,
   MessageCircle,
   Tag,
   TrendingUp,
@@ -16,6 +15,9 @@ import { useAdminOrders } from '../../hooks/queries/useOrders';
 import { useAdminCourierDirectory } from '../../hooks/queries/useCouriers';
 import { useOrdersStore } from '../../store/useOrdersStore';
 import { useAdminUnreadTotal } from '../../hooks/queries/useAdminChats';
+
+const cardClassName =
+  'admin-pro-card admin-motion-up rounded-[20px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]';
 
 function formatCompactMoney(value: number) {
   if (value >= 1_000_000) {
@@ -29,6 +31,11 @@ function formatCompactMoney(value: number) {
   return value.toString();
 }
 
+const DashboardCard: React.FC<React.PropsWithChildren<{ className?: string }>> = ({
+  className = '',
+  children,
+}) => <section className={`${cardClassName} ${className}`.trim()}>{children}</section>;
+
 const StatCard: React.FC<{
   title: string;
   value: string;
@@ -38,22 +45,24 @@ const StatCard: React.FC<{
 }> = ({ title, value, hint, icon, tone = 'neutral' }) => {
   const toneClass =
     tone === 'success'
-      ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+      ? 'bg-emerald-50 text-emerald-600'
       : tone === 'warning'
-        ? 'bg-amber-50 text-amber-600 border-amber-100'
-        : tone === 'danger'
-          ? 'bg-rose-50 text-rose-600 border-rose-100'
-          : 'bg-blue-50 text-blue-600 border-blue-100';
+        ? 'bg-amber-50 text-amber-600'
+      : tone === 'danger'
+          ? 'bg-rose-50 text-rose-600'
+          : 'bg-blue-50 text-blue-600';
 
   return (
-    <article className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[12px] font-semibold text-slate-500">{title}</p>
-        <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${toneClass}`}>{icon}</span>
+    <DashboardCard>
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[12px] font-semibold text-slate-500">{title}</p>
+          <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${toneClass}`}>{icon}</span>
+        </div>
+        <p className="text-[30px] font-black leading-none text-slate-950">{value}</p>
+        <p className="text-xs font-medium text-slate-500">{hint}</p>
       </div>
-      <p className="mt-3 text-[28px] font-black leading-none tracking-tight text-slate-950">{value}</p>
-      <p className="mt-2 text-xs font-medium text-slate-500">{hint}</p>
-    </article>
+    </DashboardCard>
   );
 };
 
@@ -62,23 +71,29 @@ const QuickActionCard: React.FC<{
   icon: React.ReactNode;
   onClick: () => void;
   badge?: number;
-}> = ({ label, icon, onClick, badge }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="relative flex h-[108px] flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 text-center shadow-[0_12px_24px_rgba(15,23,42,0.07)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgba(37,99,235,0.16)] active:scale-[0.98]"
-  >
-    {badge && badge > 0 ? (
-      <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
-        {badge}
-      </span>
-    ) : null}
-    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600">
-      {icon}
-    </span>
-    <span className="text-[12px] font-semibold leading-tight text-slate-700">{label}</span>
-  </button>
-);
+}> = ({ label, icon, onClick, badge }) => {
+  return (
+    <div className="relative">
+      {badge ? (
+        <span className="absolute right-2 top-2 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
+          {badge}
+        </span>
+      ) : null}
+      <DashboardCard className="admin-shimmer p-0">
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex h-[94px] w-full flex-col items-center justify-center gap-2 rounded-[20px] px-3 text-slate-700 hover:text-blue-600"
+        >
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600">
+          {icon}
+        </span>
+        <span className="text-[12px] font-semibold leading-tight">{label}</span>
+        </button>
+      </DashboardCard>
+    </div>
+  );
+};
 
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -161,54 +176,64 @@ const AdminDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]">
-      <section className="rounded-3xl border border-slate-200/80 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
+      <DashboardCard>
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Umumiy holat</p>
-        <p className="mt-2 text-xl font-black tracking-tight text-slate-900">Bugungi admin ko'rsatkichlari</p>
-        <p className="mt-1 text-sm font-medium text-slate-500">Muhim raqamlar va tezkor o'tishlar bir sahifada</p>
-      </section>
+        <h2 className="mt-2 text-xl font-black tracking-tight text-slate-900">
+          Bugungi admin ko'rsatkichlari
+        </h2>
+        <p className="text-sm font-medium text-slate-500">Muhim raqamlar va tezkor o'tishlar bir sahifada</p>
+      </DashboardCard>
 
-      <section className="grid grid-cols-2 gap-3">
-        <StatCard
-          title="Yangi buyurtmalar"
-          value={newOrders.length.toString()}
-          hint="Yangi oqim"
-          icon={<ClipboardList size={16} />}
-          tone="neutral"
-        />
-        <StatCard
-          title="Bugungi daromad"
-          value={formatCompactMoney(deliveredRevenue || orders.reduce((sum, order) => sum + order.total, 0))}
-          hint="UZS hisobida"
-          icon={<TrendingUp size={16} />}
-          tone="success"
-        />
-        <StatCard
-          title="Faol kuryerlar"
-          value={`${onlineCouriers}/${couriers.length || 0}`}
-          hint={`${busyCouriers} ta band`}
-          icon={<Bike size={16} />}
-          tone="warning"
-        />
-        <StatCard
-          title="Kutilayotganlar"
-          value={pendingOrders.length.toString()}
-          hint="Tasdiq kutmoqda"
-          icon={<Bell size={16} />}
-          tone="danger"
-        />
-      </section>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <StatCard
+            title="Yangi buyurtmalar"
+            value={newOrders.length.toString()}
+            hint="Yangi oqim"
+            icon={<ClipboardList size={16} />}
+            tone="neutral"
+          />
+        </div>
+        <div>
+          <StatCard
+            title="Bugungi daromad"
+            value={formatCompactMoney(deliveredRevenue || orders.reduce((sum, order) => sum + order.total, 0))}
+            hint="UZS hisobida"
+            icon={<TrendingUp size={16} />}
+            tone="success"
+          />
+        </div>
+        <div>
+          <StatCard
+            title="Faol kuryerlar"
+            value={`${onlineCouriers}/${couriers.length || 0}`}
+            hint={`${busyCouriers} ta band`}
+            icon={<Bike size={16} />}
+            tone="warning"
+          />
+        </div>
+        <div>
+          <StatCard
+            title="Kutilayotganlar"
+            value={pendingOrders.length.toString()}
+            hint="Tasdiq kutmoqda"
+            icon={<Bell size={16} />}
+            tone="danger"
+          />
+        </div>
+      </div>
 
-      <section className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_16px_34px_rgba(15,23,42,0.08)]">
-        <div className="mb-3">
+      <DashboardCard>
+        <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Tezkor amallar</p>
           <p className="mt-1 text-lg font-black tracking-tight text-slate-900">Bitta bosishda boshqarish</p>
         </div>
         {isLoading && orders.length === 0 ? (
           <div className="flex h-[228px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
-            <Loader2 size={22} className="animate-spin" />
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {quickActions.map((item) => (
               <QuickActionCard
                 key={item.key}
@@ -220,7 +245,7 @@ const AdminDashboardPage: React.FC = () => {
             ))}
           </div>
         )}
-      </section>
+      </DashboardCard>
 
       <p className="text-center text-xs font-medium text-slate-400">@turonkafebot</p>
     </div>

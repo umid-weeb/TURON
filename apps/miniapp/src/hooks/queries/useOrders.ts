@@ -565,6 +565,7 @@ export const useDeclineCourierOrder = () => {
       );
       queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
       queryClient.invalidateQueries({ queryKey: ['courier-status'] });
+      queryClient.invalidateQueries({ queryKey: ['courier-profile'] });
     },
   });
 };
@@ -725,11 +726,31 @@ export const useRejectOrderPayment = () => {
 
 type TrackingConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
+interface ChatMessageEvent {
+  id: string;
+  orderId: string;
+  senderId: string;
+  senderRole: 'COURIER' | 'CUSTOMER' | 'ADMIN';
+  senderName: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  targetRole?: 'COURIER' | 'CUSTOMER' | null;
+}
+
+interface ChatReadEvent {
+  orderId: string;
+  readerRole: 'COURIER' | 'CUSTOMER' | 'ADMIN';
+  readAt: string;
+}
+
 interface TrackingStreamEvent {
-  type: 'snapshot' | 'order.updated' | 'courier.location' | 'order.removed';
+  type: 'snapshot' | 'order.updated' | 'courier.location' | 'order.removed' | 'chat.message' | 'chat.read';
   orderId: string;
   order?: Order;
   tracking?: OrderTrackingState;
+  chatMessage?: ChatMessageEvent;
+  chatRead?: ChatReadEvent;
 }
 
 export const useOrdersRealtimeSync = (enabled = true) => {
@@ -786,6 +807,21 @@ export const useOrdersRealtimeSync = (enabled = true) => {
 
       if (payload.type === 'order.removed') {
         removeOrderFromLiveCollections(queryClient, payload.orderId);
+        return;
+      }
+
+      // Chat events — broadcast via DOM for admin chat panel to consume
+      if (payload.type === 'chat.message' && payload.chatMessage) {
+        window.dispatchEvent(
+          new CustomEvent('turon:chat-message', { detail: { orderId: payload.orderId, chatMessage: payload.chatMessage } }),
+        );
+        return;
+      }
+
+      if (payload.type === 'chat.read' && payload.chatRead) {
+        window.dispatchEvent(
+          new CustomEvent('turon:chat-read', { detail: { orderId: payload.orderId, chatRead: payload.chatRead } }),
+        );
         return;
       }
 

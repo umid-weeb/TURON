@@ -10,7 +10,7 @@ let _redis: Redis | null = null;
 
 if (REDIS_URL) {
   _redis = new Redis(REDIS_URL, {
-    maxRetriesPerRequest: null, // Required by BullMQ
+    maxRetriesPerRequest: null,
   });
 
   _redis.on('error', (err: Error) => {

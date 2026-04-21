@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, ChevronRight, ClipboardList, Globe2, Loader2, Moon, Pencil, Phone, Trash2, X } from 'lucide-react';
+import {
+  Bell, ChevronRight, ClipboardList, Gift, Globe2, Headphones,
+  Loader2, MapPin, Moon, Pencil, Phone, Trash2, X,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
@@ -8,6 +11,59 @@ import { api } from '../../lib/api';
 
 const RED = '#C62020';
 
+/* ─── Animation keyframes injected once ──────────────────────────────────── */
+const ANIM_STYLES = `
+  @keyframes turon-unfurl {
+    0%   { clip-path: ellipse(50% 1% at 50% 0%); opacity: 0.55; }
+    30%  { clip-path: ellipse(52% 38% at 50% 0%); opacity: 1; }
+    65%  { clip-path: ellipse(55% 82% at 50% 0%); }
+    100% { clip-path: ellipse(56% 100% at 50% 0%); }
+  }
+
+  @keyframes turon-fade-quick {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes turon-layer-left {
+    0%   { transform: translateX(-72px) scale(0.55); opacity: 0; }
+    40%  { transform: translateX(0) scale(1.1);  opacity: 0.6; }
+    75%  { transform: translateX(0) scale(0.96); opacity: 0.28; }
+    100% { transform: translateX(0) scale(1);    opacity: 0; }
+  }
+
+  @keyframes turon-layer-right {
+    0%   { transform: translateX(72px) scale(0.55);  opacity: 0; }
+    40%  { transform: translateX(0) scale(1.1);  opacity: 0.6; }
+    75%  { transform: translateX(0) scale(0.96); opacity: 0.28; }
+    100% { transform: translateX(0) scale(1);    opacity: 0; }
+  }
+
+  @keyframes turon-avatar-snap {
+    0%   { transform: scale(0.15) rotate(-12deg); opacity: 0; filter: blur(8px); }
+    55%  { transform: scale(1.14) rotate(4deg);   opacity: 1; filter: blur(0); }
+    78%  { transform: scale(0.93) rotate(-2deg); }
+    100% { transform: scale(1)    rotate(0deg);   opacity: 1; }
+  }
+
+  @keyframes turon-letter-up {
+    0%   { transform: translateY(22px); opacity: 0; }
+    60%  { transform: translateY(-5px); opacity: 1; }
+    100% { transform: translateY(0);   opacity: 1; }
+  }
+
+  @keyframes turon-cascade-3d {
+    0%   { opacity: 0; transform: perspective(700px) rotateX(24deg) translateY(-20px); }
+    100% { opacity: 1; transform: perspective(700px) rotateX(0deg)  translateY(0px); }
+  }
+
+  @keyframes turon-pulse-ring {
+    0%   { transform: scale(1);   opacity: 0.55; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+`;
+
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
 function normalizePhone(raw: string): string | null {
   const d = raw.replace(/\D/g, '');
   if (d.length === 12 && d.startsWith('998')) return `+${d}`;
@@ -15,6 +71,32 @@ function normalizePhone(raw: string): string | null {
   if (d.length === 9) return `+998${d}`;
   return null;
 }
+
+/* ─── StaggerText ────────────────────────────────────────────────────────── */
+const StaggerText: React.FC<{
+  text: string;
+  baseDelay: number;
+  gap?: number;
+  style?: React.CSSProperties;
+}> = ({ text, baseDelay, gap = 0.07, style }) => {
+  const words = text.split(' ').filter(Boolean);
+  return (
+    <span style={{ display: 'block', ...style }}>
+      {words.map((word, wi) => (
+        <span
+          key={`${wi}-${word}`}
+          style={{
+            display: 'inline-block',
+            marginRight: wi < words.length - 1 ? '0.3em' : 0,
+            animation: `turon-letter-up 0.4s cubic-bezier(0.34,1.56,0.64,1) ${baseDelay + wi * gap}s both`,
+          }}
+        >
+          {word}
+        </span>
+      ))}
+    </span>
+  );
+};
 
 /* ─── Toggle ─────────────────────────────────────────────────────────────── */
 const Toggle: React.FC<{ on: boolean; onChange: () => void }> = ({ on, onChange }) => (
@@ -72,14 +154,14 @@ const Row: React.FC<{
   );
 
   const baseStyle: React.CSSProperties = {
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      width: '100%', background: 'var(--app-card)',
-      border: 'none',
-      borderBottom: last ? 'none' : '1px solid var(--app-line)',
-      padding: '15px 20px',
-      cursor: onClick ? 'pointer' : 'default',
-      textAlign: 'left',
-      transition: 'background 0.15s',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    width: '100%', background: 'var(--app-card)',
+    border: 'none',
+    borderBottom: last ? 'none' : '1px solid var(--app-line)',
+    padding: '15px 20px',
+    cursor: onClick ? 'pointer' : 'default',
+    textAlign: 'left',
+    transition: 'background 0.15s',
   };
 
   if (onClick) {
@@ -94,13 +176,13 @@ const Row: React.FC<{
 };
 
 /* ─── Section ────────────────────────────────────────────────────────────── */
-const Section: React.FC<{ title?: string; children: React.ReactNode; delay?: number }> = ({
-  title, children, delay = 0,
+const Section: React.FC<{ title?: string; children: React.ReactNode; delay: number }> = ({
+  title, children, delay,
 }) => (
-  <div
-    className="animate-in slide-in-from-left"
-    style={{ animationDelay: `${delay}ms`, marginTop: 28 }}
-  >
+  <div style={{
+    marginTop: 28,
+    animation: `turon-cascade-3d 0.48s cubic-bezier(0.16,1,0.3,1) ${delay}s both`,
+  }}>
     {title && (
       <p style={{
         fontSize: 11, fontWeight: 700, color: 'var(--app-section-label)',
@@ -116,6 +198,7 @@ const Section: React.FC<{ title?: string; children: React.ReactNode; delay?: num
   </div>
 );
 
+/* ─── PhoneEditModal ─────────────────────────────────────────────────────── */
 const PhoneEditModal: React.FC<{
   initialPhone?: string | null;
   onClose: () => void;
@@ -131,10 +214,7 @@ const PhoneEditModal: React.FC<{
   useEffect(() => {
     const syncKeyboardInset = () => {
       const viewport = window.visualViewport;
-      if (!viewport) {
-        setKeyboardInset(0);
-        return;
-      }
+      if (!viewport) { setKeyboardInset(0); return; }
       setKeyboardInset(Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop));
     };
 
@@ -158,7 +238,6 @@ const PhoneEditModal: React.FC<{
       setError("Noto'g'ri format. Masalan: +998 90 123 45 67");
       return;
     }
-
     setSaving(true);
     try {
       const res = await api.patch('/users/me/phone', { phone: normalized }) as { phoneNumber: string | null };
@@ -276,9 +355,7 @@ const ProfilePage: React.FC = () => {
   const displayName =
     user?.fullName ||
     (tgUser ? `${tgUser.first_name ?? ''} ${tgUser.last_name ?? ''}`.trim() : 'Turon Mijozi');
-  const username = tgUser?.username
-    ? `@${tgUser.username}`
-    : '';
+  const username = tgUser?.username ? `@${tgUser.username}` : '';
   const phoneLabel = user?.phoneNumber || 'Kiritilmagan';
   const initials = displayName
     .split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'TK';
@@ -294,10 +371,8 @@ const ProfilePage: React.FC = () => {
 
   const deletePhone = async () => {
     if (!user?.phoneNumber || phoneDeleting) return;
-
     setPhoneDeleting(true);
     setPhoneFeedback('');
-
     try {
       try {
         await api.delete('/users/me/phone');
@@ -313,119 +388,142 @@ const ProfilePage: React.FC = () => {
   };
 
   return (
-    <div
-      className="animate-in slide-in-from-left"
-      style={{
-        minHeight: '100vh',
-        background: 'var(--app-bg)',
-        paddingBottom: 100,
-        color: 'var(--app-text)',
-      }}
-    >
+    <div style={{
+      minHeight: '100dvh',
+      background: 'var(--app-bg)',
+      paddingBottom: 100,
+      color: 'var(--app-text)',
+    }}>
+      {/* Inject keyframes */}
+      <style>{ANIM_STYLES}</style>
 
-      {/* ── Red gradient hero header ───────────────────────────────────────── */}
+      {/* ── Red Unfurl Shape ─────────────────────────────────────────────── */}
       <div style={{
-        background: `linear-gradient(160deg, #9B0000 0%, ${RED} 60%, #E53535 100%)`,
-        paddingTop: 'max(env(safe-area-inset-top, 0px), 20px)',
-        paddingBottom: 60,
-        textAlign: 'center',
         position: 'relative',
+        width: '100%',
+        height: 220,
+        background: `linear-gradient(160deg, #9B0000 0%, ${RED} 60%, #E53535 100%)`,
+        animation: 'turon-unfurl 0.55s cubic-bezier(0.16,1,0.3,1) 0.04s both',
+        zIndex: 1,
+        boxShadow: '0 10px 40px rgba(198,32,32,0.28)',
       }}>
-        <h1 style={{ fontSize: 18, fontWeight: 800, color: 'white', margin: '12px 0 0' }}>
+        <h1 style={{
+          position: 'absolute',
+          top: 'max(env(safe-area-inset-top, 0px), 16px)',
+          left: 0, right: 0,
+          textAlign: 'center',
+          fontSize: 18, fontWeight: 800, color: 'white',
+          margin: 0,
+          paddingTop: 14,
+          animation: 'turon-fade-quick 0.3s 0.5s both',
+        }}>
           Profil
         </h1>
       </div>
 
-      {/* ── Avatar — overlaps header bottom, no card box ───────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          marginTop: -52,
-          paddingBottom: 20,
-          position: 'relative',
-          zIndex: 2,
-        }}
-      >
-        {/* Avatar circle */}
-        <div style={{
-          width: 90, height: 90, borderRadius: '50%',
-          border: `4px solid white`,
-          boxShadow: `0 6px 24px rgba(198,32,32,0.35), 0 2px 8px rgba(0,0,0,0.15)`,
-          overflow: 'hidden',
-          background: `linear-gradient(135deg, ${RED}, #7B0000)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={displayName}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            <span style={{ fontSize: 30, fontWeight: 900, color: 'white' }}>{initials}</span>
-          )}
+      {/* ── Avatar + Identity ────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        marginTop: -49,
+        paddingBottom: 6,
+        position: 'relative', zIndex: 2,
+      }}>
+        {/* Avatar with ghost assembly layers */}
+        <div style={{ position: 'relative', width: 98, height: 98 }}>
+          {/* Ghost layer — flies in from left */}
+          <div style={{
+            position: 'absolute',
+            top: 4, left: 4, right: 4, bottom: 4,
+            borderRadius: '50%',
+            background: RED,
+            animation: 'turon-layer-left 0.5s ease-out 0.22s both',
+            pointerEvents: 'none',
+          }} />
+          {/* Ghost layer — flies in from right */}
+          <div style={{
+            position: 'absolute',
+            top: 4, left: 4, right: 4, bottom: 4,
+            borderRadius: '50%',
+            background: '#E53535',
+            animation: 'turon-layer-right 0.5s ease-out 0.22s both',
+            pointerEvents: 'none',
+          }} />
+          {/* Real avatar — snaps in */}
+          <div style={{
+            position: 'relative', zIndex: 1,
+            width: 98, height: 98,
+            borderRadius: '50%',
+            border: '4px solid white',
+            boxShadow: '0 8px 28px rgba(198,32,32,0.38), 0 2px 8px rgba(0,0,0,0.14)',
+            overflow: 'hidden',
+            background: `linear-gradient(135deg, ${RED}, #7B0000)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'turon-avatar-snap 0.48s cubic-bezier(0.34,1.56,0.64,1) 0.45s both',
+          }}>
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt={displayName}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <span style={{ fontSize: 32, fontWeight: 900, color: 'white' }}>{initials}</span>
+            )}
+          </div>
         </div>
 
-        {/* Name */}
-        <h2 style={{
-          fontSize: 18, fontWeight: 800, color: 'var(--app-text)',
-          margin: '12px 0 0', textAlign: 'center',
-        }}>
-          {displayName}
-        </h2>
+        {/* Name — staggered word reveal */}
+        <StaggerText
+          text={displayName}
+          baseDelay={0.72}
+          style={{
+            fontSize: 20, fontWeight: 800, color: 'var(--app-text)',
+            marginTop: 14, textAlign: 'center', lineHeight: 1.2,
+          }}
+        />
 
-        {/* Username / phone */}
+        {/* Username */}
         {username ? (
-          <p style={{ fontSize: 13, color: 'var(--app-muted)', margin: '4px 0 0' }}>
-            {username}
-          </p>
+          <StaggerText
+            text={username}
+            baseDelay={0.80}
+            gap={0.045}
+            style={{
+              fontSize: 13, color: 'var(--app-muted)',
+              marginTop: 4, textAlign: 'center',
+            }}
+          />
         ) : null}
       </div>
 
-      {/* ── Rows ──────────────────────────────────────────────────────────── */}
-      <Section title="Asosiy" delay={120}>
+      {/* ── Asosiy ───────────────────────────────────────────────────────── */}
+      <Section title="Asosiy" delay={0.88}>
+        {/* Phone row */}
         <Row
           icon={<Phone size={19} color={RED} />}
           label="Telefon raqam"
           right={(
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minWidth: 0 }}>
-              <span
-                style={{
-                  maxWidth: 150,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  fontSize: 13,
-                  color: 'var(--app-muted)',
-                  fontWeight: 700,
-                }}
-              >
+              <span style={{
+                maxWidth: 130,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                fontSize: 13, color: 'var(--app-muted)', fontWeight: 700,
+              }}>
                 {phoneLabel}
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  setPhoneFeedback('');
-                  setIsPhoneOpen(true);
-                }}
+                onClick={() => { setPhoneFeedback(''); setIsPhoneOpen(true); }}
                 style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 12,
+                  width: 32, height: 32, borderRadius: 10,
                   border: '1px solid rgba(198,32,32,0.16)',
                   background: 'rgba(198,32,32,0.08)',
-                  color: RED,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
+                  color: RED, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', flexShrink: 0, cursor: 'pointer',
                 }}
                 aria-label="Telefonni tahrirlash"
               >
-                <Pencil size={16} />
+                <Pencil size={15} />
               </button>
               {user?.phoneNumber ? (
                 <button
@@ -433,21 +531,18 @@ const ProfilePage: React.FC = () => {
                   disabled={phoneDeleting}
                   onClick={() => { void deletePhone(); }}
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 12,
+                    width: 32, height: 32, borderRadius: 10,
                     border: '1px solid rgba(198,32,32,0.16)',
                     background: 'rgba(198,32,32,0.08)',
-                    color: RED,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
+                    color: RED, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', flexShrink: 0, cursor: 'pointer',
                     opacity: phoneDeleting ? 0.55 : 1,
                   }}
                   aria-label="Telefonni o'chirish"
                 >
-                  {phoneDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  {phoneDeleting
+                    ? <Loader2 size={15} className="animate-spin" />
+                    : <Trash2 size={15} />}
                 </button>
               ) : null}
             </div>
@@ -458,11 +553,29 @@ const ProfilePage: React.FC = () => {
             {phoneFeedback}
           </p>
         ) : null}
+
+        {/* Addresses */}
+        <Row
+          icon={<MapPin size={19} color={RED} />}
+          label="Mening manzillarim"
+          onClick={() => navigate('/customer/addresses')}
+        />
+
+        {/* Orders */}
         <Row
           icon={<ClipboardList size={19} color={RED} />}
           label="Buyurtmalar tarixi"
           onClick={() => navigate('/customer/orders')}
         />
+
+        {/* Bonuses */}
+        <Row
+          icon={<Gift size={19} color={RED} />}
+          label="Promokod va bonuslar"
+          onClick={() => navigate('/customer/promos')}
+        />
+
+        {/* Language */}
         <Row
           icon={<Globe2 size={19} color={RED} />}
           label="Tilni o'zgartirish"
@@ -472,7 +585,8 @@ const ProfilePage: React.FC = () => {
         />
       </Section>
 
-      <Section delay={220}>
+      {/* ── Sozlamalar ───────────────────────────────────────────────────── */}
+      <Section title="Sozlamalar" delay={1.01}>
         <Row
           icon={<Moon size={19} color={RED} />}
           label="Dark Mode"
@@ -486,6 +600,48 @@ const ProfilePage: React.FC = () => {
         />
       </Section>
 
+      {/* ── Qo'llab-quvvatlash ───────────────────────────────────────────── */}
+      <Section title="Qo'llab-quvvatlash" delay={1.14}>
+        <div style={{ padding: '18px 20px', background: 'var(--app-card)' }}>
+          <div style={{ position: 'relative' }}>
+            {/* Pulse ring 1 */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              borderRadius: 14,
+              border: `1.5px solid ${RED}`,
+              animation: 'turon-pulse-ring 2s ease-out 0s infinite',
+              pointerEvents: 'none',
+            }} />
+            {/* Pulse ring 2 — offset */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              borderRadius: 14,
+              border: `1.5px solid ${RED}`,
+              animation: 'turon-pulse-ring 2s ease-out 0.8s infinite',
+              pointerEvents: 'none',
+            }} />
+            <button
+              type="button"
+              onClick={() => navigate('/customer/support')}
+              style={{
+                position: 'relative', zIndex: 1,
+                width: '100%', height: 52,
+                borderRadius: 14,
+                background: 'rgba(198,32,32,0.07)',
+                border: `1.5px solid rgba(198,32,32,0.22)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 10, cursor: 'pointer',
+                fontSize: 15, fontWeight: 700, color: RED,
+              }}
+            >
+              <Headphones size={20} color={RED} />
+              Yordam markazi
+            </button>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Phone modal ──────────────────────────────────────────────────── */}
       {isPhoneOpen ? (
         <PhoneEditModal
           initialPhone={user?.phoneNumber || null}
@@ -496,7 +652,6 @@ const ProfilePage: React.FC = () => {
           }}
         />
       ) : null}
-
     </div>
   );
 };

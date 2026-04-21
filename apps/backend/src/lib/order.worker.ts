@@ -6,15 +6,15 @@ import type { CourierAssignJobData } from './order.queue.js';
 
 export type { CourierAssignJobData };
 
-const WORKER_CONCURRENCY = 5; // Bir vaqtda max 5 kuryer-tayinlash operatsiyasi
+const WORKER_CONCURRENCY = 5;
 
 /**
  * BullMQ job processori — kuryer tayinlashning butun tsikli bu yerda.
  *
  * Strategiya:
- *  1. autoAssignOrder → agar topilsa: DB'ni yangilab SSE push, tugaydi.
- *  2. Agar topilmasa: attempts tugashidan keyin admin alert yuboradi.
- *  3. Error throw → BullMQ retry (exponential backoff) ishga tushadi.
+ * 1. autoAssignOrder → agar topilsa: DB'ni yangilab SSE push, tugaydi.
+ * 2. Agar topilmasa: attempts tugashidan keyin admin alert yuboradi.
+ * 3. Error throw → BullMQ retry (exponential backoff) ishga tushadi.
  */
 async function processCourierAssignJob(job: Job<CourierAssignJobData>) {
   const { orderId, orderNumber, excludeCourierIds = [] } = job.data;
@@ -40,6 +40,7 @@ async function processCourierAssignJob(job: Job<CourierAssignJobData>) {
           tracking: await orderTrackingService.getSnapshot(orderId),
         }
       : null;
+
     if (snapshot) {
       orderTrackingService.publishOrderUpdate(orderId, snapshot);
     }
@@ -73,6 +74,7 @@ async function processCourierAssignJob(job: Job<CourierAssignJobData>) {
       message: `#${orderNumber} buyurtma uchun ${maxAttempts} urinishdan keyin ham avtomatik tayinlash amalga oshmadi. Qo'lda dispatch qiling.`,
       relatedOrderId: orderId,
     });
+
     return { assigned: false, reason: 'no_eligible_courier_after_retries' };
   }
 
@@ -84,8 +86,9 @@ async function processCourierAssignJob(job: Job<CourierAssignJobData>) {
  * BullMQ workerini ishga tushiradi.
  * REDIS_URL sozlanmagan bo'lsa null qaytaradi — caller in-process fallback ishlatadi.
  */
-export function startOrderWorker(): Worker<CourierAssignJobData> | null {
+export function startOrderWorker(): Worker | null {
   const conn = getRedisConnection();
+
   if (!conn) {
     console.info(
       '[OrderWorker] REDIS_URL topilmadi — kuryer tayinlash in-process (setTimeout) rejimida ishlaydi.',
@@ -93,26 +96,22 @@ export function startOrderWorker(): Worker<CourierAssignJobData> | null {
     return null;
   }
 
-  const worker = new Worker<CourierAssignJobData>(
-    'courier-assignment',
-    processCourierAssignJob,
-    {
-      connection: conn,
-      concurrency: WORKER_CONCURRENCY,
-      limiter: {
-        max: 100,
-        duration: 10_000, // 10 soniyada max 100 job
-      },
+  const worker = new Worker('courier-assignment', processCourierAssignJob, {
+    connection: conn,
+    concurrency: WORKER_CONCURRENCY,
+    limiter: {
+      max: 100,
+      duration: 10_000,
     },
-  );
+  });
 
   worker.on('completed', (job, result: unknown) => {
-    console.info(`[OrderWorker] ✅ Job ${job.id} (${job.data.orderNumber}) completed`, result);
+    console.info(`[OrderWorker] Job ${job.id} (${job.data.orderNumber}) completed`, result);
   });
 
   worker.on('failed', (job, err: Error) => {
     console.error(
-      `[OrderWorker] ❌ Job ${job?.id} (${job?.data?.orderNumber}) failed (attempt ${job?.attemptsMade}):`,
+      `[OrderWorker] Job ${job?.id} (${job?.data?.orderNumber}) failed (attempt ${job?.attemptsMade}):`,
       err.message,
     );
   });

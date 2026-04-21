@@ -851,8 +851,7 @@ export const HeaderBar: React.FC<{ title: string; showBack?: boolean; rightSlot?
 
   return (
     <header
-      className="sticky top-0 z-40 border-b border-white/6 bg-[#060914]/88 backdrop-blur-xl"
-      style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
+      className="sticky top-0 z-40 border-b border-white/6 bg-[#060914]/88 backdrop-blur-xl pt-[max(env(safe-area-inset-top),48px)]"
     >
       <div className="mx-auto flex h-[56px] w-full max-w-[430px] items-center gap-3 px-4">
         {showBack ? (
@@ -875,6 +874,7 @@ export const BottomNavbar: React.FC = () => {
   const { getTotalItems } = useCartStore();
   const cartCount = getTotalItems();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const RED = '#C62020';
 
@@ -912,16 +912,20 @@ export const BottomNavbar: React.FC = () => {
         <div className="flex flex-1 items-end justify-around pb-1">
           {leftItems.map((item) => {
             const Icon = item.icon;
+            const isActive = location.pathname === item.path;
             return (
               <button
                 key={item.path}
                 type="button"
                 onClick={() => handleNavClick(item.path)}
                 className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
-                style={{ textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}
+                style={{
+                  textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer',
+                  opacity: isActive ? 1 : 0.7,
+                }}
               >
-                <Icon size={22} strokeWidth={2} color="white" />
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'white', lineHeight: 1 }}>
+                <Icon size={22} strokeWidth={2} color={isActive ? '#ffffff' : 'rgba(255,255,255,0.8)'} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? '#ffffff' : 'rgba(255,255,255,0.8)', lineHeight: 1 }}>
                   {item.label}
                 </span>
               </button>
@@ -970,19 +974,23 @@ export const BottomNavbar: React.FC = () => {
         <div className="flex flex-1 items-end justify-around pb-1">
           {rightItems.map((item) => {
             const Icon = item.icon;
+            const isActive = location.pathname === item.path;
             return (
               <button
                 key={item.path}
                 type="button"
                 onClick={() => handleNavClick(item.path)}
                 className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
-                style={{ textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}
+                style={{
+                  textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer',
+                  opacity: isActive ? 1 : 0.7,
+                }}
               >
                 <div style={{ position: 'relative' }}>
-                  <Icon size={22} strokeWidth={2} color="white" />
+                  <Icon size={22} strokeWidth={2} color={isActive ? '#ffffff' : 'rgba(255,255,255,0.8)'} />
                   {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'white', lineHeight: 1 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? '#ffffff' : 'rgba(255,255,255,0.8)', lineHeight: 1 }}>
                   {item.label}
                 </span>
               </button>

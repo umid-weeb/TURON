@@ -13,9 +13,14 @@ import { DeliveryQuoteService } from '../../../services/delivery-quote.service.j
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { orderTrackingService, sseConnectionRegistry } from '../../../services/order-tracking.service.js';
 import {
+  OrderReassignmentQueue,
+  scheduleCourierAcceptanceTimeout,
+} from '../../../services/order-reassignment-queue.service.js';
+import {
   sendAdminAlert,
   sendOrderNotificationToAdmin,
   syncTelegramOrderStatus,
+  sendAdminCourierListOptions,
 } from '../../../services/telegram-bot.service.js';
 import { StatusService } from '../../../services/status.service.js';
 import { SpecialEventsService } from '../../../services/special-events.service.js';
@@ -141,16 +146,8 @@ async function syncAdminOrderDecisionNotification(params: {
 }
 
 function triggerPostConfirmationCourierAssignment(orderId: string, orderNumber?: bigint) {
-  void (async () => {
-    const enqueued = await enqueueCourierAssignment({
-      orderId,
-      orderNumber: orderNumber ? String(orderNumber) : orderId,
-    });
-    if (!enqueued) {
-      // Redis yo'q — in-process fallback
-      void continueAutoAssignmentAfterOrderCreation(orderId);
-    }
-  })();
+  // HOTFIX: Queue worker ulanmagan bo'lishi sababli buyurtmani to'g'ridan-to'g'ri (sinxron) kuryerga uzatamiz
+  void continueAutoAssignmentAfterOrderCreation(orderId);
 }
 
 function scheduleCourierAssignmentTimeout(params: {
@@ -159,73 +156,12 @@ function scheduleCourierAssignmentTimeout(params: {
   assignmentId: string;
   courierId: string;
 }) {
-  setTimeout(() => {
-    void (async () => {
-      const assignment = await prisma.courierAssignment.findUnique({
-        where: { id: params.assignmentId },
-        select: {
-          id: true,
-          status: true,
-          orderId: true,
-          courierId: true,
-        },
-      });
-
-      if (!assignment || assignment.status !== 'ASSIGNED') {
-        return;
-      }
-
-      const now = new Date();
-      await prisma.$transaction(async (tx) => {
-        await tx.courierAssignment.update({
-          where: { id: assignment.id },
-          data: {
-            status: 'CANCELLED' as any,
-            cancelledAt: now,
-          },
-        });
-
-        await tx.order.updateMany({
-          where: {
-            id: params.orderId,
-            courierId: params.courierId,
-          },
-          data: {
-            courierId: null,
-          },
-        });
-
-        await tx.courierAssignmentEvent.create({
-          data: {
-            assignmentId: assignment.id,
-            orderId: params.orderId,
-            courierId: params.courierId,
-            eventType: 'CANCELLED' as any,
-            eventAt: now,
-            payload: {
-              reason: 'courier_response_timeout',
-              timeoutSeconds: 30,
-            },
-          },
-        });
-      });
-
-      await InAppNotificationsService.notifyAdmins({
-        type: NotificationTypeEnum.WARNING,
-        title: 'Kuryer javob bermadi',
-        message: `#${String(params.orderNumber)} buyurtma 30 soniyada qabul qilinmadi. Qayta dispatch qiling.`,
-        relatedOrderId: params.orderId,
-      });
-
-      await publishOrderSnapshot(params.orderId);
-    })().catch((error) => {
-      console.warn('[Orders] Courier assignment timeout failed.', {
-        orderId: params.orderId,
-        assignmentId: params.assignmentId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-  }, 30_000);
+  scheduleCourierAcceptanceTimeout({
+    orderId: params.orderId,
+    orderNumber: String(params.orderNumber),
+    assignmentId: params.assignmentId,
+    courierId: params.courierId,
+  });
 }
 
 function recordOrderCreatedAudit(params: {
@@ -246,6 +182,18 @@ function recordOrderCreatedAudit(params: {
 
 async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
   try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { orderNumber: true },
+    });
+
+    if (!order) {
+      return;
+    }
+
+    OrderReassignmentQueue.enqueue(orderId, order.orderNumber);
+    return;
+
     const autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(orderId);
 
     if (autoAssignmentResult?.assignment) {
@@ -287,14 +235,12 @@ async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
         );
       }
     } else {
-      // No eligible courier found — notify admins so they can assign manually
       const order = await prisma.order.findUnique({
         where: { id: orderId },
         select: { orderNumber: true },
       });
-      void sendAdminAlert(
-        `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${order?.orderNumber ?? orderId}</b> uchun avtomatik tayinlash amalga oshmadi — onlayn kuryerlar yo'q.\n\nAdminlar panel orqali qo'lda tayinlang.`,
-      );
+        // Avtomatik kuryer topilmasa botga telegramdagi inline tugmalarni jo'natamiz
+        await sendAdminCourierListOptions(orderId, String(order?.orderNumber ?? orderId));
     }
   } catch (error) {
     console.error(`Auto courier assignment failed for order ${orderId}:`, error);
@@ -669,14 +615,8 @@ export async function handleCreateOrder(
     }
   }
 
-  // Mijoz jo'natgan to'lov cheki rasmini Supabase Storage ga yuklash
-  let uploadedReceiptUrl = receiptImageBase64;
-  if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER && receiptImageBase64) {
-    uploadedReceiptUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
-    if (!uploadedReceiptUrl) {
-      return reply.status(500).send({ error: "Chek rasmini yuklashda xatolik yuz berdi" });
-    }
-  }
+  // Izoh: Worker tizimi yuklangan rasmni orqa fonda Supabase ga o'zi yuklaydi
+  // Controllerda kutib turishga hojat yo'q.
 
   let orderPricing: Awaited<ReturnType<typeof buildOrderPricing>>;
 
@@ -702,151 +642,40 @@ export async function handleCreateOrder(
   const { deliveryAddress, orderItemsData, promo, quote } = orderPricing;
   const restaurantSettings = await getRestaurantSettings();
 
-  const createdOrder = await prisma.$transaction(async (tx) => {
-    if (promo?.id) {
-      // Atomic increment — acquires an exclusive row lock on this promo row.
-      // All concurrent transactions must serialise here, so any check that
-      // follows is guaranteed to see fully committed state from earlier txns.
-      const updated = await tx.promoCode.update({
-        where: { id: promo.id },
-        data: { timesUsed: { increment: 1 } },
-      });
-
-      if (typeof updated.usageLimit === 'number' && updated.usageLimit > 0 && updated.timesUsed > updated.usageLimit) {
-        throw new Error('Promokod limiti tugagan');
-      }
-
-      // Per-user single-use guard inside the transaction.
-      // Because the UPDATE above holds an exclusive row lock, concurrent
-      // requests are serialised at this point. By the time TX-2 reaches
-      // here TX-1 has already committed its order, so the count is accurate
-      // and prevents two simultaneous orders from both using the same promo.
-      const existingUserUsage = await tx.order.count({
-        where: {
-          userId: user.id,
-          promoCodeId: promo.id,
-          status: { not: 'CANCELLED' as any },
-        },
-      });
-      if (existingUserUsage > 0) {
-        throw new Error('Siz bu promokoddan avval foydalangansiz');
-      }
-    }
-
-    return tx.order.create({
-      data: {
-        userId: user.id,
-        deliveryAddressId,
-        courierId: null,
-        promoCodeId: promo?.id ?? null,
-        status: OrderStatusEnum.PENDING as any,
-        subtotal: quote.subtotal,
-        discountAmount: quote.discountAmount,
-        deliveryFee: quote.deliveryFee,
-        deliveryDistanceMeters: quote.distanceMeters,
-        deliveryEtaMinutes: quote.etaMinutes,
-        deliveryFeeRuleCode: quote.feeRuleCode,
-        deliveryFeeBaseAmount: quote.feeBaseAmount,
-        deliveryFeeExtraAmount: quote.feeExtraAmount,
-        totalAmount: quote.totalAmount,
-        paymentMethod,
-        paymentStatus: PaymentStatusEnum.PENDING as any,
-        note: note?.trim() || null,
-        destinationLat: deliveryAddress.latitude,
-        destinationLng: deliveryAddress.longitude,
-        restaurantName: restaurantSettings.name || null,
-        restaurantPhone: restaurantSettings.phone || null,
-        restaurantAddressText: restaurantSettings.addressText || null,
-        restaurantLon: restaurantSettings.longitude,
-        restaurantLat: restaurantSettings.latitude,
-        items: {
-          create: orderItemsData,
-        },
-        payment: {
-          create: {
-            method: paymentMethod,
-            status: PaymentStatusEnum.PENDING as any,
-            amount: quote.totalAmount,
-            provider:
-              paymentMethod === 'MANUAL_TRANSFER'
-                ? 'Manual transfer'
-                : paymentMethod === 'EXTERNAL_PAYMENT'
-                  ? 'External payment'
-                  : null,
-            receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? uploadedReceiptUrl : null,
-            receiptUploadedAt: paymentMethod === 'MANUAL_TRANSFER' ? new Date() : null,
-          },
-        },
-      },
-      select: { id: true },
-    });
-  });
-
-  // ── Save idempotency key for duplicate detection ──────────────────────────
-  if (idempotencyKey) {
-    const serializedOrder = await getSerializedOrder(createdOrder.id);
-    await prisma.idempotencyKey.create({
-      data: {
-        key: idempotencyKey,
-        orderId: createdOrder.id,
-        responseJson: JSON.stringify(serializedOrder),
-      },
-    }).catch(() => {
-      // Ignore: duplicate key race condition OR table not yet migrated
-    });
+  if (!orderQueue) {
+    return reply.status(503).send({ error: 'Buyurtma navbati (Queue) ishlamayapti. Redisni tekshiring.' });
   }
 
-  const serializedOrder = await getSerializedOrder(createdOrder.id);
+  const targetIdempotencyKey = idempotencyKey || `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-  if (serializedOrder) {
-    orderTrackingService.publishOrderUpdate(createdOrder.id, serializedOrder);
-  }
-
-  await InAppNotificationsService.notifyAdmins({
-    type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
-    title: 'Yangi buyurtma tushdi',
-    message: `#${serializedOrder?.orderNumber || ''} buyurtma tasdiq kutmoqda`,
-    relatedOrderId: createdOrder.id,
-  });
-
-  recordOrderCreatedAudit({
-    userId: user.id,
-    actorRole: user.role,
-    orderId: createdOrder.id,
-    serializedOrder,
-  });
-  // Admin tasdiqlamaguncha courierga yubormaymiz.
-  // Oldingi auto-assign shu yerda ishga tushib, band courierlarga ham yangi topshiriq chiqishiga sabab bo'lgan.
-
-  // Fire-and-forget Telegram notification — never block order creation
-  if (serializedOrder) {
-    void sendOrderNotificationToAdmin({
-      orderId: createdOrder.id,
-      orderNumber: serializedOrder.orderNumber,
-      createdAt: serializedOrder.createdAt,
-      orderStatus: serializedOrder.orderStatus,
-      customerName: serializedOrder.customerName ?? user.fullName ?? 'Mijoz',
-      customerPhone: serializedOrder.customerPhone ?? user.phoneNumber ?? null,
-      customerAddress: serializedOrder.customerAddress?.addressText ?? 'Manzil yo\'q',
-      customerAddressNote: serializedOrder.customerAddress?.note ?? null,
-      deliveryDistanceMeters:
-        typeof serializedOrder.deliveryDistanceMeters === 'number'
-          ? serializedOrder.deliveryDistanceMeters
-          : null,
+  const job = await orderQueue.add(
+    'process-order',
+    {
+      idempotencyKey: targetIdempotencyKey,
+      userId: user.id,
+      deliveryAddressId,
       paymentMethod,
-      items: (serializedOrder.items ?? []).map((item: any) => ({
-        name: item.name ?? item.itemName ?? 'Taom',
-        quantity: item.quantity,
-        totalPrice: (item.price ?? item.priceAtOrder ?? 0) * item.quantity,
-      })),
-      subtotal: Number(serializedOrder.subtotal ?? 0),
-      deliveryFee: Number(serializedOrder.deliveryFee ?? 0),
-      total: Number(serializedOrder.total ?? 0),
-      receiptImageBase64: receiptImageBase64 ?? undefined,
-    });
-  }
+      note,
+      receiptImageBase64,
+      quote,
+      orderItemsData,
+      promoId: promo?.id,
+      destinationLat: Number(deliveryAddress.latitude),
+      destinationLng: Number(deliveryAddress.longitude),
+      restaurantSettings,
+    },
+    {
+      jobId: targetIdempotencyKey, // BullMQ Redis darajasida duplicate joblarni bloklaydi
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    }
+  );
 
-  return reply.status(201).send(serializedOrder);
+  // Yandex Go uslubida `202 Accepted` va JobId qaytaramiz
+  return reply.status(202).send({
+    status: 'PROCESSING',
+    jobId: job.id,
+  });
 }
 
 export async function getMyOrders(request: FastifyRequest, reply: FastifyReply) {
@@ -944,7 +773,20 @@ export async function streamOrderTracking(
     reply.raw.write(': keep-alive\n\n');
   }, 15_000);
 
+  // Determine the requester's chat role for filtering admin-directed messages
+  const requesterChatRole: 'COURIER' | 'CUSTOMER' | 'ADMIN' =
+    requester.role === 'COURIER' ? 'COURIER'
+    : requester.role === 'ADMIN' ? 'ADMIN'
+    : 'CUSTOMER';
+
   const unsubscribe = orderTrackingService.subscribe(order.id, (event) => {
+    // Filter admin chat messages by targetRole so each party only sees messages for them
+    if (event.type === 'chat.message' && event.chatMessage && requesterChatRole !== 'ADMIN') {
+      const { senderRole, targetRole } = event.chatMessage;
+      if (senderRole === 'ADMIN' && targetRole != null && targetRole !== requesterChatRole) {
+        return; // Drop: admin message is directed at the other party
+      }
+    }
     sendEvent(event);
   });
 

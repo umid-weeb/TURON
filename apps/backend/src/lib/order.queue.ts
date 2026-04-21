@@ -2,7 +2,6 @@ import { Queue } from 'bullmq';
 import { getRedisConnection } from './redis.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-
 export interface CourierAssignJobData {
   orderId: string;
   orderNumber: string;
@@ -10,7 +9,6 @@ export interface CourierAssignJobData {
 }
 
 // ── Queues ─────────────────────────────────────────────────────────────────────
-
 const conn = getRedisConnection();
 
 /**
@@ -32,8 +30,8 @@ export const orderQueue: Queue | null = conn
 /**
  * Courier auto-assignment queue — triggered after every approved order.
  */
-export const courierAssignmentQueue: Queue<CourierAssignJobData> | null = conn
-  ? new Queue<CourierAssignJobData>('courier-assignment', {
+export const courierAssignmentQueue: Queue | null = conn
+  ? new Queue('courier-assignment', {
       connection: conn,
       defaultJobOptions: {
         attempts: 3,
@@ -45,7 +43,6 @@ export const courierAssignmentQueue: Queue<CourierAssignJobData> | null = conn
   : null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
 /**
  * Adds a courier-assignment job to the BullMQ queue.
  * Returns `true` if successfully enqueued via Redis, `false` if Redis is unavailable.
@@ -56,6 +53,7 @@ export async function enqueueCourierAssignment(data: CourierAssignJobData): Prom
     await courierAssignmentQueue.add('assign-courier', data);
     return true;
   }
+
   return false;
 }
 
@@ -63,8 +61,5 @@ export async function enqueueCourierAssignment(data: CourierAssignJobData): Prom
  * Gracefully closes both queues on process shutdown.
  */
 export async function closeCourierAssignmentQueue(): Promise<void> {
-  await Promise.allSettled([
-    orderQueue?.close(),
-    courierAssignmentQueue?.close(),
-  ]);
+  await Promise.allSettled([orderQueue?.close(), courierAssignmentQueue?.close()]);
 }

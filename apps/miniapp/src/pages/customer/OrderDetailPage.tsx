@@ -1,6 +1,7 @@
 import React from 'react';
 import { OrderDistanceDisplay } from '../../components/OrderDistanceDisplay';
-import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, Star, XCircle } from 'lucide-react';
+import { OrderRatingModal } from '../../components/customer/OrderRatingModal';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
 import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
@@ -40,6 +41,7 @@ const OrderDetailPage: React.FC = () => {
   const { formatText, language, intlLocale } = useCustomerLanguage();
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
   const [isChatOpen, setIsChatOpen] = React.useState(false);
+  const [isRatingOpen, setIsRatingOpen] = React.useState(false);
   const { data: unreadCount = 0 } = useOrderChatUnread(orderId, 'customer');
   const prevArrivingNow = React.useRef(false);
 
@@ -97,6 +99,10 @@ const OrderDetailPage: React.FC = () => {
   const isActiveOrder =
     order.orderStatus !== OrderStatus.DELIVERED && order.orderStatus !== OrderStatus.CANCELLED;
   const trackingMeta = getCustomerTrackingMeta(order, language);
+  const canOpenLiveTracking =
+    isActiveOrder &&
+    !trackingMeta.isCancelled &&
+    (Boolean(order.courierId) || Boolean(order.tracking?.courierLocation));
   const courierLocation = order.tracking?.courierLocation;
   const destinationLocation =
     order.destinationLat != null && order.destinationLng != null
@@ -245,7 +251,7 @@ const OrderDetailPage: React.FC = () => {
 
       <section className="px-4 pt-5">
         <div className="grid grid-cols-2 gap-3">
-          {isActiveOrder ? (
+          {canOpenLiveTracking ? (
             <button
               type="button"
               onClick={() => navigate(`/customer/orders/${order.id}/tracking`)}
@@ -279,14 +285,16 @@ const OrderDetailPage: React.FC = () => {
               )}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => navigate(`/customer/support?orderId=${order.id}&topic=cancel`)}
-            className="flex flex-col items-center justify-center gap-2 rounded-[12px] border border-rose-300/16 bg-rose-400/10 px-3 py-3.5 text-rose-200"
-          >
-            <XCircle size={18} />
-            <span className="text-[11px] font-black">Bekor qilish</span>
-          </button>
+          {isActiveOrder ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/customer/support?orderId=${order.id}&topic=cancel`)}
+              className="flex flex-col items-center justify-center gap-2 rounded-[12px] border border-rose-300/16 bg-rose-400/10 px-3 py-3.5 text-rose-200"
+            >
+              <XCircle size={18} />
+              <span className="text-[11px] font-black">Bekor qilishni so'rash</span>
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -388,6 +396,60 @@ const OrderDetailPage: React.FC = () => {
           </div>
         </CheckoutSectionCard>
       </section>
+
+      {/* ── Rating prompt ─────────────────────────────────────────────────────── */}
+      {order.orderStatus === OrderStatus.DELIVERED && !order.customerRating && (
+        <section className="px-4 pt-5">
+          <button
+            type="button"
+            onClick={() => setIsRatingOpen(true)}
+            className="flex w-full items-center gap-4 rounded-[12px] border border-amber-300/20 bg-amber-400/10 px-4 py-4 text-left transition-transform active:scale-[0.985]"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-400/20">
+              <Star size={20} className="text-amber-300" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-black text-amber-200">Yetkazishni baholang</p>
+              <p className="mt-0.5 text-[11px] text-amber-200/60">Fikringiz bizga muhim</p>
+            </div>
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star key={s} size={12} className="text-amber-300/40 fill-amber-300/40" />
+              ))}
+            </div>
+          </button>
+        </section>
+      )}
+      {order.orderStatus === OrderStatus.DELIVERED && order.customerRating && (
+        <section className="px-4 pt-5">
+          <div className="flex items-center gap-4 rounded-[12px] border border-emerald-300/14 bg-emerald-400/8 px-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-400/15">
+              <Star size={20} className="text-emerald-300 fill-emerald-300" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-black text-emerald-200">Bahoyingiz</p>
+              <div className="mt-1 flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    size={14}
+                    className={s <= (order.customerRating ?? 0) ? 'text-amber-300 fill-amber-300' : 'text-white/20 fill-white/20'}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Rating modal ───────────────────────────────────────────────────────── */}
+      {isRatingOpen && (
+        <OrderRatingModal
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          onClose={() => setIsRatingOpen(false)}
+        />
+      )}
 
       <section className="px-4 pt-5">
         <button
