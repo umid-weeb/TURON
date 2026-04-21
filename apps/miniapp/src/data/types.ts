@@ -123,6 +123,8 @@ export interface Order {
   assignedAt?: string | null;
   acceptedAt?: string | null;
   tracking?: OrderTrackingState;
+  customerRating?: number | null;
+  customerRatingNote?: string | null;
 }
 
 export interface CourierOrderPreview {
