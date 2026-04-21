@@ -12,6 +12,7 @@ import { AuditService } from './audit.service.js';
 import { CourierAssignmentService } from './courier-assignment.service.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { orderTrackingService } from './order-tracking.service.js';
+import { OrderReassignmentQueue } from './order-reassignment-queue.service.js';
 import { SupportService } from './support.service.js';
 import { ORDER_INCLUDE, serializeOrder } from '../api/modules/orders/order-helpers.js';
 
@@ -877,6 +878,10 @@ function scheduleTelegramCourierAssignmentTimeout(params: {
 function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumber: string) {
   void (async () => {
     try {
+      OrderReassignmentQueue.enqueue(orderId, orderNumber);
+      return;
+
+      /*
       const autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(orderId);
 
       if (autoAssignmentResult?.assignment) {
@@ -915,6 +920,7 @@ function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumb
       }
 
             await sendAdminCourierListOptions(orderId, orderNumber);
+      */
     } catch (error) {
       console.error(`[Bot] Auto courier assignment failed for order ${orderId}:`, error);
       await sendAdminAlert(
@@ -934,7 +940,17 @@ export async function sendAdminCourierListOptions(orderId: string, orderNumber: 
     return;
   }
 
-  const buttons = dispatchCouriers.slice(0, 10).map((c) => {
+  const buttons = dispatchCouriers.slice(0, 10).map((courier) => {
+    const c = {
+      ...courier,
+      isFree: courier.isAcceptingOrders && courier.activeAssignments === 0,
+      etaMinutes:
+        courier.isAcceptingOrders && courier.activeAssignments === 0
+          ? courier.metrics.etaMinutes
+          : typeof courier.metrics.remainingDeliveryDistanceMeters === 'number'
+            ? Math.max(1, Math.ceil((courier.metrics.remainingDeliveryDistanceMeters / 1000 / 24) * 60))
+            : null,
+    };
     const statusStr = c.isFree ? '🟢 Bo\'sh' : `🟠 Band (~${c.etaMinutes} daq)`;
     return [Markup.button.callback(`${c.fullName} | ${statusStr}`, `assign_courier:${orderId}:${c.id}`)];
   });

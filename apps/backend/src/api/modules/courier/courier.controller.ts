@@ -14,6 +14,7 @@ import { CourierStatsService } from '../../../services/courier-stats.service.js'
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import { StorageService } from '../../../services/storage.service.js';
 import { OrderReassignmentQueue } from '../../../services/order-reassignment-queue.service.js';
+import { getBotState } from '../../../services/telegram-bot.service.js';
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ORDER_INCLUDE,

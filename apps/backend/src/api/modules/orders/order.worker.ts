@@ -1,12 +1,13 @@
-import { Worker, Job } from 'bullmq';
-import { redis } from '../lib/redis.js';
-import { prisma } from '../lib/prisma.js';
-import { StorageService } from '../services/storage.service.js';
-import { AuditService } from '../services/audit.service.js';
-import { InAppNotificationsService } from '../services/in-app-notifications.service.js';
+import { Worker, type Job } from 'bullmq';
+import type { Prisma } from '@prisma/client';
+import { redis } from '../../../lib/redis.js';
+import { prisma } from '../../../lib/prisma.js';
+import { StorageService } from '../../../services/storage.service.js';
+import { AuditService } from '../../../services/audit.service.js';
+import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { NotificationTypeEnum, UserRoleEnum } from '@turon/shared';
-import { sendOrderNotificationToAdmin } from '../services/telegram-bot.service.js';
-import { orderTrackingService } from '../services/order-tracking.service.js';
+import { sendOrderNotificationToAdmin } from '../../../services/telegram-bot.service.js';
+import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import { serializeOrder, ORDER_INCLUDE } from './order-helpers.js';
 
 export interface OrderJobPayload {
@@ -31,7 +32,7 @@ export interface OrderJobPayload {
  */
 export const orderWorker = new Worker<OrderJobPayload>(
   'order-processing',
-  async (job: Job) => {
+  async (job: Job<OrderJobPayload>) => {
     const { 
       idempotencyKey, 
       userId, 
@@ -60,11 +61,15 @@ export const orderWorker = new Worker<OrderJobPayload>(
     // Katta rasmni Supabase ga yuklash (DB qotib qolmasligi uchun)
     let uploadedReceiptUrl = receiptImageBase64;
     if (paymentMethod === 'MANUAL_TRANSFER' && receiptImageBase64) {
-      uploadedReceiptUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
+      const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
+      if (!uploadedUrl) {
+        throw new Error("To'lov cheki rasmini saqlab bo'lmadi");
+      }
+      uploadedReceiptUrl = uploadedUrl;
     }
 
     // 2. HEAVY DATABASE TRANSACTION (Transaction yordamida DB ga yozish)
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       
       // Agar promokod bo'lsa, limitlarni shu tranzaksiya ichida tekshiramiz va yangilaymiz
       if (promoId) {

@@ -11,7 +11,6 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
       "@turon/shared": ["./packages/shared/src/index.ts"]
     }
