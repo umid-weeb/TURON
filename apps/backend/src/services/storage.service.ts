@@ -13,7 +13,7 @@ export class StorageService {
    * Frontend to'g'ridan-to'g'ri rasm yuklashi uchun Pre-signed URL yaratish.
    * Buni API orqali frontendga beramiz, frontend o'zi Supabase-ga PUT qiladi.
    */
-  static async createSignedUploadUrl(bucket: 'receipts' | 'deliveries', ext: 'jpg' | 'png' = 'jpg'): Promise<{ uploadUrl: string, publicUrl: string } | null> {
+  static async createSignedUploadUrl(bucket: 'receipts' | 'deliveries' | 'menu', ext: 'jpg' | 'png' = 'jpg'): Promise<{ uploadUrl: string, publicUrl: string } | null> {
     if (!SUPABASE_URL || !SUPABASE_KEY) return null;
 
     try {
@@ -49,11 +49,11 @@ export class StorageService {
   /**
    * Upload a base64 image to Supabase Storage.
    * @param base64Str  Raw or data-URL base64 string
-   * @param bucket     'receipts' | 'deliveries'
+   * @param bucket     'receipts' | 'deliveries' | 'menu'
    */
   static async uploadBase64(
     base64Str: string,
-    bucket: 'receipts' | 'deliveries',
+    bucket: 'receipts' | 'deliveries' | 'menu',
   ): Promise<string | null> {
     if (!base64Str || !SUPABASE_URL || !SUPABASE_KEY) return null;
 
@@ -72,8 +72,10 @@ export class StorageService {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${SUPABASE_KEY}`,
+          apikey: SUPABASE_KEY,
           'Content-Type': contentType,
           'Cache-Control': '3600',
+          'x-upsert': 'true',
         },
         body: buffer,
       });
