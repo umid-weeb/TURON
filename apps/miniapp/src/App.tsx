@@ -86,7 +86,7 @@ export default function App() {
       <AppBootstrapGate>
         <AppErrorBoundary theme="dark" homeUrl="/">
           {/* <React.Suspense fallback={<RouteFallback />}> */}
-          <React.Suspense >
+          {/* <React.Suspense > */}
             <Routes>
               {/* Base Redirect is handled inside AppBootstrapGate */}
               <Route path="/" element={<div />} />
@@ -177,7 +177,7 @@ export default function App() {
               {/* Fallback 404 */}
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
-          </React.Suspense>
+          {/* </React.Suspense> */}
         </AppErrorBoundary>
       </AppBootstrapGate>
       </BrowserRouter>
