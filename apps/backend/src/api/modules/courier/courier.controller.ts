@@ -19,7 +19,7 @@ import { CourierStatsService } from '../../../services/courier-stats.service.js'
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import { StorageService } from '../../../services/storage.service.js';
 import { OrderReassignmentQueue } from '../../../services/order-reassignment-queue.service.js';
-import { sendAdminAlert } from '../../../services/telegram-bot.service.js';
+import { getBotState, sendAdminAlert } from '../../../services/telegram-bot.service.js';
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ORDER_INCLUDE,
@@ -95,8 +95,8 @@ async function checkAndApplyAutoGeofence(order: any, requester: any, currentLat:
   if (!assignment) return;
 
   try {
-    const restLat = Number(order.restaurantLat || RESTAURANT_COORDINATES.latitude);
-    const restLng = Number(order.restaurantLon || RESTAURANT_COORDINATES.longitude);
+    const restLat = Number(order.restaurantLat || RESTAURANT_COORDINATES.lat);
+    const restLng = Number(order.restaurantLon || RESTAURANT_COORDINATES.lng);
 
     if (assignment.status === 'ACCEPTED') {
       const dist = haversineMeters(currentLat, currentLng, restLat, restLng);
@@ -968,66 +968,9 @@ export async function settleCourierCash(
   }>,
   reply: FastifyReply,
 ) {
-  const admin = request.user as any;
-  const { courierId } = request.params;
-  const { amount, note } = request.body;
-
-  if (typeof amount !== 'number' || amount <= 0) {
-    return reply.status(400).send({ error: "To'g'ri summa kiritilishi kerak." });
-  }
-
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      // Kuryer statusi mavjudligiga ishonch hosil qilamiz
-      await CourierOperationalStatusService.getOrCreate(courierId, tx);
-
-      const updatedStatus = await tx.courierOperationalStatus.update({
-        where: { courierId },
-        data: {
-          cashBalance: {
-            decrement: amount,
-          },
-        },
-      });
-
-      if (Number(updatedStatus.cashBalance) < 0) {
-        throw new Error('Hisob-kitob summasi kuryerning joriy balansidan oshib ketdi.');
-      }
-
-      const transaction = await tx.courierCashTransaction.create({
-        data: {
-          courierId,
-          type: 'MANUAL_SETTLEMENT',
-          amount: -amount, // Balansdan ayirilganini bildirish uchun manfiy
-          balanceAfter: updatedStatus.cashBalance,
-          settledByAdminId: admin.id,
-          note: note,
-        },
-      });
-
-      return { updatedStatus, transaction };
-    });
-
-    await AuditService.record({
-      userId: admin.id,
-      actorRole: admin.role,
-      action: 'SETTLE_COURIER_CASH',
-      entity: 'CourierOperationalStatus',
-      entityId: courierId,
-      oldValue: { cashBalance: Number(result.updatedStatus.cashBalance) + amount },
-      newValue: { cashBalance: result.updatedStatus.cashBalance },
-      metadata: {
-        settlementAmount: amount,
-        note,
-        transactionId: result.transaction.id,
-      },
-    });
-
-    return reply.send({ success: true, newBalance: result.updatedStatus.cashBalance });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Kassa hisob-kitobida xatolik.';
-    return reply.status(400).send({ error: message });
-  }
+  return reply.status(501).send({
+    error: "Kuryer kassa hisob-kitobi hali Prisma sxemasiga ulanmagan. Avval schema va migration qo'shilishi kerak.",
+  });
 }
 
 export async function getCourierCashTransactions(
@@ -1036,16 +979,7 @@ export async function getCourierCashTransactions(
   }>,
   reply: FastifyReply,
 ) {
-  const { courierId } = request.params;
-
-  const transactions = await prisma.courierCashTransaction.findMany({
-    where: { courierId },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-    include: {
-      order: { select: { orderNumber: true } },
-    },
+  return reply.status(501).send({
+    error: "Kuryer kassa tranzaksiyalari hali Prisma sxemasiga ulanmagan. Avval schema va migration qo'shilishi kerak.",
   });
-
-  return reply.send(transactions);
 }

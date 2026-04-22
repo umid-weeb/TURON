@@ -214,10 +214,10 @@ export class OrderChatService {
    */
   static async findByTelegramMessageId(
     telegramMessageId: bigint,
-  ): Promise<{ id: string; orderId: string } | null> {
+  ): Promise<{ id: string; orderId: string; senderRole: 'COURIER' | 'CUSTOMER' | 'ADMIN' } | null> {
     return prisma.orderChatMessage.findFirst({
       where: { telegramMessageId },
-      select: { id: true, orderId: true },
+      select: { id: true, orderId: true, senderRole: true },
     });
   }
 

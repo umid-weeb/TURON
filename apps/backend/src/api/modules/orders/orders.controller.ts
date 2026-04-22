@@ -632,7 +632,7 @@ export async function handleCreateOrder(
   }
 
   // Agar tizimda 10 tadan ko'p buyurtma kutilayotgan bo'lsa, navbatga (Queue) tashlaymiz
-  if (isQueueHealthy && activeJobsCount > 10) {
+  if (orderQueue && isQueueHealthy && activeJobsCount > 10) {
     try {
       const job = await orderQueue.add(
         'process-order',
@@ -979,7 +979,7 @@ export async function streamOrders(request: FastifyRequest, reply: FastifyReply)
       // Adminlar uchun barcha event'larni yuborish serverga katta yuklama tushiradi,
       // ayniqsa kuryerlarning har 5 soniyadagi lokatsiya yangilanishlari.
       // Asosiy "orders" streamiga faqat muhim, sekin o'zgaradigan event'larni yuboramiz.
-      if (event.type === 'courier.location.updated') {
+      if (event.type === 'courier.location') {
         return; // Bu yuqori chastotali event'ni o'tkazib yuboramiz.
       }
       sendEvent(event);

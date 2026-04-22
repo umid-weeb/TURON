@@ -342,7 +342,9 @@ async function handleAdminSupportReply(message: AdminReplyMessage) {
           adminUserId,
           'ADMIN',
           message.text.trim(),
-              linked.senderRole // Admin javobini bevosita asl xabarchiga (Mijozga) yo'naltirish
+          {
+            targetRole: linked.senderRole === 'ADMIN' ? null : linked.senderRole,
+          },
         );
         return; // handled — do NOT fall through to support service
       }
