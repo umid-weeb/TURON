@@ -14,7 +14,7 @@ import {
   TimerReset,
   Wifi,
   XCircle,
-  CheckCircle,
+  CheckCircle2 as CheckCircle,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import {
@@ -22,7 +22,6 @@ import {
   loadYandexMaps3,
 } from '../../features/maps/yandex3';
 import { fetchAddressSuggestions, reverseGeocodePin } from '../../features/maps/api';
-import type { MapPin as MapPoint } from '../../features/maps/MapProvider';
 
 type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 type Tab = 'basic' | 'address' | 'hours' | 'status';
@@ -112,8 +111,10 @@ function isValidPhone(value: string) {
   return /^\+998\d{9}$/.test(normalizeUzbekPhone(value));
 }
 
-function normalizeSettings(settings: RestaurantSettings): RestaurantSettings {
+function normalizeSettings(settings: any): RestaurantSettings {
+  if (!settings) return FALLBACK_SETTINGS;
   return {
+    ...FALLBACK_SETTINGS,
     ...settings,
     workingHours: { ...DEFAULT_WORKING_HOURS, ...(settings.workingHours || {}) },
   };
@@ -128,7 +129,7 @@ function formatTodayLabel(status?: RestaurantOpenStatus) {
 function useRestaurantSettings() {
   return useQuery<RestaurantSettings>({
     queryKey: ['admin-restaurant-settings'],
-    queryFn: async () => normalizeSettings((await api.get('/admin/restaurant/settings')) as RestaurantSettings),
+    queryFn: async () => normalizeSettings(await api.get('/admin/restaurant/settings')),
     refetchOnWindowFocus: true,
     retry: 1,
     staleTime: 30_000,
@@ -147,7 +148,7 @@ function useRestaurantOpenStatus() {
 function useUpdateRestaurantSettings() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<RestaurantSettings>) => api.patch('/admin/restaurant/settings', data) as Promise<RestaurantSettings>,
+    mutationFn: (data: Partial<RestaurantSettings>) => api.patch('/admin/restaurant/settings', data) as Promise<any>,
     onSuccess: (updated) => {
       queryClient.setQueryData(['admin-restaurant-settings'], normalizeSettings(updated));
       queryClient.invalidateQueries({ queryKey: ['admin-restaurant-open-status'] });
@@ -176,7 +177,7 @@ function AdminRestaurantMap({ value, onChange }: { value: RestaurantSettings; on
   const markerRef = useRef<any>(null);
   const onChangeRef = useRef(onChange);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const centerRef = useRef<MapPoint>({ lat: value.latitude, lng: value.longitude });
+  const centerRef = useRef<{ lat: number; lng: number }>({ lat: value.latitude, lng: value.longitude });
   const pointerDownRef = useRef(false);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
@@ -188,7 +189,7 @@ function AdminRestaurantMap({ value, onChange }: { value: RestaurantSettings; on
       try {
         const ymaps3 = await loadYandexMaps3();
         if (disposed || !containerRef.current) return;
-        const centerPin: MapPoint = { lat: value.latitude, lng: value.longitude };
+        const centerPin = { lat: value.latitude, lng: value.longitude };
         centerRef.current = centerPin;
         const map = new ymaps3.YMap(containerRef.current, {
           location: { center: toLngLat(centerPin), zoom: 16 },
@@ -205,8 +206,8 @@ function AdminRestaurantMap({ value, onChange }: { value: RestaurantSettings; on
         map.addChild(marker);
 
         const listener = new ymaps3.YMapListener({
-          onUpdate: ({ location }: { location?: { center?: [number, number] } }) => {
-            const center = location?.center;
+          onUpdate: (params: any) => {
+            const center = params?.location?.center;
             if (!center || center.length < 2) return;
             centerRef.current = { lat: center[1], lng: center[0] };
             marker.update({ coordinates: center });
@@ -259,13 +260,13 @@ export default function RestaurantSettingsPage() {
   const updateMutation = useUpdateRestaurantSettings();
 
   const [tab, setTab] = useState<Tab>('basic');
-  const [draft, setDraft] = useState<RestaurantSettings>(() => normalizeSettings(FALLBACK_SETTINGS));
+  const [draft, setDraft] = useState<RestaurantSettings>(() => normalizeSettings(null));
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (data && !dirty) {
-      setDraft(normalizeSettings(data));
+      setDraft(data);
       setDirty(false);
     }
   }, [data, dirty]);
@@ -294,6 +295,10 @@ export default function RestaurantSettingsPage() {
   };
 
   const effectiveOpen = openStatus?.isOpen ?? draft.isOpen;
+
+  if (isLoading && !draft.name) {
+     return <div className="flex h-[300px] items-center justify-center text-slate-400">Yuklanmoqda...</div>;
+  }
 
   return (
     <div className="admin-motion-up space-y-6 pb-[160px]">
@@ -421,26 +426,27 @@ function AddressTab({ draft, onChange }: { draft: RestaurantSettings; onChange: 
           <textarea value={draft.addressText} onChange={(e) => onChange({ addressText: e.target.value })} rows={2} className="admin-input resize-none" placeholder="Manzil..." />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={async () => {
+          <button type="button" onClick={async () => {
               setBusy('search');
               try {
-                const m = await fetchAddressSuggestions(`${draft.addressText}, Toshkent`, 1, { lat: draft.latitude, lng: draft.longitude });
+                const m: any = await fetchAddressSuggestions(`${draft.addressText}, Toshkent`, 1, { lat: draft.latitude, lng: draft.longitude });
                 if (m[0]?.pin) onChange({ latitude: m[0].pin.lat, longitude: m[0].pin.lng, addressText: m[0].address || draft.addressText });
               } finally { setBusy(null); }
           }} className="h-12 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
             {busy === 'search' ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
             Xaritada topish
           </button>
-          <button onClick={() => {
+          <button type="button" onClick={() => {
               if (!navigator.geolocation) return;
               setBusy('gps');
-              navigator.geolocation.getCurrentPosition(async p => {
-                  const pin = { lat: p.coords.latitude, lng: p.coords.longitude };
-                  onChange(pin);
-                  const a = await reverseGeocodePin(pin);
-                  if (a) onChange({ addressText: a });
-                  setBusy(null);
-              }, () => setBusy(null));
+                navigator.geolocation.getCurrentPosition(async p => {
+                    const lat = p.coords.latitude;
+                    const lng = p.coords.longitude;
+                    onChange({ latitude: lat, longitude: lng });
+                    const a = await reverseGeocodePin({ lat, lng });
+                    if (a) onChange({ addressText: a });
+                    setBusy(null);
+                }, () => setBusy(null));
           }} className="h-12 rounded-2xl bg-white border border-slate-200 text-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
             {busy === 'gps' ? <RefreshCw size={16} className="animate-spin" /> : <LocateFixed size={16} />}
             GPS
