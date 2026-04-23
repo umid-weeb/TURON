@@ -188,8 +188,10 @@ const SearchPage: React.FC = () => {
   const { formatText } = useCustomerLanguage();
   const [query, setQuery] = useState('');
   const [history, setHistory] = useState<string[]>(loadHistory);
-  const { data: products = [], isLoading } = useProducts();
+  const { data: products = [], isLoading, isFetching } = useProducts();
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const hasData = products.length > 0;
 
   const debouncedQuery = useDebounce(query, 200);
   const normalizedQuery = useMemo(() => normalize(debouncedQuery), [debouncedQuery]);
@@ -237,6 +239,55 @@ const SearchPage: React.FC = () => {
 
   const showHistory = !query.trim() && history.length > 0;
   const showResults = !!query.trim();
+
+  // 🚨 CRITICAL FIX: Skeleton faqatgina kesh bo'sh bo'lsa chiqadi (0ms latency).
+  if (isLoading && !hasData) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#ffffff', color: '#202020' }}>
+        {/* Header Skeleton */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 40,
+            background: `linear-gradient(135deg, #8B0000 0%, #C62020 55%, #E83535 100%)`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + 12px)',
+            paddingBottom: 12,
+            paddingInline: 16,
+            minHeight: 'calc(60px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
+            boxShadow: '0 2px 12px rgba(150,0,0,0.3)',
+          }}
+        >
+          <div className="h-9 w-9 rounded-full bg-white/20 animate-pulse" />
+          <div className="h-5 w-24 rounded-md bg-white/20 animate-pulse" />
+          <div style={{ width: 36 }} />
+        </div>
+
+        {/* Search Input Skeleton */}
+        <div style={{ background: '#ffffff', padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+          <div className="h-[44px] w-full rounded-xl bg-slate-100 animate-pulse" />
+        </div>
+
+        <div className="px-4 py-6">
+          <div className="h-4 w-32 rounded-md bg-slate-100 animate-pulse mb-4" />
+          <div className="flex gap-2 mb-8">
+             <div className="h-10 w-24 rounded-xl bg-slate-100 animate-pulse" />
+             <div className="h-10 w-20 rounded-xl bg-slate-100 animate-pulse" />
+             <div className="h-10 w-28 rounded-xl bg-slate-100 animate-pulse" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-[266px] rounded-[18px] bg-slate-100 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', color: '#202020' }}>
@@ -306,6 +357,15 @@ const SearchPage: React.FC = () => {
 
       {/* ── Content ─────────────────────────────────────────────────── */}
       <main style={{ padding: '16px 16px 100px' }}>
+        {/* Orqa fonda yangilanayotganini bildiruvchi kichik indikator */}
+        {isFetching && hasData && (
+          <div className="flex justify-center pb-4">
+            <span className="text-[10px] font-bold text-slate-400 animate-pulse uppercase tracking-widest">
+              Yangilanmoqda...
+            </span>
+          </div>
+        )}
+
         {!showResults && (
           <>
             {/* ── Tarix ─────────────────────────────────────────── */}
@@ -381,13 +441,7 @@ const SearchPage: React.FC = () => {
         {/* ── Results Grid (2 columns) ───────────────────────────────────────── */}
         {showResults && (
           <>
-            {isLoading ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} style={{ height: 266, borderRadius: 18, background: '#f4f4f5', animation: 'pulse 2s infinite' }} />
-                ))}
-              </div>
-            ) : filtered.length > 0 ? (
+            {filtered.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {filtered.map((product) => (
                   <SearchProductCard key={product.id} product={product} />
@@ -400,7 +454,7 @@ const SearchPage: React.FC = () => {
                 </div>
                 <p style={{ fontSize: 18, fontWeight: 900, color: '#202020', margin: 0, marginBottom: 8 }}>Hech narsa topilmadi</p>
                 <p style={{ fontSize: 14, color: '#8c8c96', lineHeight: 1.6, maxWidth: 280 }}>
-                  "{query}" ni qidiruv bo'yicha natija yo'q. Boshqa suv yoki terminni sinab ko'ring.
+                  "{query}" ni qidiruv bo'yicha natija yo'q. Boshqa so'z yoki terminni sinab ko'ring.
                 </p>
               </div>
             )}
