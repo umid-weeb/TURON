@@ -9,18 +9,34 @@ import { RoleGuard } from './components/auth/RoleGuard';
 import { PullToRefreshIndicator } from './components/customer/PullToRefreshIndicator';
 import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
 import { NotFoundPage } from './components/ui/FeedbackStates';
+import CustomerLayout from './components/layout/CustomerLayout';
 
 const AdminLayout = React.lazy(() => import('./components/layout/AdminLayout'));
 const CourierLayout = React.lazy(() => import('./components/layout/CourierLayout'));
-const CustomerLayout = React.lazy(() => import('./components/layout/CustomerLayout'));
 
-// 🚀 PERFORMANCE FIX: Asosiy menyu sahifalari (Bottom Tabs) to'g'ridan-to'g'ri yuklanadi.
-// Bu navigatsiyani 0ms ga tushiradi va oq ekranda (Suspense fallback) qotib qolishning oldini oladi.
+// Customer flow to'liq eager-load qilinadi.
+// Sabab: mini app ichida customer route almashganda global Suspense fallback
+// oq "Sahifa yuklanmoqda..." oynasini ko'rsatardi.
+// Customer panel bir xil bundle bo'lib kiradi, admin/courier esa lazy qoladi.
 import HomePage from './pages/customer/HomePage';
 import MenuPage from './pages/customer/MenuPage';
 import CartPage from './pages/customer/CartPage';
 import OrdersPage from './pages/customer/OrdersPage';
 import ProfilePage from './pages/customer/ProfilePage';
+import SearchPage from './pages/customer/SearchPage';
+import FavoritesPage from './pages/customer/FavoritesPage';
+import CategoryPage from './pages/customer/CategoryPage';
+import ProductPage from './pages/customer/ProductPage';
+import CheckoutPage from './pages/customer/CheckoutPage';
+import OrderSuccessPage from './pages/customer/OrderSuccessPage';
+import AddressListPage from './pages/customer/AddressListPage';
+import AddressFormPage from './pages/customer/AddressFormPage';
+import MapSelectionPage from './pages/customer/MapSelectionPage';
+import OrderDetailPage from './pages/customer/OrderDetailPage';
+import TrackingMapPage from './pages/customer/TrackingMapPage';
+import CustomerNotificationsPage from './pages/customer/NotificationsPage';
+import CustomerPromosPage from './pages/customer/CustomerPromosPage';
+import SupportPage from './pages/customer/SupportPage';
 
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminOrdersPage = React.lazy(() => import('./pages/admin/AdminOrdersPage'));
@@ -46,21 +62,6 @@ const CourierNotificationsPage = React.lazy(() => import('./pages/courier/Courie
 const CourierHistoryPage = React.lazy(() => import('./pages/courier/CourierHistoryPage'));
 const CourierProfilePage = React.lazy(() => import('./pages/courier/CourierProfilePage'));
 
-const SearchPage = React.lazy(() => import('./pages/customer/SearchPage'));
-const FavoritesPage = React.lazy(() => import('./pages/customer/FavoritesPage'));
-const CategoryPage = React.lazy(() => import('./pages/customer/CategoryPage'));
-const ProductPage = React.lazy(() => import('./pages/customer/ProductPage'));
-const CheckoutPage = React.lazy(() => import('./pages/customer/CheckoutPage'));
-const OrderSuccessPage = React.lazy(() => import('./pages/customer/OrderSuccessPage'));
-const AddressListPage = React.lazy(() => import('./pages/customer/AddressListPage'));
-const AddressFormPage = React.lazy(() => import('./pages/customer/AddressFormPage'));
-const MapSelectionPage = React.lazy(() => import('./pages/customer/MapSelectionPage'));
-const OrderDetailPage = React.lazy(() => import('./pages/customer/OrderDetailPage'));
-const TrackingMapPage = React.lazy(() => import('./pages/customer/TrackingMapPage'));
-const CustomerNotificationsPage = React.lazy(() => import('./pages/customer/NotificationsPage'));
-const CustomerPromosPage = React.lazy(() => import('./pages/customer/CustomerPromosPage'));
-const SupportPage = React.lazy(() => import('./pages/customer/SupportPage'));
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -76,9 +77,9 @@ const queryClient = new QueryClient({
 
 function RouteFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 bg-[#f6f6f7]">
-      <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-slate-700 shadow-sm">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-black" />
+    <div className="app-page flex min-h-screen items-center justify-center px-6">
+      <div className="app-card flex items-center gap-3 rounded-[18px] px-5 py-4 text-sm font-bold text-[var(--app-text)]">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--app-line)] border-t-[#111827] dark:border-t-white" />
         Sahifa yuklanmoqda...
       </div>
     </div>
