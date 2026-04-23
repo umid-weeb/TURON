@@ -2,7 +2,6 @@ import React from 'react';
 import { Plus, Minus, MapPin, Clock, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ProductAvailabilityEnum } from '@turon/shared';
-import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { getProductImageUrl, getProductPosterUrl } from '../../features/menu/placeholders';
 import {
@@ -495,7 +494,54 @@ const HomePage: React.FC = () => {
     return activeProducts.slice(0, 6);
   }, [activeProducts]);
 
-  if (isCategoriesLoading || isProductsLoading) return <LoadingSkeleton />;
+  // 🚨 CRITICAL FIX: Asosiy sahifa uchun aynan Home-layout ga mos Skeleton yasaymiz.
+  // Va faqatgina kesh umuman bo'sh bo'lsagina ko'rsatamiz.
+  const isLoading = isCategoriesLoading || isProductsLoading;
+  const hasData = categories.length > 0 && products.length > 0;
+
+  if (isLoading && !hasData) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#ffffff', color: '#202020' }}>
+        {/* Skeleton Header */}
+        <div className="flex min-h-[70px] items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),48px)]">
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-9 rounded-full bg-slate-100 animate-pulse" />
+            <div className="h-4 w-32 rounded-md bg-slate-100 animate-pulse" />
+          </div>
+          <div className="h-7 w-16 rounded-full bg-slate-100 animate-pulse" />
+        </div>
+        {/* Skeleton Search */}
+        <div className="px-4 pb-2">
+          <div className="h-[46px] rounded-xl bg-slate-100 animate-pulse" />
+        </div>
+        {/* Skeleton Categories */}
+        <div className="flex gap-2 px-4 py-3 overflow-hidden">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-[38px] w-20 shrink-0 rounded-full bg-slate-100 animate-pulse" />
+          ))}
+        </div>
+        {/* Skeleton Promo Banner */}
+        <div className="px-4 mt-2 mb-4">
+          <div className="h-5 w-40 rounded-md bg-slate-100 animate-pulse mb-3" />
+          <div className="h-[160px] w-full rounded-[24px] bg-slate-100 animate-pulse" />
+        </div>
+        {/* Skeleton Products Grid */}
+        <div className="px-4 mt-6">
+          <div className="h-5 w-40 rounded-md bg-slate-100 animate-pulse mb-3" />
+          <div className="grid grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex flex-col gap-2">
+                <div className="h-[142px] rounded-[18px] bg-slate-100 animate-pulse" />
+                <div className="mt-1 h-4 w-3/4 rounded-md bg-slate-100 animate-pulse" />
+                <div className="h-3 w-1/2 rounded-md bg-slate-100 animate-pulse" />
+                <div className="mt-2 h-8 w-full rounded-[14px] bg-slate-100 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', color: '#202020' }}>
