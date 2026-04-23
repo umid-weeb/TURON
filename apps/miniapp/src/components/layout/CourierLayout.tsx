@@ -257,7 +257,6 @@ const CourierLayout: React.FC = () => {
             })}
           </div>
         </nav>
-      )}
     </div>
   );
 };
