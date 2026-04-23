@@ -88,6 +88,46 @@ type AdminReplyMessage = {
   reply_to_message?: { message_id?: number };
 };
 
+function normalizeUzbekPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('998')) return `+${digits}`;
+  if (digits.length === 10 && digits.startsWith('0')) return `+998${digits.slice(1)}`;
+  if (digits.length === 9) return `+998${digits}`;
+  return null;
+}
+
+async function syncSharedTelegramContact(message: any) {
+  const senderTelegramId = typeof message?.from?.id === 'number' ? message.from.id : null;
+  const contact = message?.contact;
+
+  if (!senderTelegramId || !contact?.phone_number) {
+    return;
+  }
+
+  if (typeof contact.user_id === 'number' && contact.user_id !== senderTelegramId) {
+    return;
+  }
+
+  const normalizedPhone = normalizeUzbekPhone(contact.phone_number);
+  if (!normalizedPhone) {
+    return;
+  }
+
+  try {
+    await prisma.user.updateMany({
+      where: { telegramId: BigInt(senderTelegramId) },
+      data: { phoneNumber: normalizedPhone },
+    });
+  } catch (error) {
+    console.warn('[Bot] Failed to sync shared Telegram contact.', {
+      senderTelegramId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 // ─── DB-backed message ID storage ─────────────────────────────────────────────
 //
 // We store the last /start message_id per chat in RestaurantSetting using a
@@ -1300,6 +1340,9 @@ function bindHandlers(bot: Telegraf) {
   // Handle admin support replies
   bot.on('message', async (ctx, next) => {
     const message = ctx.message;
+    if ('contact' in message && message.contact) {
+      await syncSharedTelegramContact(message);
+    }
     if ('text' in message) {
       await handleAdminSupportReply(message);
     }

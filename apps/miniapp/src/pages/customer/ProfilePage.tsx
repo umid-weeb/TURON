@@ -19,6 +19,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { useTelegram } from '../../hooks/useTelegram';
 import { api } from '../../lib/api';
+import { requestTelegramPhoneContact } from '../../lib/telegramContact';
 
 const RED = '#C62020';
 const HERO_HEIGHT = 172;
@@ -250,10 +251,11 @@ const PhoneEditModal: React.FC<{
   onClose: () => void;
   onSaved: (phone: string | null) => void;
 }> = ({ initialPhone, onClose, onSaved }) => {
-  const { requestPhoneContact } = useTelegram();
   const [value, setValue] = useState(initialPhone || '');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [saving, setSaving] = useState(false);
+  const [telegramLoading, setTelegramLoading] = useState(false);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -270,10 +272,8 @@ const PhoneEditModal: React.FC<{
     syncKeyboardInset();
     window.visualViewport?.addEventListener('resize', syncKeyboardInset);
     window.visualViewport?.addEventListener('scroll', syncKeyboardInset);
-    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 250);
 
     return () => {
-      window.clearTimeout(focusTimer);
       window.visualViewport?.removeEventListener('resize', syncKeyboardInset);
       window.visualViewport?.removeEventListener('scroll', syncKeyboardInset);
     };
@@ -281,6 +281,7 @@ const PhoneEditModal: React.FC<{
 
   const savePhone = async () => {
     setError('');
+    setInfo('');
     const trimmed = value.trim();
     const normalized = trimmed ? normalizePhone(trimmed) : null;
     if (trimmed && !normalized) {
@@ -299,16 +300,41 @@ const PhoneEditModal: React.FC<{
     }
   };
 
-  const requestTelegramPhone = () => {
-    requestPhoneContact((shared, contact) => {
-      const normalized = shared && contact?.phone_number ? normalizePhone(contact.phone_number) : null;
-      if (normalized) {
-        setValue(normalized);
-        setError('');
-      } else {
-        setError("Telegram raqam bermadi. Raqamni qo'lda kiriting.");
-      }
-    });
+  const persistTelegramPhone = async (phoneNumber: string) => {
+    setSaving(true);
+    try {
+      const res = (await api.patch('/users/me/phone', { phone: phoneNumber })) as { phoneNumber: string | null };
+      onSaved(res.phoneNumber);
+      onClose();
+      return true;
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Telefon saqlanmadi');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const requestTelegramPhone = async () => {
+    setError('');
+    setInfo("Telegram oynasida raqam ulashishni tasdiqlang.");
+    setTelegramLoading(true);
+
+    const result = await requestTelegramPhoneContact();
+
+    if (result.phoneNumber) {
+      const normalized = normalizePhone(result.phoneNumber) ?? result.phoneNumber;
+      setValue(normalized);
+      setInfo("Raqam Telegramdan olindi. Saqlanmoqda...");
+      setTelegramLoading(false);
+      await persistTelegramPhone(normalized);
+      return;
+    }
+
+    setTelegramLoading(false);
+    setInfo('');
+    setError(result.message);
+    window.setTimeout(() => inputRef.current?.focus(), 120);
   };
 
   return (
@@ -347,11 +373,13 @@ const PhoneEditModal: React.FC<{
         <button
           type="button"
           onClick={requestTelegramPhone}
-          className="mb-3 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-red-100 bg-red-50 text-[13px] font-black text-[#C62020] active:scale-[0.98]"
+          disabled={telegramLoading || saving}
+          className="mb-3 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-red-100 bg-red-50 text-[13px] font-black text-[#C62020] active:scale-[0.98] disabled:opacity-60"
         >
-          <Phone size={17} />
-          <span>Telegramdan raqamni olish</span>
+          {telegramLoading ? <Loader2 size={17} className="animate-spin" /> : <Phone size={17} />}
+          <span>{telegramLoading ? 'Telegram kutilmoqda...' : 'Telegramdan raqamni olish'}</span>
         </button>
+        {info ? <p className="mb-3 text-[12px] font-semibold text-[var(--app-muted)]">{info}</p> : null}
 
         <input
           ref={inputRef}
@@ -361,9 +389,12 @@ const PhoneEditModal: React.FC<{
           onChange={(event) => {
             setValue(event.target.value);
             setError('');
+            setInfo('');
           }}
           placeholder="+998 90 123 45 67"
-          className="h-14 w-full rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 text-[16px] font-bold text-[var(--app-text)] outline-none focus:border-red-400"
+          className={`h-14 w-full rounded-[14px] border bg-[var(--app-bg)] px-4 text-[16px] font-bold text-[var(--app-text)] outline-none ${
+            error ? 'border-red-300 focus:border-red-400' : 'border-[var(--app-line)] focus:border-red-400'
+          }`}
         />
         {error ? <p className="mt-2 text-[12px] font-semibold text-red-600">{error}</p> : null}
 
@@ -506,81 +537,105 @@ const ProfilePage: React.FC = () => {
 
       <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          marginTop: -52,
-          paddingBottom: 14,
           position: 'relative',
+          marginTop: -58,
+          paddingBottom: 14,
           zIndex: 2,
         }}
       >
         <div
           style={{
-            width: AVATAR_SIZE,
-            height: AVATAR_SIZE,
-            animation: 'turon-avatar-float 1s cubic-bezier(0.22,1,0.36,1) both',
-            willChange: 'transform, opacity',
+            position: 'absolute',
+            top: 36,
+            left: '50%',
+            width: '118%',
+            height: 138,
+            transform: 'translateX(-50%)',
+            borderTopLeftRadius: '50% 58%',
+            borderTopRightRadius: '50% 58%',
+            background: 'var(--app-bg)',
+            boxShadow: '0 -10px 24px rgba(15,23,42,0.05)',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
           }}
         >
           <div
             style={{
               width: AVATAR_SIZE,
               height: AVATAR_SIZE,
-              borderRadius: '50%',
-              border: '4px solid #FFFFFF',
-              boxShadow: '0 12px 34px rgba(198,32,32,0.28), 0 3px 12px rgba(15,23,42,0.16)',
-              overflow: 'hidden',
-              background: `linear-gradient(135deg, ${RED}, #7B0000)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              animation: 'turon-avatar-float 1s cubic-bezier(0.22,1,0.36,1) both',
+              willChange: 'transform, opacity',
             }}
           >
-            {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt={displayName}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : (
-              <span style={{ fontSize: 32, fontWeight: 900, color: '#FFFFFF' }}>{initials}</span>
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: 18,
-            paddingInline: 20,
-            textAlign: 'center',
-            animation: 'turon-fade-up-soft 0.88s cubic-bezier(0.22,1,0.36,1) 0.08s both',
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              fontSize: 22,
-              fontWeight: 850,
-              lineHeight: 1.16,
-              letterSpacing: '-0.03em',
-              color: 'var(--app-text)',
-            }}
-          >
-            {displayName}
-          </h2>
-          {username ? (
-            <p
+            <div
               style={{
-                margin: '8px 0 0',
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--app-muted)',
+                width: AVATAR_SIZE,
+                height: AVATAR_SIZE,
+                borderRadius: '50%',
+                border: '4px solid #FFFFFF',
+                boxShadow: '0 12px 34px rgba(198,32,32,0.28), 0 3px 12px rgba(15,23,42,0.16)',
+                overflow: 'hidden',
+                background: `linear-gradient(135deg, ${RED}, #7B0000)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              {username}
-            </p>
-          ) : null}
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt={displayName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <span style={{ fontSize: 32, fontWeight: 900, color: '#FFFFFF' }}>{initials}</span>
+              )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: 18,
+              paddingInline: 20,
+              textAlign: 'center',
+              animation: 'turon-fade-up-soft 0.88s cubic-bezier(0.22,1,0.36,1) 0.08s both',
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 22,
+                fontWeight: 850,
+                lineHeight: 1.16,
+                letterSpacing: '-0.03em',
+                color: 'var(--app-text)',
+              }}
+            >
+              {displayName}
+            </h2>
+            {username ? (
+              <p
+                style={{
+                  margin: '8px 0 0',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: 'var(--app-muted)',
+                }}
+              >
+                {username}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
 

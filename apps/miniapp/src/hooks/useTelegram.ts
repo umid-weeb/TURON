@@ -1,3 +1,5 @@
+import { requestTelegramPhoneContact } from '../lib/telegramContact';
+
 declare global {
   interface Window {
     Telegram: any;
@@ -16,18 +18,9 @@ export function useTelegram() {
     ready: () => tg?.ready(),
     showBackButton: () => tg?.BackButton?.show(),
     hideBackButton: () => tg?.BackButton?.hide(),
-    requestPhoneContact: (callback: (shared: boolean, contact?: any) => void) => {
-      if (!tg?.requestPhoneContact) {
-        callback(false);
-        return;
-      }
-      tg.requestPhoneContact((response: any) => {
-        if (response?.status === 'sent') {
-          callback(true, response.response_data?.contact);
-        } else {
-          callback(false);
-        }
-      });
+    requestPhoneContact: async (callback: (shared: boolean, contact?: any) => void) => {
+      const result = await requestTelegramPhoneContact();
+      callback(result.shared, result.phoneNumber ? { phone_number: result.phoneNumber } : undefined);
     },
     onClose: (callback: () => void) => tg?.onEvent('viewportChanged', callback),
   };

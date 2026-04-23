@@ -17,6 +17,7 @@ import { useCheckoutStore } from '../../store/useCheckoutStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { createRouteInfoFromMeters } from '../../features/maps/route';
+import { requestTelegramPhoneContact } from '../../lib/telegramContact';
 
 // ── Phone helpers ─────────────────────────────────────────────────────────────
 
@@ -33,44 +34,60 @@ function normalizePhone(raw: string): string | null {
 function InlinePhoneEntry() {
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [saving, setSaving] = useState(false);
+  const [telegramLoading, setTelegramLoading] = useState(false);
   const updateUser = useAuthStore((s) => s.updateUser);
 
-  const handleRequestTelegramPhone = () => {
-    const tg = window.Telegram?.WebApp;
-    if (!tg?.requestPhoneContact) {
-      setError("Telegram kontakt so'rashni qo'llab-quvvatlamadi. Raqamni qo'lda kiriting.");
+  const persistPhone = async (phone: string) => {
+    setError('');
+    setInfo('');
+    const normalized = normalizePhone(phone);
+    if (!normalized) {
+      setError("Noto'g'ri format. Masalan: +998 90 123 45 67");
+      return false;
+    }
+    setSaving(true);
+    try {
+      const res = (await api.patch('/users/me/phone', { phone: normalized })) as { phoneNumber: string };
+      updateUser({ phoneNumber: res.phoneNumber });
+      return true;
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Saqlashda xatolik');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRequestTelegramPhone = async () => {
+    setError('');
+    setInfo("Telegram oynasida raqam ulashishni tasdiqlang.");
+    setTelegramLoading(true);
+
+    const result = await requestTelegramPhoneContact();
+    if (result.phoneNumber) {
+      const normalized = normalizePhone(result.phoneNumber) ?? result.phoneNumber;
+      setValue(normalized);
+      setInfo("Raqam Telegramdan olindi. Saqlanmoqda...");
+      setTelegramLoading(false);
+      await persistPhone(normalized);
       return;
     }
-    tg.requestPhoneContact((response: any) => {
-      const phone = response?.response_data?.contact?.phone_number;
-      const normalized = phone ? normalizePhone(phone) : null;
-      if (response?.status === 'sent' && normalized) {
-        setValue(normalized);
-        setError('');
-      } else {
-        setError("Telefon olinmadi. Raqamni qo'lda kiriting.");
-      }
-    });
+
+    setTelegramLoading(false);
+    setInfo('');
+    setError(result.message);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     const normalized = normalizePhone(value);
     if (!normalized) {
       setError("Noto'g'ri format. Masalan: +998 90 123 45 67");
       return;
     }
-    setSaving(true);
-    try {
-      const res = await api.patch('/users/me/phone', { phone: normalized }) as { phoneNumber: string };
-      updateUser({ phoneNumber: res.phoneNumber });
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Saqlashda xatolik");
-    } finally {
-      setSaving(false);
-    }
+    await persistPhone(normalized);
   };
 
   return (
@@ -88,18 +105,20 @@ function InlinePhoneEntry() {
       <button
         type="button"
         onClick={handleRequestTelegramPhone}
-        className="mb-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-[13px] border border-red-200 bg-white text-[12px] font-black text-[#C62020] transition-colors active:scale-[0.98]"
+        disabled={telegramLoading || saving}
+        className="mb-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-[13px] border border-red-200 bg-white text-[12px] font-black text-[#C62020] transition-colors active:scale-[0.98] disabled:opacity-60"
       >
-        <Phone size={15} />
-        <span>Telegramdan raqamni olish</span>
+        {telegramLoading ? <Loader2 size={15} className="animate-spin" /> : <Phone size={15} />}
+        <span>{telegramLoading ? 'Telegram kutilmoqda...' : 'Telegramdan raqamni olish'}</span>
       </button>
+      {info && <p className="mb-2 text-[11px] font-semibold text-red-700/75">{info}</p>}
 
       <form onSubmit={(e) => void handleSubmit(e)} className="flex gap-2">
         <input
           type="tel"
           inputMode="tel"
           value={value}
-          onChange={(e) => { setValue(e.target.value); setError(''); }}
+          onChange={(e) => { setValue(e.target.value); setError(''); setInfo(''); }}
           placeholder="+998 90 123 45 67"
           className={`h-11 flex-1 rounded-[13px] border px-3 text-[14px] font-bold outline-none transition-colors ${
             error
@@ -134,7 +153,9 @@ interface PhoneModalProps {
 function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [saving, setSaving] = useState(false);
+  const [telegramLoading, setTelegramLoading] = useState(false);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const updateUser = useAuthStore((s) => s.updateUser);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -153,52 +174,59 @@ function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
     syncKeyboardInset();
     window.visualViewport?.addEventListener('resize', syncKeyboardInset);
     window.visualViewport?.addEventListener('scroll', syncKeyboardInset);
-    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 250);
 
     return () => {
-      window.clearTimeout(focusTimer);
       window.visualViewport?.removeEventListener('resize', syncKeyboardInset);
       window.visualViewport?.removeEventListener('scroll', syncKeyboardInset);
     };
   }, []);
 
-  const handleRequestTelegramPhone = () => {
-    const tg = window.Telegram?.WebApp;
-    if (!tg?.requestPhoneContact) {
-      setError("Telegram kontakt so'rashni qo'llab-quvvatlamadi. Raqamni qo'lda kiriting.");
+  const persistPhone = async (phone: string) => {
+    setError('');
+    setInfo('');
+    const normalized = normalizePhone(phone);
+    if (!normalized) {
+      setError("Noto'g'ri format. Masalan: +998 90 123 45 67");
+      return false;
+    }
+    setSaving(true);
+    try {
+      const res = (await api.patch('/users/me/phone', { phone: normalized })) as { phoneNumber: string };
+      updateUser({ phoneNumber: res.phoneNumber });
+      onSaved(res.phoneNumber);
+      return true;
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Saqlashda xatolik');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRequestTelegramPhone = async () => {
+    setError('');
+    setInfo("Telegram oynasida raqam ulashishni tasdiqlang.");
+    setTelegramLoading(true);
+
+    const result = await requestTelegramPhoneContact();
+    if (result.phoneNumber) {
+      const normalized = normalizePhone(result.phoneNumber) ?? result.phoneNumber;
+      setValue(normalized);
+      setInfo("Raqam Telegramdan olindi. Saqlanmoqda...");
+      setTelegramLoading(false);
+      await persistPhone(normalized);
       return;
     }
 
-    tg.requestPhoneContact((response: any) => {
-      const phone = response?.response_data?.contact?.phone_number;
-      const normalized = phone ? normalizePhone(phone) : null;
-      if (response?.status === 'sent' && normalized) {
-        setValue(normalized);
-        setError('');
-      } else {
-        setError("Telefon olinmadi. Raqamni qo'lda kiriting.");
-      }
-    });
+    setTelegramLoading(false);
+    setInfo('');
+    setError(result.message);
+    window.setTimeout(() => inputRef.current?.focus(), 120);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    const normalized = normalizePhone(value);
-    if (!normalized) {
-      setError("Noto'g'ri format. Masalan: +998 90 123 45 67");
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await api.patch('/users/me/phone', { phone: normalized }) as { phoneNumber: string };
-      updateUser({ phoneNumber: res.phoneNumber });
-      onSaved(res.phoneNumber);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Saqlashda xatolik");
-    } finally {
-      setSaving(false);
-    }
+    await persistPhone(value);
   };
 
   return (
@@ -235,11 +263,13 @@ function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
         <button
           type="button"
           onClick={handleRequestTelegramPhone}
-          className="mb-3 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-red-100 bg-red-50 text-[13px] font-black text-[#C62020] active:scale-[0.98]"
+          disabled={telegramLoading || saving}
+          className="mb-3 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-red-100 bg-red-50 text-[13px] font-black text-[#C62020] active:scale-[0.98] disabled:opacity-60"
         >
-          <Phone size={17} />
-          <span>Telegramdan raqamni olish</span>
+          {telegramLoading ? <Loader2 size={17} className="animate-spin" /> : <Phone size={17} />}
+          <span>{telegramLoading ? 'Telegram kutilmoqda...' : 'Telegramdan raqamni olish'}</span>
         </button>
+        {info ? <p className="mb-3 text-[12px] font-semibold text-slate-500">{info}</p> : null}
 
         <form onSubmit={(e) => void handleSubmit(e)}>
           <div className="mb-4">
@@ -248,7 +278,7 @@ function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
               type="tel"
               inputMode="tel"
               value={value}
-              onChange={(e) => { setValue(e.target.value); setError(''); }}
+              onChange={(e) => { setValue(e.target.value); setError(''); setInfo(''); }}
               placeholder="+998 90 123 45 67"
               className={`h-14 w-full rounded-[14px] border px-4 text-[16px] font-bold outline-none transition-colors ${error
                 ? 'border-red-300 bg-red-50 text-red-700 placeholder:text-red-300'

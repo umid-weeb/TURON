@@ -78,6 +78,41 @@ export async function saveUserPhone(
 }
 
 /**
+ * GET /users/me
+ *
+ * Returns the authenticated user's live profile snapshot so the mini app can
+ * reconcile Telegram-originated changes such as shared phone contacts.
+ */
+export async function getCurrentUserProfile(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const user = request.user as any;
+
+  const currentUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      telegramId: true,
+      telegramUsername: true,
+      fullName: true,
+      phoneNumber: true,
+      role: true,
+      language: true,
+    },
+  });
+
+  if (!currentUser) {
+    return reply.status(404).send({ error: "Foydalanuvchi topilmadi." });
+  }
+
+  return reply.send({
+    ...currentUser,
+    telegramId: currentUser.telegramId.toString(),
+  });
+}
+
+/**
  * DELETE /users/me/phone
  *
  * Temporarily allows customers to remove a saved phone number. New orders still
