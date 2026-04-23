@@ -10,6 +10,8 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  ArrowRight,
+  ChevronRight,
 } from 'lucide-react';
 import { AdminCourierOption, OrderStatus, Order, PaymentMethod, PaymentStatus } from '../../data/types';
 
@@ -370,14 +372,3 @@ export const AdminOrderCard: React.FC<{
   );
 };
 
-const ArrowRight: React.FC<{ size?: number }> = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 12h14M12 5l7 7-7 7"/>
-  </svg>
-);
-
-const ChevronRight: React.FC<{ size?: number }> = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 18l6-6-6-6"/>
-  </svg>
-);
