@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserRoleEnum } from '@turon/shared';
 
@@ -9,42 +9,18 @@ import { RoleGuard } from './components/auth/RoleGuard';
 import { PullToRefreshIndicator } from './components/customer/PullToRefreshIndicator';
 import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
 import { NotFoundPage } from './components/ui/FeedbackStates';
-import CustomerLayout from './components/layout/CustomerLayout';
-import AdminLayout from './components/layout/AdminLayout';
-import CourierLayout from './components/layout/CourierLayout';
-import {
-  AdminDashboardRouteSkeleton,
-  AdminFormRouteSkeleton,
-  AdminListRouteSkeleton,
-  CourierCardsRouteSkeleton,
-  CourierDetailRouteSkeleton,
-  CourierListRouteSkeleton,
-  CourierMapRouteSkeleton,
-} from './components/ui/RouteSkeletons';
 
-// Customer flow to'liq eager-load qilinadi.
-// Sabab: mini app ichida customer route almashganda global Suspense fallback
-// oq "Sahifa yuklanmoqda..." oynasini ko'rsatardi.
-// Customer panel bir xil bundle bo'lib kiradi, admin/courier esa lazy qoladi.
+const AdminLayout = React.lazy(() => import('./components/layout/AdminLayout'));
+const CourierLayout = React.lazy(() => import('./components/layout/CourierLayout'));
+const CustomerLayout = React.lazy(() => import('./components/layout/CustomerLayout'));
+
+// 🚀 PERFORMANCE FIX: Asosiy menyu sahifalari (Bottom Tabs) to'g'ridan-to'g'ri yuklanadi.
+// Bu navigatsiyani 0ms ga tushiradi va oq ekranda (Suspense fallback) qotib qolishning oldini oladi.
 import HomePage from './pages/customer/HomePage';
 import MenuPage from './pages/customer/MenuPage';
 import CartPage from './pages/customer/CartPage';
 import OrdersPage from './pages/customer/OrdersPage';
 import ProfilePage from './pages/customer/ProfilePage';
-import SearchPage from './pages/customer/SearchPage';
-import FavoritesPage from './pages/customer/FavoritesPage';
-import CategoryPage from './pages/customer/CategoryPage';
-import ProductPage from './pages/customer/ProductPage';
-import CheckoutPage from './pages/customer/CheckoutPage';
-import OrderSuccessPage from './pages/customer/OrderSuccessPage';
-import AddressListPage from './pages/customer/AddressListPage';
-import AddressFormPage from './pages/customer/AddressFormPage';
-import MapSelectionPage from './pages/customer/MapSelectionPage';
-import OrderDetailPage from './pages/customer/OrderDetailPage';
-import TrackingMapPage from './pages/customer/TrackingMapPage';
-import CustomerNotificationsPage from './pages/customer/NotificationsPage';
-import CustomerPromosPage from './pages/customer/CustomerPromosPage';
-import SupportPage from './pages/customer/SupportPage';
 
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminOrdersPage = React.lazy(() => import('./pages/admin/AdminOrdersPage'));
@@ -70,6 +46,21 @@ const CourierNotificationsPage = React.lazy(() => import('./pages/courier/Courie
 const CourierHistoryPage = React.lazy(() => import('./pages/courier/CourierHistoryPage'));
 const CourierProfilePage = React.lazy(() => import('./pages/courier/CourierProfilePage'));
 
+const SearchPage = React.lazy(() => import('./pages/customer/SearchPage'));
+const FavoritesPage = React.lazy(() => import('./pages/customer/FavoritesPage'));
+const CategoryPage = React.lazy(() => import('./pages/customer/CategoryPage'));
+const ProductPage = React.lazy(() => import('./pages/customer/ProductPage'));
+const CheckoutPage = React.lazy(() => import('./pages/customer/CheckoutPage'));
+const OrderSuccessPage = React.lazy(() => import('./pages/customer/OrderSuccessPage'));
+const AddressListPage = React.lazy(() => import('./pages/customer/AddressListPage'));
+const AddressFormPage = React.lazy(() => import('./pages/customer/AddressFormPage'));
+const MapSelectionPage = React.lazy(() => import('./pages/customer/MapSelectionPage'));
+const OrderDetailPage = React.lazy(() => import('./pages/customer/OrderDetailPage'));
+const TrackingMapPage = React.lazy(() => import('./pages/customer/TrackingMapPage'));
+const CustomerNotificationsPage = React.lazy(() => import('./pages/customer/NotificationsPage'));
+const CustomerPromosPage = React.lazy(() => import('./pages/customer/CustomerPromosPage'));
+const SupportPage = React.lazy(() => import('./pages/customer/SupportPage'));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -83,182 +74,161 @@ const queryClient = new QueryClient({
   },
 });
 
-function withPageSkeleton(node: React.ReactNode, fallback: React.ReactNode) {
-  return <React.Suspense fallback={fallback}>{node}</React.Suspense>;
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-6 bg-[#f6f6f7]">
+      <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-slate-700 shadow-sm">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-black" />
+        Sahifa yuklanmoqda...
+      </div>
+    </div>
+  );
+}
+
+function TelegramBackButtonManager() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // 1. Orqaga tugmasi bosilganda marshrutni 1 qadam ortga qaytarish
+  React.useEffect(() => {
+    const twa = (window as any).Telegram?.WebApp;
+    if (!twa) return;
+
+    const handleBack = () => {
+      navigate(-1);
+    };
+
+    twa.BackButton.onClick(handleBack);
+    return () => {
+      twa.BackButton.offClick(handleBack);
+    };
+  }, [navigate]);
+
+  // 2. Sahifa o'zgarganda Back tugmasini ko'rsatish yoki yashirish
+  React.useEffect(() => {
+    const twa = (window as any).Telegram?.WebApp;
+    if (!twa) return;
+
+    // Asosiy menyular (Tab) ro'yxati. Bu sahifalarda Back button yashiriladi va default yopish (X) chiqadi.
+    const rootPaths = [
+      '/',
+      '/customer', '/customer/menu', '/customer/search', '/customer/cart', '/customer/orders', '/customer/profile', '/customer/favorites', '/customer/promos', '/customer/support', '/customer/notifications',
+      '/admin', '/admin/dashboard', '/admin/orders', '/admin/menu', '/admin/promos', '/admin/couriers', '/admin/reports', '/admin/chats', '/admin/restaurant', '/admin/notifications',
+      '/courier', '/courier/orders', '/courier/history', '/courier/profile', '/courier/notifications'
+    ];
+
+    const currentPath = location.pathname.replace(/\/$/, '') || '/';
+    
+    if (rootPaths.includes(currentPath)) {
+      twa.BackButton.hide(); // Asosiy sahifalarda Yopish (X) chiqadi
+    } else {
+      twa.BackButton.show(); // Ichki sahifalarda Orqaga (<) chiqadi
+    }
+  }, [location.pathname]);
+
+  return null;
 }
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+      <TelegramBackButtonManager />
       <PullToRefreshIndicator />
       <AppBootstrapGate>
         <AppErrorBoundary theme="dark" homeUrl="/">
-          <Routes>
-            {/* Base Redirect is handled inside AppBootstrapGate */}
-            <Route path="/" element={<div />} />
-            <Route path="/menu" element={<Navigate to="/customer/menu" replace />} />
-            <Route path="/search" element={<Navigate to="/customer/search" replace />} />
-            <Route path="/cart" element={<Navigate to="/customer/cart" replace />} />
-            <Route path="/profile" element={<Navigate to="/customer/profile" replace />} />
-            <Route path="/orders" element={<Navigate to="/customer/orders" replace />} />
+          <React.Suspense fallback={<RouteFallback />}>
+            <Routes>
+              {/* Base Redirect is handled inside AppBootstrapGate */}
+              <Route path="/" element={<div />} />
+              <Route path="/menu" element={<Navigate to="/customer/menu" replace />} />
+              <Route path="/search" element={<Navigate to="/customer/search" replace />} />
+              <Route path="/cart" element={<Navigate to="/customer/cart" replace />} />
+              <Route path="/profile" element={<Navigate to="/customer/profile" replace />} />
+              <Route path="/orders" element={<Navigate to="/customer/orders" replace />} />
 
-            <Route
-              path="/customer/orders/:orderId/tracking"
-              element={
+              <Route
+                path="/customer/orders/:orderId/tracking"
+                element={
+                  <RoleGuard allowedRoles={[UserRoleEnum.CUSTOMER, UserRoleEnum.ADMIN]}>
+                    <TrackingMapPage />
+                  </RoleGuard>
+                }
+              />
+
+              {/* Customer Module */}
+              <Route path="/customer" element={
                 <RoleGuard allowedRoles={[UserRoleEnum.CUSTOMER, UserRoleEnum.ADMIN]}>
-                  <TrackingMapPage />
+                  <CustomerLayout />
                 </RoleGuard>
-              }
-            />
+              }>
+                <Route index element={<HomePage />} />
+                <Route path="search" element={<SearchPage />} />
+                <Route path="favorites" element={<FavoritesPage />} />
+                <Route path="category/:id" element={<CategoryPage />} />
+                <Route path="menu" element={<MenuPage />} />
+                <Route path="product/:id" element={<ProductPage />} />
+                <Route path="cart" element={<CartPage />} />
+                <Route path="checkout" element={<CheckoutPage />} />
+                <Route path="address-success" element={<OrderSuccessPage />} /> 
+                <Route path="order-success" element={<OrderSuccessPage />} />
+                <Route path="addresses" element={<AddressListPage />} />
+                <Route path="address/new" element={<AddressFormPage />} />
+                <Route path="address/map" element={<MapSelectionPage />} />
+                <Route path="orders" element={<OrdersPage />} />
+                <Route path="orders/:orderId" element={<OrderDetailPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="promos" element={<CustomerPromosPage />} />
+                <Route path="support" element={<SupportPage />} />
+                <Route path="notifications" element={<CustomerNotificationsPage />} />
+              </Route>
 
-            {/* Customer Module */}
-            <Route path="/customer" element={
-              <RoleGuard allowedRoles={[UserRoleEnum.CUSTOMER, UserRoleEnum.ADMIN]}>
-                <CustomerLayout />
-              </RoleGuard>
-            }>
-              <Route index element={<HomePage />} />
-              <Route path="search" element={<SearchPage />} />
-              <Route path="favorites" element={<FavoritesPage />} />
-              <Route path="category/:id" element={<CategoryPage />} />
-              <Route path="menu" element={<MenuPage />} />
-              <Route path="product/:id" element={<ProductPage />} />
-              <Route path="cart" element={<CartPage />} />
-              <Route path="checkout" element={<CheckoutPage />} />
-              <Route path="address-success" element={<OrderSuccessPage />} /> 
-              <Route path="order-success" element={<OrderSuccessPage />} />
-              <Route path="addresses" element={<AddressListPage />} />
-              <Route path="address/new" element={<AddressFormPage />} />
-              <Route path="address/map" element={<MapSelectionPage />} />
-              <Route path="orders" element={<OrdersPage />} />
-              <Route path="orders/:orderId" element={<OrderDetailPage />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="promos" element={<CustomerPromosPage />} />
-              <Route path="support" element={<SupportPage />} />
-              <Route path="notifications" element={<CustomerNotificationsPage />} />
-            </Route>
+              {/* Admin Module */}
+              <Route path="/admin" element={
+                <RoleGuard allowedRoles={[UserRoleEnum.ADMIN]}>
+                  <AdminLayout />
+                </RoleGuard>
+              }>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboardPage />} />
+                <Route path="orders" element={<AdminOrdersPage />} />
+                <Route path="orders/:orderId" element={<AdminOrderDetailPage />} />
+                <Route path="notifications" element={<AdminNotificationsPage />} />
+                <Route path="menu" element={<AdminMenuDashboard />} />
+                <Route path="menu/categories" element={<AdminCategoriesPage />} />
+                <Route path="menu/categories/new" element={<AdminCategoryFormPage />} />
+                <Route path="menu/categories/:categoryId/edit" element={<AdminCategoryFormPage />} />
+                <Route path="menu/products" element={<AdminProductsPage />} />
+                <Route path="menu/products/new" element={<AdminProductFormPage />} />
+                <Route path="menu/products/:productId/edit" element={<AdminProductFormPage />} />
+                <Route path="promos" element={<AdminPromosPage />} />
+                <Route path="promos/new" element={<AdminPromoFormPage />} />
+                <Route path="promos/:promoId/edit" element={<AdminPromoFormPage />} />
+                <Route path="couriers" element={<AdminCouriersPage />} />
+                <Route path="reports" element={<AdminReportsPage />} />
+                <Route path="chats" element={<AdminChatsPage />} />
+                <Route path="restaurant" element={<RestaurantSettingsPage />} />
+              </Route>
 
-            {/* Admin Module */}
-            <Route path="/admin" element={
-              <RoleGuard allowedRoles={[UserRoleEnum.ADMIN]}>
-                <AdminLayout />
-              </RoleGuard>
-            }>
-              <Route index element={<Navigate to="dashboard" replace />} />
-              <Route
-                path="dashboard"
-                element={withPageSkeleton(<AdminDashboardPage />, <AdminDashboardRouteSkeleton />)}
-              />
-              <Route
-                path="orders"
-                element={withPageSkeleton(<AdminOrdersPage />, <AdminListRouteSkeleton />)}
-              />
-              <Route
-                path="orders/:orderId"
-                element={withPageSkeleton(<AdminOrderDetailPage />, <AdminFormRouteSkeleton />)}
-              />
-              <Route
-                path="notifications"
-                element={withPageSkeleton(<AdminNotificationsPage />, <AdminListRouteSkeleton />)}
-              />
-              <Route
-                path="menu"
-                element={withPageSkeleton(<AdminMenuDashboard />, <AdminDashboardRouteSkeleton />)}
-              />
-              <Route
-                path="menu/categories"
-                element={withPageSkeleton(<AdminCategoriesPage />, <AdminListRouteSkeleton />)}
-              />
-              <Route
-                path="menu/categories/new"
-                element={withPageSkeleton(<AdminCategoryFormPage />, <AdminFormRouteSkeleton />)}
-              />
-              <Route
-                path="menu/categories/:categoryId/edit"
-                element={withPageSkeleton(<AdminCategoryFormPage />, <AdminFormRouteSkeleton />)}
-              />
-              <Route
-                path="menu/products"
-                element={withPageSkeleton(<AdminProductsPage />, <AdminListRouteSkeleton />)}
-              />
-              <Route
-                path="menu/products/new"
-                element={withPageSkeleton(<AdminProductFormPage />, <AdminFormRouteSkeleton />)}
-              />
-              <Route
-                path="menu/products/:productId/edit"
-                element={withPageSkeleton(<AdminProductFormPage />, <AdminFormRouteSkeleton />)}
-              />
-              <Route
-                path="promos"
-                element={withPageSkeleton(<AdminPromosPage />, <AdminListRouteSkeleton />)}
-              />
-              <Route
-                path="promos/new"
-                element={withPageSkeleton(<AdminPromoFormPage />, <AdminFormRouteSkeleton />)}
-              />
-              <Route
-                path="promos/:promoId/edit"
-                element={withPageSkeleton(<AdminPromoFormPage />, <AdminFormRouteSkeleton />)}
-              />
-              <Route
-                path="couriers"
-                element={withPageSkeleton(<AdminCouriersPage />, <AdminListRouteSkeleton />)}
-              />
-              <Route
-                path="reports"
-                element={withPageSkeleton(<AdminReportsPage />, <AdminDashboardRouteSkeleton />)}
-              />
-              <Route
-                path="chats"
-                element={withPageSkeleton(<AdminChatsPage />, <AdminListRouteSkeleton />)}
-              />
-              <Route
-                path="restaurant"
-                element={withPageSkeleton(<RestaurantSettingsPage />, <AdminFormRouteSkeleton />)}
-              />
-            </Route>
+              {/* Courier Module */}
+              <Route path="/courier" element={
+                <RoleGuard allowedRoles={[UserRoleEnum.COURIER]}>
+                  <CourierLayout />
+                </RoleGuard>
+              }>
+                <Route index element={<CourierStatusPage />} />
+                <Route path="orders" element={<CourierOrdersPage />} />
+                <Route path="order/:orderId" element={<CourierOrderDetailPage />} />
+                <Route path="map/:orderId" element={<CourierMapPage />} />
+                <Route path="history" element={<CourierHistoryPage />} />
+                <Route path="profile" element={<CourierProfilePage />} />
+                <Route path="notifications" element={<CourierNotificationsPage />} />
+              </Route>
 
-            {/* Courier Module */}
-            <Route path="/courier" element={
-              <RoleGuard allowedRoles={[UserRoleEnum.COURIER]}>
-                <CourierLayout />
-              </RoleGuard>
-            }>
-              <Route
-                index
-                element={withPageSkeleton(<CourierStatusPage />, <CourierCardsRouteSkeleton />)}
-              />
-              <Route
-                path="orders"
-                element={withPageSkeleton(<CourierOrdersPage />, <CourierListRouteSkeleton />)}
-              />
-              <Route
-                path="order/:orderId"
-                element={withPageSkeleton(<CourierOrderDetailPage />, <CourierDetailRouteSkeleton />)}
-              />
-              <Route
-                path="map/:orderId"
-                element={withPageSkeleton(<CourierMapPage />, <CourierMapRouteSkeleton />)}
-              />
-              <Route
-                path="history"
-                element={withPageSkeleton(<CourierHistoryPage />, <CourierListRouteSkeleton />)}
-              />
-              <Route
-                path="profile"
-                element={withPageSkeleton(<CourierProfilePage />, <CourierCardsRouteSkeleton />)}
-              />
-              <Route
-                path="notifications"
-                element={withPageSkeleton(<CourierNotificationsPage />, <CourierListRouteSkeleton />)}
-              />
-            </Route>
-
-            {/* Fallback 404 */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
+              {/* Fallback 404 */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </React.Suspense>
         </AppErrorBoundary>
       </AppBootstrapGate>
       </BrowserRouter>
