@@ -23,33 +23,19 @@ interface CourierNavigationPanelProps {
   eta?: string;
 }
 
-/**
- * Smart direction arrow with color coding
- * Blue=Straight, Orange=Left, Green=Right
- */
-function DirectionArrow({ 
-  action, 
-  distance
-}: { 
+function DirectionArrow({
+  action,
+  distance,
+  color = '#111111',
+}: {
   action?: NavigationStep['action'];
   distance?: string;
+  color?: string;
 }) {
-  // Extract numeric distance
   const distanceNum = distance?.match(/\d+/)?.[0] || '';
-  
-  // Don't show if distance is 0 or very small
-  if (distanceNum && parseInt(distanceNum) < 5) {
+  if (distanceNum && parseInt(distanceNum, 10) < 5) {
     return null;
   }
-
-  // Color coding: Blue (straight), Orange (left), Green (right)
-  const colors = {
-    straight: '#3B82F6', // Blue
-    left: '#F97316',     // Orange
-    right: '#10B981',    // Green
-  };
-
-  const color = action === 'right' ? colors.right : action === 'left' ? colors.left : colors.straight;
 
   const strokeStyle = {
     stroke: color,
@@ -77,7 +63,6 @@ function DirectionArrow({
     );
   }
 
-  // Straight - simple up arrow
   return (
     <svg viewBox="0 0 48 48" width="28" height="28" aria-hidden="true">
       <path d="M24 40 L24 10" {...strokeStyle} />
@@ -87,44 +72,96 @@ function DirectionArrow({
 }
 
 const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
+  routes = [],
+  selectedRouteId,
   currentStep,
   allSteps = [],
+  currentStepIndex,
+  distance,
+  eta,
 }) => {
   if (!currentStep) return null;
 
-  // Extract numeric distance
   const distanceNum = currentStep.distanceText?.match(/\d+/)?.[0] || '';
-  const shouldShowNavigation = !distanceNum || parseInt(distanceNum) >= 5;
+  const shouldShowNavigation = !distanceNum || parseInt(distanceNum, 10) >= 5;
+  if (!shouldShowNavigation) return null;
 
-  // Get next turn instruction
-  const nextStep = allSteps.find(s => s.action && s.action !== 'straight');
+  const derivedIndex =
+    typeof currentStepIndex === 'number' && currentStepIndex >= 0
+      ? currentStepIndex
+      : allSteps.findIndex(
+          (step) =>
+            step.instruction === currentStep.instruction &&
+            step.distanceText === currentStep.distanceText &&
+            step.action === currentStep.action,
+        );
+
+  const nextStep = allSteps
+    .slice(Math.max(derivedIndex + 1, 0))
+    .find((step) => step.action && step.action !== 'straight');
   const nextTurnDistance = nextStep?.distanceText || '';
+  const nextDistanceNum = nextTurnDistance.match(/\d+/)?.[0] || '';
+  const shouldShowNextTurn = Boolean(nextStep) && parseInt(nextDistanceNum || '0', 10) >= 5;
 
-  // Parse next distance
-  const nextDistanceNum = nextTurnDistance?.match(/\d+/)?.[0] || '';
-  const shouldShowNextTurn = nextStep && parseInt(nextDistanceNum || '0') >= 5;
-
-  if (!shouldShowNavigation) {
-    return null; // Hide when destination reached
-  }
+  const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null;
 
   return (
-    <div className="flex flex-col gap-1.5 w-fit">
-      {/* Main direction indicator - just arrow + distance */}
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-2.5 py-1.5 shadow-lg">
-        <DirectionArrow action={currentStep.action} distance={currentStep.distanceText} />
-        <span className="text-sm font-black text-white">{currentStep.distanceText}</span>
-      </div>
-      
-      {/* Next turn instruction - only if valid and far enough */}
-      {shouldShowNextTurn && (
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/90 px-2.5 py-1.5 shadow-lg">
-          <DirectionArrow action={nextStep!.action} distance={nextTurnDistance} />
-          <span className="text-sm font-bold text-sky-50">{nextTurnDistance}</span>
+    <div className="courier-enter-soft flex w-fit max-w-[min(320px,calc(100vw-32px))] flex-col gap-2">
+      <div className="courier-map-fab overflow-hidden rounded-[26px] px-3 py-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Navigatsiya</span>
+          {selectedRoute ? (
+            <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--courier-accent)]">
+              {selectedRoute.distance} · {selectedRoute.eta}
+            </span>
+          ) : distance || eta ? (
+            <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--courier-accent)]">
+              {[distance, eta].filter(Boolean).join(' · ')}
+            </span>
+          ) : null}
         </div>
-      )}
+
+        <div className="courier-cta-primary flex items-center gap-2 rounded-[22px] px-3 py-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-black/8">
+            <DirectionArrow action={currentStep.action} distance={currentStep.distanceText} color="#111111" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-black uppercase tracking-[0.18em] text-black/55">Hozirgi qadam</p>
+            <div className="mt-1 flex items-end gap-2">
+              <span className="text-[22px] font-black leading-none text-[var(--courier-accent-contrast)]">{currentStep.distanceText}</span>
+              {currentStep.street ? (
+                <span className="truncate pb-0.5 text-[11px] font-bold text-black/62">{currentStep.street}</span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {shouldShowNextTurn && nextStep ? (
+        <div className="courier-map-fab flex items-center gap-3 rounded-[22px] px-3 py-2.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-white/8">
+            <DirectionArrow action={nextStep.action} distance={nextTurnDistance} color="var(--courier-accent)" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">Keyingi burilish</p>
+            <p className="mt-1 truncate text-[15px] font-black text-white">{nextTurnDistance}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {routes.length > 1 ? (
+        <div className="courier-map-fab flex items-center gap-2 rounded-[20px] px-3 py-2 text-[11px] font-bold text-white/70">
+          <span className="rounded-full bg-white/8 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/52">
+            {routes.length} yo'l
+          </span>
+          <span className="truncate">
+            {selectedRoute?.instruction || "Tavsiya qilingan yo'l tanlangan"}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 };
 
 export default CourierNavigationPanel;
+

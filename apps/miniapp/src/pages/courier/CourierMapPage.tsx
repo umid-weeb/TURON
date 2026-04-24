@@ -312,6 +312,7 @@ const CourierMapPage: React.FC = () => {
   const displayRouteInfo = routeInfo ?? metricsRouteInfo;
   const routeSteps = routeInfo?.steps ?? [];
   const activeStep = currentStep ?? routeSteps[0] ?? null;
+  const currentStepIndex = activeStep ? Math.max(routeSteps.findIndex((step) => step.instruction === activeStep.instruction && step.distanceText === activeStep.distanceText && step.action === activeStep.action), 0) : 0;
   const routes = useMemo<RouteAlternative[]>(() => {
     if (!displayRouteInfo.distance || !displayRouteInfo.eta) {
       return [];
@@ -367,18 +368,14 @@ const CourierMapPage: React.FC = () => {
     [hasLivePos, distToCustomer, currentStage],
   );
 
-  // ── Smart camera configuration based on distance ────────────────────────────
+  // Smart camera config should react to route changes, not repaint on a timer.
   useEffect(() => {
-    const cameraInterval = setInterval(() => {
-      const distanceMeters = remainingMetrics.distanceKm * 1000;
-      const optimalConfig = getOptimalCameraConfig({
-        distanceMeters,
-        speedKmh: liveCourierPos ? 28 : 0,
-      });
-      setCameraConfig(optimalConfig);
-    }, 500);
-
-    return () => clearInterval(cameraInterval);
+    const distanceMeters = remainingMetrics.distanceKm * 1000;
+    const optimalConfig = getOptimalCameraConfig({
+      distanceMeters,
+      speedKmh: liveCourierPos ? 28 : 0,
+    });
+    setCameraConfig(optimalConfig);
   }, [remainingMetrics.distanceKm, liveCourierPos]);
 
   // ── 3D courier icon: smoothedHeading (from Zustand) + distance-based scaling ──
@@ -641,7 +638,7 @@ const CourierMapPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/courier/orders')}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-slate-950/72 text-white shadow-[0_8px_24px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95"
+          className="courier-map-fab flex h-12 w-12 items-center justify-center rounded-[18px] transition-transform active:scale-95"
         >
           <ArrowLeft size={19} />
         </button>
@@ -653,19 +650,19 @@ const CourierMapPage: React.FC = () => {
           <button
             type="button"
             onClick={() => void requestCompassPermission()}
-            className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl transition-transform active:scale-95"
+            className="courier-map-fab courier-map-fab--accent flex items-center gap-2 rounded-[20px] px-5 py-3 text-sm font-black transition-transform active:scale-95"
           >
-            <span>📡</span>
             <span>Navigatsiyani boshlash</span>
           </button>
         </div>
       )}
 
+
       {/* ── Bottom action panel ──────────────────────────────────────────── */}
       {activeStep || routes.length > 1 ? (
         <div
           className="pointer-events-none absolute left-4 top-0 z-30 px-0"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 76px)' }}
         >
           <div className="pointer-events-auto w-fit">
             <CourierNavigationPanel
@@ -674,7 +671,7 @@ const CourierMapPage: React.FC = () => {
               onSelectRoute={setSelectedRouteId}
               currentStep={activeStep}
               allSteps={routeSteps}
-              currentStepIndex={0}
+              currentStepIndex={currentStepIndex}
               distance={displayRouteInfo.distance}
               eta={displayRouteInfo.eta}
             />
@@ -695,7 +692,7 @@ const CourierMapPage: React.FC = () => {
             className="flex-1"
             onClick={() => setProblemSheetOpen(false)}
           />
-          <div className="rounded-t-[16px] bg-[#1a1b26] p-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]">
+          <div className="courier-dark-sheet rounded-t-[24px] p-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]">
             <div className="mx-auto mb-4 h-1 w-9 rounded-sm bg-white/15" />
             <CourierProblemReporter
               value={problemDraft}
@@ -728,3 +725,4 @@ const CourierMapPage: React.FC = () => {
 };
 
 export default CourierMapPage;
+

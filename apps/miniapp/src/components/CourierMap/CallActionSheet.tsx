@@ -29,7 +29,7 @@ export function CallActionSheet({
 
     el.style.transform = 'translateY(100%)';
     requestAnimationFrame(() => {
-      el.style.transition = 'transform 0.32s cubic-bezier(0.32,0.72,0,1)';
+      el.style.transition = 'transform 0.42s cubic-bezier(0.22,1,0.36,1)';
       el.style.transform = 'translateY(0)';
     });
   }, []);
@@ -42,7 +42,7 @@ export function CallActionSheet({
     }
 
     el.style.transform = 'translateY(100%)';
-    window.setTimeout(onClose, 180);
+    window.setTimeout(onClose, 220);
   };
 
   const handleBackdropClick = (event: React.MouseEvent) => {
@@ -88,7 +88,6 @@ export function CallActionSheet({
       await notifyMutation.mutateAsync({ id: orderId, method: 'phone_call' });
       setSentAction('phone');
     } catch {
-      // Phone fallback is still allowed; the global call confirm protects accidental calls.
       setErrorText("Telegram ogohlantirish yuborilmadi, ammo telefon qo'ng'iroqni davom ettirish mumkin.");
     } finally {
       setActiveAction(null);
@@ -106,60 +105,49 @@ export function CallActionSheet({
       style={{
         position: 'fixed',
         inset: 0,
-        background:
-          'linear-gradient(180deg, rgba(5,8,18,0.42) 0%, rgba(5,8,18,0.78) 100%)',
+        background: 'linear-gradient(180deg, rgba(5,5,6,0.32) 0%, rgba(5,5,6,0.8) 100%)',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'flex-end',
-        backdropFilter: 'blur(8px)',
+        backdropFilter: 'blur(10px)',
       }}
     >
       <div
         ref={sheetRef}
+        className="courier-dark-sheet"
         style={{
           width: '100%',
           maxWidth: 430,
           margin: '0 auto',
-          background: '#151722',
-          borderRadius: '24px 24px 0 0',
-          padding: '12px 16px calc(env(safe-area-inset-bottom,0px) + 20px)',
+          borderRadius: '28px 28px 0 0',
+          padding: '14px 16px calc(env(safe-area-inset-bottom,0px) + 20px)',
           boxSizing: 'border-box',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 -24px 70px rgba(0,0,0,0.45)',
         }}
       >
-        <div
-          style={{
-            width: 42,
-            height: 4,
-            borderRadius: 2,
-            background: 'rgba(255,255,255,0.18)',
-            margin: '2px auto 18px',
-          }}
-        />
+        <div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.16)', margin: '2px auto 18px' }} />
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
           <div
+            className="courier-accent-pill"
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, rgba(91,127,255,0.28), rgba(45,212,160,0.18))',
+              width: 52,
+              height: 52,
+              borderRadius: 18,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a0b0ff" strokeWidth="2" strokeLinecap="round">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#111111" strokeWidth="2" strokeLinecap="round">
               <path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
             </svg>
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#e8ecff' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff8eb' }}>
               {customerName || 'Mijoz'} bilan bog'lanish
             </div>
-            <div style={{ fontSize: 12, color: '#8b93aa', marginTop: 4, lineHeight: 1.45 }}>
+            <div style={{ fontSize: 12, color: '#b8b1a5', marginTop: 5, lineHeight: 1.5 }}>
               Avval Telegram orqali xabar yuboramiz. Telefon qo'ng'iroqda mijozga oldindan ogohlantirish ketadi.
             </div>
           </div>
@@ -169,13 +157,13 @@ export function CallActionSheet({
           <div
             style={{
               marginBottom: 12,
-              borderRadius: 14,
-              border: '1px solid rgba(240,112,106,0.25)',
-              background: 'rgba(240,112,106,0.1)',
+              borderRadius: 16,
+              border: '1px solid rgba(255,126,126,0.25)',
+              background: 'rgba(255,126,126,0.1)',
               color: '#ffb3ae',
               fontSize: 12,
               lineHeight: 1.45,
-              padding: '10px 12px',
+              padding: '11px 12px',
             }}
           >
             {errorText}
@@ -188,13 +176,13 @@ export function CallActionSheet({
           disabled={isBusy}
           style={{
             width: '100%',
-            padding: '14px 14px',
+            padding: '14px',
             background:
               sentAction === 'telegram'
-                ? 'rgba(29,158,117,0.16)'
-                : 'linear-gradient(135deg, rgba(91,127,255,0.18), rgba(91,127,255,0.08))',
-            border: '1px solid rgba(91,127,255,0.28)',
-            borderRadius: 18,
+                ? 'rgba(255,216,76,0.16)'
+                : 'linear-gradient(135deg, rgba(255,216,76,0.16), rgba(255,216,76,0.08))',
+            border: '1px solid rgba(255,216,76,0.24)',
+            borderRadius: 20,
             display: 'flex',
             alignItems: 'center',
             gap: 12,
@@ -202,19 +190,21 @@ export function CallActionSheet({
             marginBottom: 10,
             textAlign: 'left',
             opacity: isBusy && activeAction !== 'telegram' ? 0.62 : 1,
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
+            boxShadow: sentAction === 'telegram' ? '0 16px 28px rgba(255,216,76,0.14)' : 'none',
           }}
         >
           <div
             style={{
-              width: 46,
-              height: 46,
-              borderRadius: 15,
+              width: 48,
+              height: 48,
+              borderRadius: 16,
               background: '#229ed9',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
-              boxShadow: '0 10px 22px rgba(34,158,217,0.3)',
+              boxShadow: '0 10px 22px rgba(34,158,217,0.28)',
             }}
           >
             <svg width="23" height="23" viewBox="0 0 24 24" fill="#fff">
@@ -222,22 +212,23 @@ export function CallActionSheet({
             </svg>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#e8ecff' }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#fff8eb' }}>
               {activeAction === 'telegram' ? 'Yuborilmoqda...' : 'Telegram xabar yuborish'}
             </div>
-            <div style={{ fontSize: 11, color: '#8b93aa', marginTop: 3 }}>
+            <div style={{ fontSize: 11, color: '#b8b1a5', marginTop: 3 }}>
               Mijoz bot orqali ko'radi, raqam oshkor bo'lmaydi
             </div>
           </div>
           <span
+            className="courier-dark-chip--accent"
             style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#2dd4a0',
-              background: 'rgba(29,158,117,0.15)',
               borderRadius: 999,
               padding: '4px 8px',
               whiteSpace: 'nowrap',
+              fontSize: 10,
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
             }}
           >
             Tavsiya
@@ -250,43 +241,44 @@ export function CallActionSheet({
           disabled={isBusy || !customerPhone}
           style={{
             width: '100%',
-            padding: '14px 14px',
+            padding: '14px',
             background: customerPhone ? 'rgba(255,255,255,0.045)' : 'rgba(255,255,255,0.025)',
             border: `1px solid ${customerPhone ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)'}`,
-            borderRadius: 18,
+            borderRadius: 20,
             display: 'flex',
             alignItems: 'center',
             gap: 12,
             cursor: isBusy ? 'wait' : customerPhone ? 'pointer' : 'not-allowed',
             textAlign: 'left',
             opacity: isBusy && activeAction !== 'phone' ? 0.62 : 1,
+            transition: 'transform 0.2s ease, opacity 0.2s ease',
           }}
         >
           <div
             style={{
-              width: 46,
-              height: 46,
-              borderRadius: 15,
-              background: customerPhone ? 'rgba(245,166,35,0.14)' : 'rgba(255,255,255,0.04)',
+              width: 48,
+              height: 48,
+              borderRadius: 16,
+              background: customerPhone ? 'rgba(255,216,76,0.12)' : 'rgba(255,255,255,0.04)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={customerPhone ? '#f5a623' : '#555b70'} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={customerPhone ? '#ffd84c' : '#5c5952'} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1A19.5 19.5 0 013.1 11a19.8 19.8 0 01-3-8.6A2 2 0 012 .2h3a2 2 0 012 1.7c.1 1.2.4 2.4.7 3.5a2 2 0 01-.5 2L6 8.9a16 16 0 006.1 6l1.5-1.5a2 2 0 012-.5c1.1.3 2.3.6 3.5.7a2 2 0 011.9 2z" />
             </svg>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: customerPhone ? '#e8ecff' : '#555b70' }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: customerPhone ? '#fff8eb' : '#5c5952' }}>
               {activeAction === 'phone' ? 'Ogohlantirilmoqda...' : "Telefon qo'ng'iroq"}
             </div>
-            <div style={{ fontSize: 11, color: '#8b93aa', marginTop: 3 }}>
+            <div style={{ fontSize: 11, color: '#b8b1a5', marginTop: 3 }}>
               {formattedPhone ?? "Mijoz raqami ko'rsatilmagan"}
             </div>
           </div>
-          <span style={{ fontSize: 11, color: '#f5a623', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11, color: '#ffd84c', whiteSpace: 'nowrap', fontWeight: 700 }}>
             SIM orqali
           </span>
         </button>
@@ -297,11 +289,12 @@ export function CallActionSheet({
           disabled={isBusy}
           style={{
             width: '100%',
-            padding: '15px 16px 4px',
+            padding: '16px 16px 6px',
             background: 'transparent',
             border: 'none',
-            color: '#8b93aa',
+            color: '#b8b1a5',
             fontSize: 14,
+            fontWeight: 700,
             cursor: isBusy ? 'wait' : 'pointer',
           }}
         >

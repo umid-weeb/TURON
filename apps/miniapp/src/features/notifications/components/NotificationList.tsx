@@ -46,6 +46,7 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
   const { data: notifications = [], isLoading, isError, error } = useNotifications(role);
   const markAsRead = useMarkNotificationAsRead(role);
   const markAllAsRead = useMarkAllNotificationsAsRead(role);
+  const isCourier = role === UserRoleEnum.COURIER;
   const copy =
     language === 'ru'
       ? {
@@ -100,49 +101,79 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-          <Loader2 size={28} className="animate-spin text-slate-400" />
-        </div>
-        <h3 className="text-lg font-bold text-slate-800 mb-1">Bildirishnomalar yuklanmoqda</h3>
-        <p className="text-sm text-slate-500">Real notification oqimi serverdan olinmoqda.</p>
+  const renderStateCard = (
+    icon: React.ReactNode,
+    title: string,
+    subtitle: string,
+  ) => (
+    <div
+      className={
+        isCourier
+          ? 'courier-card-strong flex flex-col items-center justify-center rounded-[30px] px-6 py-16 text-center'
+          : 'flex flex-col items-center justify-center px-6 py-20 text-center'
+      }
+    >
+      <div
+        className={
+          isCourier
+            ? 'courier-accent-pill mb-4 flex h-20 w-20 items-center justify-center rounded-full'
+            : 'mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100'
+        }
+      >
+        {icon}
       </div>
+      <h3 className={isCourier ? 'text-lg font-black text-[var(--courier-text)]' : 'text-lg font-bold text-slate-800'}>
+        {title}
+      </h3>
+      <p className={isCourier ? 'mt-1 text-sm text-[var(--courier-muted)]' : 'text-sm text-slate-500'}>
+        {subtitle}
+      </p>
+    </div>
+  );
+
+  if (isLoading) {
+    return renderStateCard(
+      <Loader2 size={28} className={`animate-spin ${isCourier ? 'text-[var(--courier-accent-contrast)]' : 'text-slate-400'}`} />,
+      'Bildirishnomalar yuklanmoqda',
+      'Real notification oqimi serverdan olinmoqda.',
     );
   }
 
   if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4">
-          <AlertCircle size={28} className="text-red-400" />
-        </div>
-        <h3 className="text-lg font-bold text-slate-800 mb-1">Bildirishnomalar yuklanmadi</h3>
-        <p className="text-sm text-slate-500">{(error as Error).message}</p>
-      </div>
+    return renderStateCard(
+      <AlertCircle size={28} className="text-red-400" />,
+      'Bildirishnomalar yuklanmadi',
+      (error as Error).message,
     );
   }
 
   if (notifications.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-          <Bell size={32} className="text-slate-300" />
-        </div>
-        <h3 className="text-lg font-bold text-slate-800 mb-1">{copy.emptyTitle}</h3>
-        <p className="text-sm text-slate-500">{copy.emptySubtitle}</p>
-      </div>
+    return renderStateCard(
+      <Bell size={32} className={isCourier ? 'text-[var(--courier-accent-contrast)]' : 'text-slate-300'} />,
+      copy.emptyTitle,
+      copy.emptySubtitle,
     );
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center px-1 mb-2">
-        <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">{copy.heading}</span>
+        <span
+          className={
+            isCourier
+              ? 'text-[11px] font-black uppercase tracking-[0.18em] text-[var(--courier-muted)]'
+              : 'text-[11px] font-black uppercase tracking-widest text-slate-400'
+          }
+        >
+          {copy.heading}
+        </span>
         <button 
           onClick={() => markAllAsRead.mutate()}
-          className="text-[11px] font-black uppercase tracking-widest text-amber-600 active:text-amber-700"
+          className={
+            isCourier
+              ? 'rounded-full bg-[var(--courier-accent-soft)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#7d5e00] active:scale-[0.98] dark:text-[var(--courier-accent)]'
+              : 'text-[11px] font-black uppercase tracking-widest text-amber-600 active:text-amber-700'
+          }
           disabled={markAllAsRead.isPending}
         >
           {markAllAsRead.isPending ? "Yuklanmoqda..." : copy.markAll}
@@ -155,40 +186,78 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
             key={notification.id}
             onClick={() => handleNotificationClick(notification)}
             className={`
-              relative p-4 rounded-[24px] border-2 transition-all active:scale-[0.98] cursor-pointer
-              ${notification.isRead 
-                ? 'bg-white border-slate-50 opacity-80' 
-                : 'bg-white border-amber-100 shadow-lg shadow-amber-50'
+              relative cursor-pointer rounded-[24px] p-4 transition-all active:scale-[0.98]
+              ${isCourier
+                ? notification.isRead
+                  ? 'courier-card border border-[var(--courier-line)] bg-[var(--courier-surface)] opacity-85'
+                  : 'courier-card-strong border border-[rgba(255,216,76,0.26)] bg-[var(--courier-surface-strong)] shadow-[0_18px_42px_rgba(17,17,17,0.08)]'
+                : notification.isRead 
+                  ? 'border-2 border-slate-50 bg-white opacity-80' 
+                  : 'border-2 border-amber-100 bg-white shadow-lg shadow-amber-50'
               }
             `}
           >
             {!notification.isRead && (
-              <div className="absolute top-4 right-4 w-2 h-2 bg-amber-500 rounded-full" />
+              <div className={`absolute top-4 right-4 h-2 w-2 rounded-full ${isCourier ? 'bg-[var(--courier-accent)]' : 'bg-amber-500'}`} />
             )}
             
             <div className="flex gap-4">
               <div className={`
-                w-10 h-10 rounded-full flex items-center justify-center shrink-0
-                ${notification.isRead ? 'bg-slate-50' : 'bg-amber-50'}
+                flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+                ${isCourier
+                  ? notification.isRead
+                    ? 'bg-black/5 dark:bg-white/6'
+                    : 'bg-[var(--courier-accent-soft)]'
+                  : notification.isRead
+                    ? 'bg-slate-50'
+                    : 'bg-amber-50'}
               `}>
                 {getIcon(notification.type)}
               </div>
               
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-0.5">
-                  <h4 className={`text-sm font-bold truncate ${notification.isRead ? 'text-slate-600' : 'text-slate-900'}`}>
+                  <h4
+                    className={`truncate text-sm font-bold ${
+                      isCourier
+                        ? notification.isRead
+                          ? 'text-[var(--courier-text)]/72'
+                          : 'text-[var(--courier-text)]'
+                        : notification.isRead
+                          ? 'text-slate-600'
+                          : 'text-slate-900'
+                    }`}
+                  >
                     {notification.title}
                   </h4>
-                  <span className="text-[10px] text-slate-400 whitespace-nowrap ml-2">
+                  <span
+                    className={`ml-2 whitespace-nowrap text-[10px] ${
+                      isCourier ? 'text-[var(--courier-muted)]' : 'text-slate-400'
+                    }`}
+                  >
                     {formatTimeAgo(notification.createdAt, language)}
                   </span>
                 </div>
-                <p className={`text-xs leading-relaxed ${notification.isRead ? 'text-slate-500' : 'text-slate-700'}`}>
+                <p
+                  className={`text-xs leading-relaxed ${
+                    isCourier
+                      ? notification.isRead
+                        ? 'text-[var(--courier-muted)]'
+                        : 'text-[var(--courier-text)]/78'
+                      : notification.isRead
+                        ? 'text-slate-500'
+                        : 'text-slate-700'
+                  }`}
+                >
                   {notification.message}
                 </p>
                 
                 {notification.actionRoute && (
-                  <div className="mt-3 flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter text-amber-600">
+                  <div
+                    className={`mt-3 flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.16em] ${
+                      isCourier ? 'text-[var(--courier-accent-strong)]' : 'text-amber-600'
+                    }`}
+                  >
                     <span>{copy.details}</span>
                     <ChevronRight size={12} />
                   </div>

@@ -38,26 +38,26 @@ export function InfoCards({ stage, distance, time, orderId, customerName, itemCo
   const cards =
     stage === 1
       ? [
-          { label: 'Masofa', value: formatDistance(distance), color: '#f5a623', sub: "route bo'yicha" },
-          { label: 'Vaqt', value: formatTime(time), color: '#2dd4a0', sub: 'taxminiy' },
-          { label: 'Buyurtma', value: orderIdText, color: '#e8ecff', sub: `${itemCount} ta mahsulot` },
+          { label: 'Masofa', value: formatDistance(distance), color: '#ffd84c', sub: "route bo'yicha" },
+          { label: 'Vaqt', value: formatTime(time), color: '#fff8eb', sub: 'taxminiy' },
+          { label: 'Buyurtma', value: orderIdText, color: '#fff8eb', sub: `${itemCount} ta mahsulot` },
         ]
       : stage === 2
         ? [
-            { label: 'Qoldi', value: formatDistance(distance), color: '#2dd4a0', sub: "route bo'yicha" },
-            { label: 'Vaqt', value: formatTime(time), color: '#f5a623', sub: 'taxminiy' },
+            { label: 'Qoldi', value: formatDistance(distance), color: '#ffd84c', sub: "route bo'yicha" },
+            { label: 'Vaqt', value: formatTime(time), color: '#fff8eb', sub: 'taxminiy' },
             {
               label: 'Mijoz',
               value: customerName || 'Mijoz',
-              color: '#e8ecff',
+              color: '#fff8eb',
               sub: `${itemCount} ta mahsulot`,
               valueSize: 12,
             },
           ]
         : [
-            { label: 'Masofa', value: '0 m', color: '#2dd4a0', sub: 'yetkazildi' },
-            { label: 'Vaqt', value: '✓', color: '#2dd4a0', sub: 'topshirildi' },
-            { label: 'Buyurtma', value: orderIdText, color: '#e8ecff', sub: 'yakunlandi' },
+            { label: 'Masofa', value: '0 m', color: '#7cf1be', sub: 'yetkazildi' },
+            { label: 'Vaqt', value: 'OK', color: '#7cf1be', sub: 'topshirildi' },
+            { label: 'Buyurtma', value: orderIdText, color: '#fff8eb', sub: 'yakunlandi' },
           ];
 
   return (
@@ -74,21 +74,23 @@ export function InfoCards({ stage, distance, time, orderId, customerName, itemCo
           key={card.label}
           style={{
             flex: 1,
-            background: 'rgba(255,255,255,0.04)',
-            borderRadius: 10,
-            padding: '9px 10px',
+            background: 'rgba(255,255,255,0.05)',
+            borderRadius: 14,
+            padding: '10px 11px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 3,
+            gap: 4,
             minWidth: 0,
+            border: '1px solid rgba(255,255,255,0.06)',
           }}
         >
           <div
             style={{
               fontSize: 10,
-              color: '#6b7080',
+              color: '#9b9486',
               textTransform: 'uppercase',
-              letterSpacing: '0.05em',
+              letterSpacing: '0.08em',
+              fontWeight: 800,
             }}
           >
             {card.label}
@@ -96,7 +98,7 @@ export function InfoCards({ stage, distance, time, orderId, customerName, itemCo
           <div
             style={{
               fontSize: card.valueSize ?? 15,
-              fontWeight: 500,
+              fontWeight: 700,
               color: card.color,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -105,7 +107,7 @@ export function InfoCards({ stage, distance, time, orderId, customerName, itemCo
           >
             {card.value}
           </div>
-          <div style={{ fontSize: 10, color: '#6b7080' }}>{card.sub}</div>
+          <div style={{ fontSize: 10, color: '#b8b1a5' }}>{card.sub}</div>
         </div>
       ))}
     </div>

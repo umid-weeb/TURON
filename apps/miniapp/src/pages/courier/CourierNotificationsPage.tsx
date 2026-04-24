@@ -8,24 +8,30 @@ const CourierNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-8">
-      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-100 bg-white/95 px-4 py-4 backdrop-blur-xl"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+    <div className="courier-page min-h-screen pb-8">
+      <header
+        className="sticky top-0 z-30 px-4 pb-3"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-slate-200 bg-white text-slate-600 shadow-sm transition-transform active:scale-95"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex items-center gap-2">
-          <Bell size={18} className="text-slate-500" />
-          <p className="text-[18px] font-black text-slate-900">Bildirishnomalar</p>
+        <div className="courier-topbar flex items-center gap-3 rounded-[26px] px-4 py-3 courier-enter-soft">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="courier-topbar-button flex h-11 w-11 items-center justify-center rounded-[18px]"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="courier-label">Courier Pro</p>
+            <div className="mt-1 flex items-center gap-2">
+              <Bell size={18} className="text-[var(--courier-text)]" />
+              <p className="truncate text-[18px] font-black text-[var(--courier-text)]">Bildirishnomalar</p>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="px-4 py-4">
+      <main className="px-4 py-2">
         <NotificationList role={UserRoleEnum.COURIER} />
       </main>
     </div>

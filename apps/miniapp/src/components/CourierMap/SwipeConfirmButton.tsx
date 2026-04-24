@@ -15,7 +15,7 @@ export function SwipeConfirmButton({ onConfirm, label, sublabel, disabled }: Swi
   const isDragging = useRef(false);
   const isConfirmed = useRef(false);
 
-  const THUMB_W = 44;
+  const THUMB_W = 48;
   const THUMB_MARGIN = 4;
   const CONFIRM_THRESHOLD = 0.82;
 
@@ -48,7 +48,6 @@ export function SwipeConfirmButton({ onConfirm, label, sublabel, disabled }: Swi
     }, 150);
   };
 
-  // ── Touch handlers ────────────────────────────────────────────────────────
   const onTouchStart = (e: React.TouchEvent) => {
     if (disabled || isConfirmed.current) return;
     e.stopPropagation();
@@ -79,7 +78,6 @@ export function SwipeConfirmButton({ onConfirm, label, sublabel, disabled }: Swi
     setThumbX(0);
   };
 
-  // ── Mouse handlers (desktop / preview) ───────────────────────────────────
   const onMouseDown = (e: React.MouseEvent) => {
     if (disabled || isConfirmed.current) return;
     startX.current = e.clientX;
@@ -118,18 +116,18 @@ export function SwipeConfirmButton({ onConfirm, label, sublabel, disabled }: Swi
     <div
       ref={trackRef}
       style={{
-        margin: '8px 16px',
-        height: 52,
-        background: disabled ? 'rgba(255,255,255,0.04)' : 'rgba(29,158,117,0.15)',
-        borderRadius: 14,
+        margin: '10px 16px',
+        height: 56,
+        background: disabled ? 'rgba(255,255,255,0.04)' : 'rgba(255,216,76,0.12)',
+        borderRadius: 18,
         position: 'relative',
         overflow: 'hidden',
-        border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(29,158,117,0.30)'}`,
+        border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(255,216,76,0.18)'}`,
         touchAction: 'pan-y',
         flexShrink: 0,
+        boxShadow: disabled ? 'none' : '0 16px 34px rgba(255,216,76,0.12)',
       }}
     >
-      {/* Center labels */}
       <div
         style={{
           position: 'absolute',
@@ -142,15 +140,14 @@ export function SwipeConfirmButton({ onConfirm, label, sublabel, disabled }: Swi
           pointerEvents: 'none',
         }}
       >
-        <span style={{ fontSize: 12, fontWeight: 500, color: disabled ? '#6b7080' : '#2dd4a0' }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: disabled ? '#8d877d' : '#ffe58a' }}>
           {label}
         </span>
-        <span style={{ fontSize: 10, color: disabled ? '#444' : '#1d9e75' }}>
+        <span style={{ fontSize: 10, color: disabled ? '#7a766d' : '#b8b1a5', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
           {sublabel}
         </span>
       </div>
 
-      {/* Draggable thumb */}
       <div
         ref={thumbRef}
         onTouchStart={onTouchStart}
@@ -163,8 +160,8 @@ export function SwipeConfirmButton({ onConfirm, label, sublabel, disabled }: Swi
           top: THUMB_MARGIN,
           width: THUMB_W,
           height: THUMB_W,
-          borderRadius: 12,
-          background: disabled ? '#3a3f55' : '#1d9e75',
+          borderRadius: 16,
+          background: disabled ? '#3a3f55' : '#ffd84c',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -173,29 +170,21 @@ export function SwipeConfirmButton({ onConfirm, label, sublabel, disabled }: Swi
           zIndex: 2,
           userSelect: 'none',
           WebkitUserSelect: 'none',
+          boxShadow: disabled ? 'none' : '0 12px 26px rgba(255,216,76,0.28)',
         }}
       >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke={disabled ? '#6b7080' : '#fff'}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={disabled ? '#8d877d' : '#111111'} strokeWidth="2.5" strokeLinecap="round">
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </div>
 
-      {/* Success overlay */}
       <div
         ref={successRef}
         style={{
           position: 'absolute',
           inset: 0,
           background: '#1d9e75',
-          borderRadius: 14,
+          borderRadius: 18,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -205,18 +194,10 @@ export function SwipeConfirmButton({ onConfirm, label, sublabel, disabled }: Swi
           pointerEvents: 'none',
         }}
       >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#fff"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Tasdiqlandi!</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Tasdiqlandi!</span>
       </div>
     </div>
   );

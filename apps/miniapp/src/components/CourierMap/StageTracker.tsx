@@ -50,9 +50,9 @@ function getStepIcon(index: number, state: StepState) {
 
 function getCircleStyle(state: StepState): React.CSSProperties {
   return {
-    width: 36,
-    height: 36,
-    borderRadius: '50%',
+    width: 38,
+    height: 38,
+    borderRadius: '999px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -63,22 +63,23 @@ function getCircleStyle(state: StepState): React.CSSProperties {
       state === 'done'
         ? '#1d9e75'
         : state === 'active'
-          ? '#2a3a8a'
+          ? '#ffd84c'
           : 'rgba(255,255,255,0.06)',
-    border: state === 'active' ? '2px solid #5b7fff' : 'none',
+    border: state === 'active' ? '2px solid rgba(255,216,76,0.28)' : '1px solid rgba(255,255,255,0.08)',
+    boxShadow: state === 'active' ? '0 12px 26px rgba(255,216,76,0.25)' : 'none',
   };
 }
 
 function getLabelColor(state: StepState) {
-  if (state === 'done') return '#1d9e75';
-  if (state === 'active') return '#a0b0ff';
-  return '#6b7080';
+  if (state === 'done') return '#8bf0c2';
+  if (state === 'active') return '#ffe693';
+  return '#9b9486';
 }
 
 function getStrokeColor(state: StepState) {
   if (state === 'done') return '#fff';
-  if (state === 'active') return '#a0b0ff';
-  return '#3a3f55';
+  if (state === 'active') return '#111111';
+  return '#5b564d';
 }
 
 export function StageTracker({ stage }: Props) {
@@ -91,9 +92,10 @@ export function StageTracker({ stage }: Props) {
         style={{
           fontSize: 11,
           textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          color: '#6b7080',
+          letterSpacing: '0.08em',
+          color: '#9b9486',
           marginBottom: 10,
+          fontWeight: 800,
         }}
       >
         Yetkazish holati
@@ -110,7 +112,7 @@ export function StageTracker({ stage }: Props) {
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 5,
+                  gap: 6,
                   flex: 1,
                 }}
               >
@@ -128,7 +130,7 @@ export function StageTracker({ stage }: Props) {
                     {getStepIcon(index, state)}
                   </svg>
                 </div>
-                <div style={{ fontSize: 10, textAlign: 'center', color: getLabelColor(state) }}>
+                <div style={{ fontSize: 10, textAlign: 'center', color: getLabelColor(state), fontWeight: 700 }}>
                   {label}
                 </div>
               </div>
@@ -142,7 +144,7 @@ export function StageTracker({ stage }: Props) {
                     marginBottom: 16,
                     position: 'relative',
                     zIndex: 1,
-                    background: lineDone(index) ? '#1d9e75' : 'rgba(255,255,255,0.08)',
+                    background: lineDone(index) ? '#ffd84c' : 'rgba(255,255,255,0.08)',
                   }}
                 />
               ) : null}

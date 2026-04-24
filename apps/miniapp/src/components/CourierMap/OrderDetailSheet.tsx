@@ -1,3 +1,4 @@
+import { Package2, X } from 'lucide-react';
 import { OrderItem } from '../../store/courierStore';
 
 interface Props {
@@ -18,134 +19,88 @@ export function OrderDetailSheet({ isOpen, onClose, orderId, items }: Props) {
   const title = orderId ? `Buyurtma ${orderId}` : 'Buyurtma';
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-        background: 'rgba(0,0,0,0.58)',
-      }}
-    >
+    <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-[2px]">
       <button
         type="button"
         aria-label="Yopish"
         onClick={onClose}
-        style={{ flex: 1, border: 'none', background: 'transparent' }}
+        className="flex-1"
       />
-      <div
-        style={{
-          background: '#1a1b26',
-          borderRadius: '16px 16px 0 0',
-          padding: 16,
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-          boxShadow: '0 -10px 30px rgba(0,0,0,0.45)',
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 4,
-            background: 'rgba(255,255,255,0.15)',
-            borderRadius: 2,
-            margin: '0 auto 16px',
-          }}
-        />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 15, fontWeight: 500, color: '#e8ecff' }}>{title}</div>
+      <div className="courier-dark-sheet rounded-t-[28px] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+18px)] pt-4">
+        <div className="mx-auto mb-4 h-1 w-11 rounded-full bg-white/15" />
+
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
+              Tarkib
+            </p>
+            <p className="mt-1 text-[18px] font-black text-[#fff8eb]">{title}</p>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              border: 'none',
-              background: 'transparent',
-              color: '#6b7080',
-              fontSize: 24,
-              cursor: 'pointer',
-              lineHeight: '32px',
-            }}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/6 text-white/72 transition-transform active:scale-95"
           >
-            ×
+            <X size={18} />
           </button>
         </div>
 
-        <div style={{ maxHeight: '42vh', overflowY: 'auto', marginTop: 8 }}>
+        <div className="mt-4 max-h-[42vh] space-y-2 overflow-y-auto pr-1">
           {items.length > 0 ? (
             items.map((item) => (
               <div
                 key={item.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 0',
-                  borderBottom: '1px solid rgba(255,255,255,0.07)',
-                }}
+                className="flex items-center gap-3 rounded-[20px] border border-white/8 bg-white/[0.04] px-3 py-3"
               >
                 {item.image ? (
                   <img
                     src={item.image}
                     alt={item.name}
-                    style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }}
+                    className="h-12 w-12 rounded-[14px] object-cover"
                   />
                 ) : (
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 8,
-                      background: 'rgba(255,255,255,0.06)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#a0a8c0',
-                      fontSize: 18,
-                    }}
-                  >
-                    🍽️
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[rgba(255,216,76,0.12)] text-[var(--courier-accent)]">
+                    <Package2 size={20} />
                   </div>
                 )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: '#e8ecff',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {item.name}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#6b7080', marginTop: 2 }}>× {item.quantity} ta</div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-black text-[#fff8eb]">{item.name}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-[#b8b1a5]">
+                    {item.quantity} ta
+                  </p>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#2dd4a0' }}>
-                  {formatMoney(item.price)}
+
+                <div className="text-right">
+                  <p className="text-[13px] font-black text-[var(--courier-accent)]">
+                    {formatMoney(item.price)}
+                  </p>
+                  <p className="mt-1 text-[10px] text-[#b8b1a5]">
+                    jami: {formatMoney(item.price * item.quantity)}
+                  </p>
                 </div>
               </div>
             ))
           ) : (
-            <div style={{ padding: '18px 0', fontSize: 13, color: '#6b7080', textAlign: 'center' }}>
-              Mahsulotlar hali yuklanmadi
+            <div className="rounded-[22px] border border-white/8 bg-white/[0.04] px-4 py-8 text-center">
+              <Package2 size={20} className="mx-auto text-[#b8b1a5]" />
+              <p className="mt-3 text-[13px] font-bold text-[#b8b1a5]">
+                Mahsulotlar hali yuklanmadi
+              </p>
             </div>
           )}
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            padding: '12px 0 0',
-          }}
-        >
-          <div style={{ fontSize: 13, color: '#6b7080' }}>Jami:</div>
-          <div style={{ fontSize: 15, fontWeight: 500, color: '#e8ecff' }}>{formatMoney(totalAmount)}</div>
+        <div className="mt-4 rounded-[22px] border border-white/8 bg-white/[0.04] px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#b8b1a5]">
+              Jami
+            </span>
+            <span className="text-[18px] font-black text-[#fff8eb]">
+              {formatMoney(totalAmount)}
+            </span>
+          </div>
         </div>
       </div>
     </div>

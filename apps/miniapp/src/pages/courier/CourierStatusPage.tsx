@@ -7,7 +7,6 @@ import {
   useUpdateCourierStatus,
 } from '../../hooks/queries/useOrders';
 
-// ─── iOS-style toggle ─────────────────────────────────────────────────────────
 function Toggle({
   checked,
   onChange,
@@ -24,12 +23,14 @@ function Toggle({
       aria-checked={checked}
       onClick={onChange}
       disabled={disabled}
-      className={`relative inline-flex h-9 w-16 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none disabled:opacity-40 ${
-        checked ? 'bg-emerald-500' : 'bg-slate-300'
+      className={`relative inline-flex h-10 w-[74px] shrink-0 items-center rounded-full border transition-all duration-300 focus:outline-none disabled:opacity-40 ${
+        checked
+          ? 'border-[rgba(255,205,0,0.4)] bg-[var(--courier-accent)] shadow-[0_16px_28px_rgba(255,205,0,0.28)]'
+          : 'border-[var(--courier-line)] bg-black/8 dark:bg-white/8'
       }`}
     >
       <span
-        className={`ml-1 inline-block h-7 w-7 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+        className={`ml-1 inline-block h-8 w-8 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
           checked ? 'translate-x-8' : 'translate-x-0'
         }`}
       />
@@ -39,12 +40,7 @@ function Toggle({
 
 const CourierStatusPage: React.FC = () => {
   const navigate = useNavigate();
-  const {
-    data: status,
-    isLoading,
-    error,
-    refetch,
-  } = useCourierStatus();
+  const { data: status, isLoading, error, refetch } = useCourierStatus();
   const { data: todayStats } = useCourierTodayStats();
   const updateStatus = useUpdateCourierStatus();
 
@@ -52,8 +48,8 @@ const CourierStatusPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-indigo-500" />
-          <p className="text-[13px] font-bold text-slate-400">Yuklanmoqda...</p>
+          <Loader2 size={32} className="animate-spin text-[var(--courier-accent-strong)]" />
+          <p className="text-[13px] font-bold text-[var(--courier-muted)]">Yuklanmoqda...</p>
         </div>
       </div>
     );
@@ -62,18 +58,18 @@ const CourierStatusPage: React.FC = () => {
   if (error || !status) {
     return (
       <div className="px-5 py-10">
-        <div className="rounded-[26px] border border-red-100 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+        <div className="courier-card-strong rounded-[30px] p-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 dark:bg-red-500/12">
             <AlertCircle size={26} className="text-red-500" />
           </div>
-          <p className="text-[17px] font-black text-slate-900">Ulanib bo'lmadi</p>
-          <p className="mt-2 text-[13px] text-slate-500">
+          <p className="text-[17px] font-black text-[var(--courier-text)]">Ulanib bo'lmadi</p>
+          <p className="mt-2 text-[13px] text-[var(--courier-muted)]">
             {(error as Error)?.message || "Server bilan bog'lanib bo'lmadi"}
           </p>
           <button
             type="button"
             onClick={() => void refetch()}
-            className="mt-5 h-12 rounded-[18px] bg-slate-900 px-6 text-[13px] font-black text-white active:scale-95"
+            className="courier-cta-primary mt-5 h-12 rounded-[18px] px-6 text-[13px] font-black active:scale-95"
           >
             Qayta urinish
           </button>
@@ -87,106 +83,85 @@ const CourierStatusPage: React.FC = () => {
   const feesToday = todayStats?.deliveryFeesTotal ?? 0;
   const activeCount = status.activeAssignments ?? 0;
 
-  // Single toggle: turns on/off both isOnline and isAcceptingOrders together
   const handleToggle = () => {
     updateStatus.mutate({
       isOnline: !isOnline,
-      isAcceptingOrders: !isOnline, // sync with isOnline
+      isAcceptingOrders: !isOnline,
     });
   };
 
   return (
-    <div className="space-y-3 px-4 py-5">
-
-      {/* ── Single online/offline toggle ────────────────────────────── */}
-      <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
+    <div className="courier-enter-up space-y-4 px-4 py-5">
+      <div className="courier-card-strong rounded-[32px] p-5">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[19px] font-black leading-tight text-slate-900">
+            <p className="courier-label">Ish rejimi</p>
+            <p className="mt-2 text-[22px] font-black leading-tight text-[var(--courier-text)]">
               {isOnline ? 'Ishlamoqdaman' : 'Dam olmoqdaman'}
             </p>
-            <p className="mt-1 text-[13px] text-slate-500">
-              {isOnline
-                ? 'Yangi topshiriqlar kelishi mumkin'
-                : 'Hech qanday topshiriq kelmaydi'}
+            <p className="mt-1 text-[13px] text-[var(--courier-muted)]">
+              {isOnline ? 'Yangi topshiriqlar avtomatik keladi' : 'Hech qanday topshiriq kelmaydi'}
             </p>
           </div>
           {updateStatus.isPending ? (
-            <Loader2 size={24} className="shrink-0 animate-spin text-slate-400" />
+            <Loader2 size={24} className="shrink-0 animate-spin text-[var(--courier-accent-strong)]" />
           ) : (
-            <Toggle
-              checked={isOnline}
-              onChange={handleToggle}
-              disabled={updateStatus.isPending}
-            />
+            <Toggle checked={isOnline} onChange={handleToggle} disabled={updateStatus.isPending} />
           )}
         </div>
 
-        {/* Status pill */}
-        <div className="mt-4">
-          <span
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-black ${
-              isOnline
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-slate-100 text-slate-500'
-            }`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
-              }`}
-            />
-            {isOnline ? 'Faol — buyurtma qabul qilmoqda' : 'Offline'}
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-black ${isOnline ? 'courier-status-pill' : 'bg-black/5 text-[var(--courier-muted)] dark:bg-white/6'}`}>
+            <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-current animate-pulse' : 'bg-current/70'}`} />
+            {isOnline ? 'Faol - buyurtma qabul qilmoqda' : 'Offline'}
+          </span>
+          <span className="rounded-full bg-black/5 px-3 py-1.5 text-[12px] font-bold text-[var(--courier-muted)] dark:bg-white/6">
+            {status.isAcceptingOrders ? 'Qabul ochiq' : 'Qabul yopiq'}
           </span>
         </div>
       </div>
 
-
-      {/* ── Today's stats strip ─────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm p-4 text-center">
-          <p className="text-[26px] font-black text-slate-900 leading-none">{completedToday}</p>
-          <p className="mt-1.5 text-[11px] font-bold text-slate-400">Yetkazildi</p>
-        </div>
-        <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm p-4 text-center">
-          <p className="text-[26px] font-black text-slate-900 leading-none">{activeCount}</p>
-          <p className="mt-1.5 text-[11px] font-bold text-slate-400">Faol</p>
-        </div>
-        <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm p-4 text-center">
-          <p className="text-[16px] font-black text-slate-900 leading-none">
-            {feesToday > 0 ? `${(feesToday / 1000).toFixed(0)}K` : '—'}
-          </p>
-          <p className="mt-1.5 text-[11px] font-bold text-slate-400">Haqdorlik</p>
-        </div>
+        {[
+          { label: 'Yetkazildi', value: completedToday, tone: 'text-[var(--courier-text)]' },
+          { label: 'Faol', value: activeCount, tone: 'text-[var(--courier-text)]' },
+          { label: 'Haqdorlik', value: feesToday > 0 ? `${(feesToday / 1000).toFixed(0)}K` : '--', tone: 'text-[var(--courier-text)]' },
+        ].map((item) => (
+          <div key={item.label} className="courier-card-strong rounded-[24px] p-4 text-center courier-hoverable">
+            <p className={`text-[26px] font-black leading-none ${item.tone}`}>{item.value}</p>
+            <p className="mt-2 text-[11px] font-bold text-[var(--courier-muted)]">{item.label}</p>
+          </div>
+        ))}
       </div>
 
-      {/* ── Offline onboarding hint ──────────────────────────────────── */}
-      {!isOnline && (
-        <div className="rounded-[22px] border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white px-4 py-4 shadow-sm">
+      {!isOnline ? (
+        <div className="courier-card-strong rounded-[28px] px-4 py-4">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-indigo-100 text-indigo-600">
-              <Navigation size={17} />
+            <div className="courier-accent-pill mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px]">
+              <Navigation size={18} className="text-[var(--courier-accent-contrast)]" />
             </div>
             <div>
-              <p className="text-[14px] font-black text-slate-900">Ishni boshlash uchun</p>
-              <p className="mt-1 text-[12px] leading-snug text-slate-500">
-                Yuqoridagi{' '}
-                <span className="font-black text-slate-700">"Ishlamoqdaman"</span>{' '}
-                tugmasini yoqing. Shunda yangi buyurtmalar avtomatik keladi.
+              <p className="text-[14px] font-black text-[var(--courier-text)]">Ishni boshlash uchun</p>
+              <p className="mt-1 text-[12px] leading-snug text-[var(--courier-muted)]">
+                Yuqoridagi <span className="font-black text-[var(--courier-text)]">Ishlamoqdaman</span> tugmasini yoqing. Shunda yangi buyurtmalar avtomatik keladi.
               </p>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* ── Quick nav to orders list ─────────────────────────────────── */}
       <button
         type="button"
         onClick={() => navigate('/courier/orders')}
-        className="flex w-full items-center justify-between rounded-[26px] bg-white border border-slate-100 shadow-sm px-5 py-4 active:scale-[0.98] transition-transform"
+        className="courier-card-strong courier-hoverable flex w-full items-center justify-between rounded-[28px] px-5 py-4 active:scale-[0.985]"
       >
-        <p className="text-[15px] font-black text-slate-900">Barcha buyurtmalar</p>
-        <ChevronRight size={20} className="text-slate-400" />
+        <div>
+          <p className="courier-label">Tezkor o'tish</p>
+          <p className="mt-1 text-[16px] font-black text-[var(--courier-text)]">Barcha buyurtmalar</p>
+        </div>
+        <div className="courier-accent-pill flex h-10 w-10 items-center justify-center rounded-[14px]">
+          <ChevronRight size={20} className="text-[var(--courier-accent-contrast)]" />
+        </div>
       </button>
     </div>
   );

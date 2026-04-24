@@ -105,7 +105,7 @@ function ActionBtn({
       }}
     >
       <SvgIcon color={color}>{children}</SvgIcon>
-      <span style={{ fontSize: 9, color: '#6b7080' }}>{label}</span>
+      <span style={{ fontSize: 9, color: '#b8b1a5' }}>{label}</span>
     </button>
   );
 }
@@ -236,15 +236,15 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
       label: restaurantName || 'Turon Kafesi',
       address: restaurantAddress || "Yangi Sergeli ko'chasi, 11",
       badge: '→ olish',
-      badgeColor: '#2dd4a0',
-      badgeBg: 'rgba(29,158,117,0.12)',
+      badgeColor: '#ffd84c',
+      badgeBg: 'rgba(255,216,76,0.12)',
     },
     2: {
       label: customerName || 'Mijoz',
       address: customerAddress || "Manzil ko'rsatilmagan",
       badge: formatDist(distanceToDestination),
-      badgeColor: '#2dd4a0',
-      badgeBg: 'rgba(29,158,117,0.12)',
+      badgeColor: '#ffd84c',
+      badgeBg: 'rgba(255,216,76,0.12)',
     },
     3: {
       label: 'Buyurtma yakunlandi',
@@ -269,7 +269,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
           right: 0,
           bottom: 0,
           zIndex: 20,
-          background: '#1a1b26',
+          background: '#151517',
           borderRadius: '16px 16px 0 0',
           boxShadow: '0 -6px 28px rgba(0,0,0,0.42)',
           paddingBottom: 'env(safe-area-inset-bottom,0px)',
@@ -314,7 +314,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
               ) : (
                 <div className="bp-pulse-dot" />
               )}
-              <span style={{ fontSize: 12, fontWeight: 500, color: '#2dd4a0' }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: '#ffd84c' }}>
                 {peekLabel}
               </span>
             </div>
@@ -322,7 +322,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
             {/* Right: distance · time + chevron */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {deliveryStage !== 3 && (
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#f5a623' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#ffcf33' }}>
                   {formatDist(distanceToDestination)} · {formatTime(timeToDestination)}
                 </span>
               )}
@@ -386,14 +386,14 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
             }}
           >
             {deliveryStage === 1 ? (
-              <SvgIcon color="#2dd4a0" size={14}>
+              <SvgIcon color="#ffd84c" size={14}>
                 <path d="M3 2h13l3 8H3L3 2z" />
                 <path d="M3 10h16v9a2 2 0 01-2 2H5a2 2 0 01-2-2v-9z" />
                 <line x1="9" y1="14" x2="9" y2="18" />
                 <line x1="15" y1="14" x2="15" y2="18" />
               </SvgIcon>
             ) : deliveryStage === 2 ? (
-              <SvgIcon color="#5b7fff" size={14}>
+              <SvgIcon color="#ffe27a" size={14}>
                 <circle cx="12" cy="10" r="3" />
                 <path d="M12 2C8.1 2 5 5.1 5 9c0 5.3 7 13 7 13s7-7.7 7-13c0-3.9-3.1-7-7-7z" />
               </SvgIcon>
@@ -410,7 +410,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
               style={{
                 fontSize: 12,
                 fontWeight: 500,
-                color: '#e8ecff',
+                color: '#fff8eb',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -421,7 +421,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
             <div
               style={{
                 fontSize: 10,
-                color: '#6b7080',
+                color: '#b8b1a5',
                 marginTop: 1,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -469,9 +469,9 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
                 border: 'none',
                 borderRadius: 14,
                 background: updateStageMutation.isPending
-                  ? 'rgba(91,127,255,0.4)'
-                  : '#185fa5',
-                color: '#fff',
+                  ? 'rgba(255,216,76,0.35)'
+                  : '#ffd84c',
+                color: '#111111',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: updateStageMutation.isPending ? 'default' : 'pointer',
@@ -483,11 +483,11 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
                 opacity: updateStageMutation.isPending ? 0.7 : 1,
               }}
             >
-              <SvgIcon color="#fff" size={16}>
+              <SvgIcon color="#111111" size={16}>
                 <circle cx="12" cy="10" r="3" />
                 <path d="M12 2C8.1 2 5 5.1 5 9c0 5.3 7 13 7 13s7-7.7 7-13c0-3.9-3.1-7-7-7z" />
               </SvgIcon>
-              {updateStageMutation.isPending ? 'Yangilanmoqda...' : 'Yetib keldim — topshirdim'}
+              {updateStageMutation.isPending ? 'Yangilanmoqda...' : 'Yetib keldim - topshirdim'}
             </button>
           </div>
         ) : (
@@ -499,7 +499,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
                 borderRadius: 14,
                 background: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.08)',
-                color: '#6b7080',
+                color: '#b8b1a5',
                 fontSize: 13,
                 fontWeight: 500,
                 display: 'flex',
@@ -520,7 +520,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
         <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <ActionBtn
             label="Qo'ng'iroq"
-            color="#f5a623"
+            color="#ffcf33"
             onClick={() => {
               if (deliveryStage === 2) {
                 setCallSheetOpen(true);
@@ -540,7 +540,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
 
           <ActionBtn
             label="Chat"
-            color="#5b7fff"
+            color="#ffe27a"
             onClick={() => (onChat ? onChat() : window.Telegram?.WebApp?.showAlert?.('Chat mavjud emas'))}
           >
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
@@ -548,7 +548,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
 
           <ActionBtn
             label="Buyurtma"
-            color="#2dd4a0"
+            color="#ffd84c"
             onClick={() => setOrderSheetOpen(true)}
           >
             <path d="M21 16V8a2 2 0 00-1-1.7l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.7l7 4a2 2 0 002 0l7-4a2 2 0 001-1.7z" />
@@ -589,3 +589,4 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
     </>
   );
 }
+

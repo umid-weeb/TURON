@@ -200,7 +200,7 @@ export default function YandexRouteMap({
       const feature = new ymaps3.YMapFeature({
         id: 'courier-route',
         geometry: { type: 'LineString', coordinates: coords },
-        style: { stroke: [{ color: '#00E676', width: 7, opacity: 0.95 }] },
+        style: { stroke: [{ color: '#ffd84c', width: 7, opacity: 0.95 }] },
       });
       map.addChild(feature);
       routeFeatureRef.current = feature;
