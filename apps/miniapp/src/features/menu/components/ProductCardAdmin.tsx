@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Edit3, Package2, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 import type { MenuProduct } from '../types';
@@ -52,27 +52,20 @@ const ProductCardAdmin: React.FC<Props> = ({
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h4 className="truncate text-[16px] font-black text-[var(--admin-pro-text)]">{product.name}</h4>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-[rgba(255,190,11,0.16)] bg-[rgba(255,212,59,0.14)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--admin-pro-primary-contrast)]">
-                    {categoryName || 'Kategoriya yo\'q'}
-                  </span>
-                  {!product.isActive ? (
-                    <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-rose-600">
-                      Nofaol
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-              <span className="rounded-full border border-[var(--admin-pro-line)] bg-white/86 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--admin-pro-text-muted)] transition group-hover:border-[rgba(255,190,11,0.26)] group-hover:text-[var(--admin-pro-primary-contrast)]">
-                Tahrirlash
+            <h4 className="truncate text-[16px] font-black text-[var(--admin-pro-text)]">{product.name}</h4>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-[rgba(255,190,11,0.16)] bg-[rgba(255,212,59,0.14)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--admin-pro-primary-contrast)]">
+                {categoryName || "Kategoriya yo'q"}
               </span>
+              {!product.isActive ? (
+                <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-rose-600">
+                  Nofaol
+                </span>
+              ) : null}
             </div>
 
             <p className="mt-3 text-lg font-black text-[var(--admin-pro-primary-contrast)]">
-              {product.price.toLocaleString()} so&apos;m
+              {product.price.toLocaleString()} so'm
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">

@@ -1,17 +1,6 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Check,
-  ChevronDown,
-  Layers3,
-  Loader2,
-  Package2,
-  Save,
-  Sparkles,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { Check, ChevronDown, Loader2, Save, Trash2, X } from 'lucide-react';
 import type { MenuCategory, MenuProduct, ProductFormData } from '../types';
 import ProductImageUploader from './ProductImageUploader';
 
@@ -135,14 +124,7 @@ const ProductForm: React.FC<Props> = ({
           <header className="admin-pro-card admin-hero-card overflow-hidden px-5 py-5 text-[#fff8e9]">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#ffe8a3]">
-                  <Package2 size={13} />
-                  Product studio
-                </span>
-                <h2 className="mt-4 text-[30px] font-black tracking-tight">{title}</h2>
-                <p className="mt-1 max-w-[280px] text-sm font-medium text-[#f5e7bf]/86">
-                  Taom kartasini premium katalog standartida to&apos;ldiring va darhol ishlatishga tayyorlang.
-                </p>
+                <h2 className="text-[30px] font-black tracking-tight">{title}</h2>
               </div>
               <button
                 type="button"
@@ -174,22 +156,11 @@ const ProductForm: React.FC<Props> = ({
 
           {categoryMissing ? (
             <div className="admin-pro-card rounded-[28px] border-amber-200/90 bg-[linear-gradient(180deg,rgba(255,250,235,0.98)_0%,rgba(255,243,208,0.94)_100%)] px-4 py-4 shadow-[0_16px_34px_rgba(245,158,11,0.12)]">
-              <p className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-amber-700">
-                <Sparkles size={14} />
-                Diqqat
-              </p>
-              <p className="mt-2 text-sm font-bold leading-relaxed text-amber-800">
-                Avval kamida bitta kategoriya yarating, keyin taomni katalogga qo&apos;shing.
-              </p>
+              <p className="text-sm font-bold leading-relaxed text-amber-800">Avval kategoriya yarating.</p>
             </div>
           ) : null}
 
-          <SectionCard
-            eyebrow="Media"
-            title="Taom fotosi"
-            hint="Yorqin va toza rasm kartada ko&apos;proq bosilish beradi"
-            icon={<Sparkles size={15} className="text-[var(--admin-pro-primary-strong)]" />}
-          >
+          <SectionCard title="Rasm">
             <ProductImageUploader
               currentImageUrl={imageUrl}
               onImageChange={setImageUrl}
@@ -197,12 +168,7 @@ const ProductForm: React.FC<Props> = ({
             />
           </SectionCard>
 
-          <SectionCard
-            eyebrow="Asosiy ma&apos;lumot"
-            title="Katalog kartasi"
-            hint="Nom, narx va kategoriya foydalanuvchi ko&apos;radigan asosiy blok"
-            icon={<Layers3 size={15} className="text-[var(--admin-pro-primary-strong)]" />}
-          >
+          <SectionCard title="Asosiy">
             <Field label="Taom nomi" required error={errors.name}>
               <input
                 type="text"
@@ -221,14 +187,14 @@ const ProductForm: React.FC<Props> = ({
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Taom haqida qisqacha izoh..."
+                placeholder="Tavsif"
                 rows={4}
                 className="admin-input min-h-[112px] resize-none py-3 text-sm font-semibold"
               />
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Narx (so&apos;m)" required error={errors.price}>
+              <Field label="Narx (so'm)" required error={errors.price}>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -266,12 +232,7 @@ const ProductForm: React.FC<Props> = ({
             </div>
           </SectionCard>
 
-          <SectionCard
-            eyebrow="Operatsion nazorat"
-            title="Mavjudlik va holat"
-            hint="Tayyor emas taomni yashirish yoki zaxirani pasaytirish mumkin"
-            icon={<Box size={15} className="text-[var(--admin-pro-primary-strong)]" />}
-          >
+          <SectionCard title="Holat">
             <Field label="Zaxira miqdori" error={errors.stockQuantity}>
               <input
                 type="number"
@@ -291,9 +252,7 @@ const ProductForm: React.FC<Props> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-black text-[var(--admin-pro-text)]">Faol holat</p>
-                  <p className="mt-0.5 text-xs font-semibold text-[var(--admin-pro-text-muted)]">
-                    Nofaol taom mijozlar menyusida ko&apos;rinmaydi
-                  </p>
+                  <p className="mt-0.5 text-xs font-semibold text-[var(--admin-pro-text-muted)]">Mijozga ko'rinishi</p>
                 </div>
                 <button
                   type="button"
@@ -324,7 +283,7 @@ const ProductForm: React.FC<Props> = ({
               className="flex h-12 w-full items-center justify-center gap-2 rounded-[22px] border border-rose-200/80 bg-[linear-gradient(180deg,rgba(255,247,247,0.96)_0%,rgba(255,237,237,0.94)_100%)] text-sm font-black text-rose-600 shadow-[0_14px_30px_rgba(244,63,94,0.08)] transition hover:-translate-y-0.5 disabled:opacity-60"
             >
               {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-              Taomni o&apos;chirish
+              Taomni o'chirish
             </button>
           ) : null}
         </div>
@@ -357,19 +316,7 @@ const ProductForm: React.FC<Props> = ({
           />
           <div className="relative w-full max-w-[430px] rounded-t-[34px] border border-[var(--admin-pro-line)] bg-[linear-gradient(180deg,rgba(255,251,240,0.98)_0%,rgba(247,239,210,0.98)_100%)] px-4 pb-5 pt-3 shadow-[0_-18px_42px_rgba(74,56,16,0.18)]">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[rgba(125,106,76,0.22)]" />
-            <div className="flex items-start gap-3">
-              <div className="rounded-2xl border border-[var(--admin-pro-line)] bg-white/80 p-3 text-[var(--admin-pro-primary-contrast)] shadow-[0_12px_24px_rgba(74,56,16,0.08)]">
-                <Layers3 size={18} />
-              </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]">
-                  Tanlash
-                </p>
-                <p className="mt-1 text-lg font-black tracking-tight text-[var(--admin-pro-text)]">
-                  Kategoriyani tanlang
-                </p>
-              </div>
-            </div>
+            <p className="text-lg font-black tracking-tight text-[var(--admin-pro-text)]">Kategoriyani tanlang</p>
             <div className="mt-4 max-h-[56dvh] space-y-2 overflow-y-auto pb-2">
               {categories.map((category) => {
                 const isSelected = category.id === categoryId;
@@ -401,25 +348,11 @@ const ProductForm: React.FC<Props> = ({
 };
 
 const SectionCard: React.FC<{
-  eyebrow: string;
   title: string;
-  hint: string;
-  icon: React.ReactNode;
   children: React.ReactNode;
-}> = ({ eyebrow, title, hint, icon, children }) => (
+}> = ({ title, children }) => (
   <section className="admin-pro-card rounded-[32px] px-5 py-5">
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--admin-pro-text-muted)]">
-          {eyebrow}
-        </p>
-        <h3 className="mt-2 text-lg font-black tracking-tight text-[var(--admin-pro-text)]">{title}</h3>
-        <p className="mt-1 text-sm font-semibold leading-relaxed text-[var(--admin-pro-text-muted)]">{hint}</p>
-      </div>
-      <div className="rounded-2xl border border-[var(--admin-pro-line)] bg-[rgba(255,249,233,0.86)] p-3 shadow-[0_14px_28px_rgba(74,56,16,0.08)]">
-        {icon}
-      </div>
-    </div>
+    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--admin-pro-text-muted)]">{title}</p>
     <div className="mt-5 space-y-4">{children}</div>
   </section>
 );

@@ -247,9 +247,14 @@ const AdminLayout: React.FC = () => {
                 <h1 className="truncate text-lg font-black tracking-tight text-[var(--admin-pro-text)]">
                   {pageHeaderTitle}
                 </h1>
-                <div className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${syncBadgeClass}`}>
+                <div
+                  className={`mt-1 inline-flex h-4 w-4 items-center justify-center rounded-full border ${syncBadgeClass} ${
+                    isConnected ? '' : 'animate-pulse'
+                  }`}
+                  aria-label={syncLabel}
+                  title={syncLabel}
+                >
                   <span className={`h-1.5 w-1.5 rounded-full ${syncDotClass}`} />
-                  <span>{syncLabel}</span>
                 </div>
               </div>
             ) : (

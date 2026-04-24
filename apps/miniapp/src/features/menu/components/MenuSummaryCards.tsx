@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ChevronRight, Layers, Package, Plus, Sparkles } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, Layers, Package, Plus } from 'lucide-react';
 import { ProductAvailabilityEnum } from '@turon/shared';
 import type { MenuCategory, MenuProduct } from '../types';
 
@@ -47,31 +47,14 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
   ] as const;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 admin-motion-up">
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]">
-            Tezkor amallar
-          </h3>
-          <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.12)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--admin-pro-primary-contrast)]">
-            <Sparkles size={11} />
-            Studio
-          </span>
-        </div>
-
+        <h3 className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]">
+          Tezkor amallar
+        </h3>
         <div className="grid gap-3">
-          <QuickActionCard
-            title="Kategoriya qo'shish"
-            subtitle="Yangi bo'lim ochish va mahsulotlarni guruhlash"
-            icon={<Plus size={20} />}
-            onClick={() => navigate('/admin/menu/categories/new')}
-          />
-          <QuickActionCard
-            title="Taom qo'shish"
-            subtitle="Menyuga yangi taom kiritish va narxini belgilash"
-            icon={<Plus size={20} />}
-            onClick={() => navigate('/admin/menu/products/new')}
-          />
+          <QuickActionCard title="Kategoriya qo'shish" onClick={() => navigate('/admin/menu/categories/new')} />
+          <QuickActionCard title="Taom qo'shish" onClick={() => navigate('/admin/menu/products/new')} />
         </div>
       </section>
 
@@ -127,13 +110,13 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
         <NavSectionCard
           icon={<Layers size={20} />}
           title="Kategoriyalar"
-          subtitle={`${totalCategories} ta bo'lim`}
+          subtitle={`${totalCategories} ta`}
           onClick={() => navigate('/admin/menu/categories')}
         />
         <NavSectionCard
           icon={<Package size={20} />}
           title="Taomlar"
-          subtitle={`${products.length} ta mahsulot`}
+          subtitle={`${products.length} ta`}
           onClick={() => navigate('/admin/menu/products')}
         />
       </section>
@@ -143,23 +126,18 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
 
 const QuickActionCard: React.FC<{
   title: string;
-  subtitle: string;
-  icon: React.ReactNode;
   onClick: () => void;
-}> = ({ title, subtitle, icon, onClick }) => (
+}> = ({ title, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className="group flex min-h-[76px] w-full items-center justify-between rounded-[26px] border border-[var(--admin-pro-line)] bg-[linear-gradient(180deg,rgba(255,255,255,0.95)_0%,rgba(255,250,240,0.92)_100%)] px-4 py-4 text-left shadow-[0_12px_24px_rgba(74,56,16,0.06)] transition hover:-translate-y-0.5 hover:border-[rgba(255,190,11,0.26)] hover:shadow-[0_18px_34px_rgba(255,190,11,0.14)] active:scale-[0.99]"
+    className="group flex min-h-[72px] w-full items-center justify-between rounded-[26px] border border-[var(--admin-pro-line)] bg-[linear-gradient(180deg,rgba(255,255,255,0.95)_0%,rgba(255,250,240,0.92)_100%)] px-4 py-4 text-left shadow-[0_12px_24px_rgba(74,56,16,0.06)] transition hover:-translate-y-0.5 hover:border-[rgba(255,190,11,0.26)] hover:shadow-[0_18px_34px_rgba(255,190,11,0.14)] active:scale-[0.99]"
   >
     <div className="flex items-center gap-3">
       <div className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-[rgba(255,190,11,0.18)] bg-[linear-gradient(180deg,rgba(255,250,235,0.98)_0%,rgba(255,243,208,0.92)_100%)] text-[var(--admin-pro-primary-contrast)] shadow-[0_12px_24px_rgba(74,56,16,0.08)]">
-        {icon}
+        <Plus size={20} />
       </div>
-      <div>
-        <span className="block text-[15px] font-black text-[var(--admin-pro-text)]">{title}</span>
-        <span className="text-xs font-semibold text-[var(--admin-pro-text-muted)]">{subtitle}</span>
-      </div>
+      <span className="block text-[15px] font-black text-[var(--admin-pro-text)]">{title}</span>
     </div>
     <ChevronRight size={18} className="text-[var(--admin-pro-text-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--admin-pro-primary-contrast)]" />
   </button>

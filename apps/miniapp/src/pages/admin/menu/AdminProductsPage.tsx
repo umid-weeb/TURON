@@ -1,9 +1,10 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Package2, Plus, Sparkles } from 'lucide-react';
+import { Package2, Plus } from 'lucide-react';
 import DeleteConfirmationModal from '../../../components/admin/DeleteConfirmationModal';
 import ProductCardAdmin from '../../../features/menu/components/ProductCardAdmin';
 import ProductFiltersBar from '../../../features/menu/components/ProductFiltersBar';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import type { MenuProduct, ProductFilterState } from '../../../features/menu/types';
 import {
   useAdminCategories,
@@ -14,7 +15,7 @@ import {
 
 const AdminProductsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pageError, setPageError] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<MenuProduct | null>(null);
   const [filters, setFilters] = useState<ProductFilterState>(() => {
@@ -36,8 +37,10 @@ const AdminProductsPage: React.FC = () => {
   const { data: products = [], isLoading, isError } = useAdminProducts();
   const setProductActiveMutation = useSetProductActive();
   const deleteProductMutation = useDeleteProduct();
+  const debouncedSearch = useDebouncedValue(filters.searchQuery, 220);
+  const searchKey = searchParams.toString();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const activeParam = searchParams.get('active');
     const availabilityParam = searchParams.get('availability');
     const categoryParam = searchParams.get('categoryId');
@@ -63,7 +66,32 @@ const AdminProductsPage: React.FC = () => {
 
       return nextFilters;
     });
-  }, [searchParams]);
+  }, [searchKey, searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (filters.categoryId !== 'all') {
+      nextParams.set('categoryId', filters.categoryId);
+    }
+
+    if (filters.activeFilter !== 'all') {
+      nextParams.set('active', filters.activeFilter);
+    }
+
+    if (filters.availabilityFilter !== 'all') {
+      nextParams.set('availability', filters.availabilityFilter);
+    }
+
+    if (debouncedSearch.trim()) {
+      nextParams.set('q', debouncedSearch.trim());
+    }
+
+    const nextKey = nextParams.toString();
+    if (nextKey !== searchKey) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [debouncedSearch, filters.activeFilter, filters.availabilityFilter, filters.categoryId, searchKey, setSearchParams]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -82,13 +110,13 @@ const AdminProductsPage: React.FC = () => {
       result = result.filter((product) => product.availability === filters.availabilityFilter);
     }
 
-    if (filters.searchQuery.trim()) {
-      const query = filters.searchQuery.toLowerCase();
+    const query = debouncedSearch.trim().toLowerCase();
+    if (query) {
       result = result.filter((product) => product.name.toLowerCase().includes(query));
     }
 
     return result;
-  }, [filters, products]);
+  }, [debouncedSearch, filters.activeFilter, filters.availabilityFilter, filters.categoryId, products]);
 
   const activeFiltersCount =
     (filters.categoryId !== 'all' ? 1 : 0) +
@@ -107,15 +135,10 @@ const AdminProductsPage: React.FC = () => {
         isActive: !product.isActive,
       });
 
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      }
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
     } catch (error) {
-      setPageError(error instanceof Error ? error.message : 'Taom holatini yangilab bo\'lmadi');
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-      }
+      setPageError(error instanceof Error ? error.message : "Taom holatini yangilab bo'lmadi");
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
     }
   };
 
@@ -130,34 +153,20 @@ const AdminProductsPage: React.FC = () => {
 
     try {
       await deleteProductMutation.mutateAsync(productToDelete.id);
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      }
-
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
       setProductToDelete(null);
     } catch (error) {
-      setPageError(error instanceof Error ? error.message : 'Taomni o\'chirib bo\'lmadi');
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-      }
+      setPageError(error instanceof Error ? error.message : "Taomni o'chirib bo'lmadi");
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
     }
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-300 pb-8">
+    <div className="space-y-5 admin-motion-up pb-8">
       <header className="admin-hero-card rounded-[32px] px-5 py-5 text-[#fff8e9] shadow-[0_24px_48px_rgba(18,14,10,0.26)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#ffe8a3]">
-              <Package2 size={13} />
-              Product studio
-            </span>
-            <h1 className="mt-4 text-[28px] font-black tracking-tight">Taomlar</h1>
-            <p className="mt-1 max-w-[300px] text-sm font-medium text-[#f5e7bf]/82">
-              Katalog kartalari, narxlar va mavjudlikni premium tezlikda boshqarish paneli.
-            </p>
+            <h1 className="text-[28px] font-black tracking-tight">Taomlar</h1>
           </div>
           <button
             type="button"
@@ -165,7 +174,7 @@ const AdminProductsPage: React.FC = () => {
             className="admin-pro-button-primary inline-flex h-11 items-center justify-center gap-2 rounded-[18px] px-4 text-sm font-black uppercase tracking-[0.12em]"
           >
             <Plus size={18} />
-            Qo&apos;shish
+            Qo'shish
           </button>
         </div>
 
@@ -175,7 +184,7 @@ const AdminProductsPage: React.FC = () => {
             <p className="mt-2 text-2xl font-black text-white">{products.length}</p>
           </div>
           <div className="rounded-[22px] border border-white/10 bg-white/8 px-4 py-3 backdrop-blur-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ffe8a3]/85">Topildi</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#ffe8a3]/85">Ko'rindi</p>
             <p className="mt-2 text-2xl font-black text-white">{filteredProducts.length}</p>
           </div>
           <div className="rounded-[22px] border border-white/10 bg-white/8 px-4 py-3 backdrop-blur-sm">
@@ -184,21 +193,6 @@ const AdminProductsPage: React.FC = () => {
           </div>
         </div>
       </header>
-
-      <div className="flex items-center justify-between gap-3 rounded-[24px] border border-[var(--admin-pro-line)] bg-[rgba(255,249,233,0.88)] px-4 py-3 shadow-[0_16px_34px_rgba(74,56,16,0.08)]">
-        <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]">
-            Interaction layer
-          </p>
-          <p className="mt-1 text-sm font-black text-[var(--admin-pro-text)]">
-            Kartani bosish tahrirlaydi, yon actionlar esa mahsulotni tezkor boshqaradi
-          </p>
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.16)] px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--admin-pro-primary-contrast)]">
-          <Sparkles size={14} />
-          Premium
-        </span>
-      </div>
 
       <ProductFiltersBar categories={categories} filters={filters} onChange={setFilters} />
 
@@ -211,7 +205,7 @@ const AdminProductsPage: React.FC = () => {
 
       {isError ? (
         <div className="admin-pro-card rounded-[28px] border-rose-200/80 bg-[linear-gradient(180deg,rgba(255,245,246,0.98)_0%,rgba(255,237,240,0.92)_100%)] px-5 py-4 shadow-[0_16px_34px_rgba(244,63,94,0.12)]">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-rose-500">Yuklash</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-rose-500">Xatolik</p>
           <p className="mt-2 text-sm font-bold text-rose-700">Taomlarni yuklab bo'lmadi.</p>
         </div>
       ) : null}
@@ -244,9 +238,6 @@ const AdminProductsPage: React.FC = () => {
             <Package2 size={34} />
           </div>
           <h3 className="text-xl font-black tracking-tight text-[var(--admin-pro-text)]">Taomlar topilmadi</h3>
-          <p className="mt-2 max-w-[280px] text-sm font-semibold leading-relaxed text-[var(--admin-pro-text-muted)]">
-            Filterlarni o&apos;zgartiring yoki menyuga yangi taom qo&apos;shing.
-          </p>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Image as ImageIcon, Sparkles, Upload, X } from 'lucide-react';
+import { Image as ImageIcon, Upload, X } from 'lucide-react';
 import { imageUploadService } from '../services/imageUploadService';
 
 interface Props {
@@ -86,13 +86,8 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
               <div className="mb-3 rounded-[22px] border border-[rgba(190,150,58,0.16)] bg-white/88 p-3 text-[var(--admin-pro-text-muted)] shadow-[0_12px_26px_rgba(74,56,16,0.08)] transition group-hover:scale-105 group-hover:text-[var(--admin-pro-primary-contrast)]">
                 <ImageIcon size={24} />
               </div>
-              <p className="inline-flex items-center gap-2 text-sm font-black text-[var(--admin-pro-text)]">
-                <Sparkles size={14} className="text-[var(--admin-pro-primary-strong)]" />
-                Rasm yuklash
-              </p>
-              <p className="mt-1 text-xs font-semibold text-[var(--admin-pro-text-muted)]">
-                PNG, JPG - maksimal 5MB
-              </p>
+              <p className="text-sm font-black text-[var(--admin-pro-text)]">Rasm yuklash</p>
+              <p className="mt-1 text-xs font-semibold text-[var(--admin-pro-text-muted)]">PNG, JPG - maksimal 5MB</p>
             </>
           )}
         </button>
@@ -112,4 +107,3 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
 };
 
 export default ProductImageUploader;
-

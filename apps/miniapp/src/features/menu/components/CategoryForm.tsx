@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layers3, Loader2, Save, Sparkles, Trash2, X } from 'lucide-react';
+import { Loader2, Save, Trash2, X } from 'lucide-react';
 import type { CategoryFormData, MenuCategory } from '../types';
 
 interface Props {
@@ -54,7 +54,7 @@ const CategoryForm: React.FC<Props> = ({
     }
 
     if (sortOrder < 0) {
-      nextErrors.sortOrder = 'Tartib raqami musbat bo\'lishi kerak';
+      nextErrors.sortOrder = "Tartib raqami musbat bo'lishi kerak";
     }
 
     setErrors(nextErrors);
@@ -81,14 +81,7 @@ const CategoryForm: React.FC<Props> = ({
         <header className="admin-pro-card admin-hero-card overflow-hidden px-5 py-5 text-[#fff8e9]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#ffe8a3]">
-                <Layers3 size={13} />
-                Kategoriya formi
-              </span>
-              <h2 className="mt-4 text-[30px] font-black tracking-tight">{title}</h2>
-              <p className="mt-1 max-w-[260px] text-sm font-medium text-[#f5e7bf]/86">
-                Menyu bo&apos;limini aniq tartib va ko&apos;rinish bilan boshqaring.
-              </p>
+              <h2 className="text-[30px] font-black tracking-tight">{title}</h2>
             </div>
             <button
               type="button"
@@ -107,34 +100,12 @@ const CategoryForm: React.FC<Props> = ({
           </div>
         ) : null}
 
-        <div className="admin-pro-card admin-pro-card-muted rounded-[28px] px-4 py-4">
-          <p className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]">
-            <Sparkles size={14} className="text-[var(--admin-pro-primary-strong)]" />
-            Eslatma
-          </p>
-          <p className="mt-2 text-sm font-semibold leading-relaxed text-[var(--admin-pro-text-muted)]">
-            Kategoriya rasmi mahsulot kartalaridagi birinchi rasm asosida ko'rsatiladi.
-          </p>
-        </div>
-
         <section className="admin-pro-card space-y-4 rounded-[32px] px-5 py-5">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--admin-pro-text-muted)]">
-                Asosiy ma&apos;lumot
-              </p>
-              <h3 className="mt-2 text-lg font-black tracking-tight text-[var(--admin-pro-text)]">
-                Kategoriya parametrlari
-              </h3>
-            </div>
-            <div className="rounded-2xl border border-[var(--admin-pro-line)] bg-[rgba(255,249,233,0.86)] px-3 py-2 text-right shadow-[0_14px_28px_rgba(74,56,16,0.08)]">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]">
-                Status
-              </p>
-              <p className="mt-1 text-sm font-black text-[var(--admin-pro-text)]">
-                {isActive ? 'Faol' : 'Nofaol'}
-              </p>
-            </div>
+            <h3 className="text-lg font-black tracking-tight text-[var(--admin-pro-text)]">Asosiy</h3>
+            <span className="rounded-full border border-[var(--admin-pro-line)] bg-[rgba(255,249,233,0.86)] px-3 py-2 text-sm font-black text-[var(--admin-pro-text)] shadow-[0_14px_28px_rgba(74,56,16,0.08)]">
+              {isActive ? 'Faol' : 'Nofaol'}
+            </span>
           </div>
 
           <div className="space-y-2">
@@ -167,37 +138,33 @@ const CategoryForm: React.FC<Props> = ({
                   : 'focus:border-[rgba(255,190,11,0.66)]'
               }`}
             />
-            {errors.sortOrder ? (
-              <p className="text-xs font-medium text-red-500">{errors.sortOrder}</p>
-            ) : null}
+            {errors.sortOrder ? <p className="text-xs font-medium text-red-500">{errors.sortOrder}</p> : null}
           </div>
         </section>
 
         <div className="admin-pro-card rounded-[30px] px-4 py-4">
           <div className="flex items-center justify-between gap-3 rounded-[24px] border border-[var(--admin-pro-line)] bg-[linear-gradient(180deg,rgba(255,252,244,0.98)_0%,rgba(252,244,220,0.96)_100%)] px-4 py-4 shadow-[0_14px_30px_rgba(74,56,16,0.08)]">
-          <div>
-            <p className="text-sm font-black text-[var(--admin-pro-text)]">Faol holat</p>
-            <p className="mt-0.5 text-xs font-semibold text-[var(--admin-pro-text-muted)]">
-              Nofaol kategoriya mijozlarga ko&apos;rinmaydi
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isActive}
-            onClick={() => setIsActive(!isActive)}
-            className={`relative inline-flex h-7 w-12 items-center rounded-full p-1 transition ${
-              isActive
-                ? 'bg-[linear-gradient(135deg,var(--admin-pro-primary)_0%,var(--admin-pro-primary-strong)_100%)] shadow-[0_10px_22px_rgba(255,190,11,0.28)]'
-                : 'bg-[#c9bf9f]'
-            }`}
-          >
-            <span
-              className={`h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_rgba(74,56,16,0.22)] transition ${
-                isActive ? 'translate-x-5' : 'translate-x-0'
+            <div>
+              <p className="text-sm font-black text-[var(--admin-pro-text)]">Holat</p>
+              <p className="mt-0.5 text-xs font-semibold text-[var(--admin-pro-text-muted)]">Mijozga ko'rinishi</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isActive}
+              onClick={() => setIsActive(!isActive)}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full p-1 transition ${
+                isActive
+                  ? 'bg-[linear-gradient(135deg,var(--admin-pro-primary)_0%,var(--admin-pro-primary-strong)_100%)] shadow-[0_10px_22px_rgba(255,190,11,0.28)]'
+                  : 'bg-[#c9bf9f]'
               }`}
-            />
-          </button>
+            >
+              <span
+                className={`h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_rgba(74,56,16,0.22)] transition ${
+                  isActive ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         </div>
 
@@ -209,7 +176,7 @@ const CategoryForm: React.FC<Props> = ({
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[22px] border border-rose-200/80 bg-[linear-gradient(180deg,rgba(255,247,247,0.96)_0%,rgba(255,237,237,0.94)_100%)] text-sm font-black text-rose-600 shadow-[0_14px_30px_rgba(244,63,94,0.08)] transition hover:-translate-y-0.5 disabled:opacity-60"
           >
             {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={16} />}
-            Kategoriyani o&apos;chirish
+            Kategoriyani o'chirish
           </button>
         ) : null}
       </div>
