@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ProductAvailabilityEnum } from '@turon/shared';
 
 const labels: Record<ProductAvailabilityEnum, string> = {
@@ -8,13 +8,22 @@ const labels: Record<ProductAvailabilityEnum, string> = {
 };
 
 const colors: Record<ProductAvailabilityEnum, string> = {
-  [ProductAvailabilityEnum.AVAILABLE]: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  [ProductAvailabilityEnum.TEMPORARILY_UNAVAILABLE]: 'bg-amber-50 text-amber-700 border-amber-200',
-  [ProductAvailabilityEnum.OUT_OF_STOCK]: 'bg-red-50 text-red-700 border-red-200',
+  [ProductAvailabilityEnum.AVAILABLE]: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  [ProductAvailabilityEnum.TEMPORARILY_UNAVAILABLE]: 'border-amber-200 bg-amber-50 text-amber-700',
+  [ProductAvailabilityEnum.OUT_OF_STOCK]: 'border-rose-200 bg-rose-50 text-rose-700',
+};
+
+const dots: Record<ProductAvailabilityEnum, string> = {
+  [ProductAvailabilityEnum.AVAILABLE]: 'bg-emerald-500',
+  [ProductAvailabilityEnum.TEMPORARILY_UNAVAILABLE]: 'bg-amber-500',
+  [ProductAvailabilityEnum.OUT_OF_STOCK]: 'bg-rose-500',
 };
 
 const AvailabilityBadge: React.FC<{ availability: ProductAvailabilityEnum }> = ({ availability }) => (
-  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg border ${colors[availability]}`}>
+  <span
+    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${colors[availability]}`}
+  >
+    <span className={`h-1.5 w-1.5 rounded-full ${dots[availability]}`} />
     {labels[availability]}
   </span>
 );

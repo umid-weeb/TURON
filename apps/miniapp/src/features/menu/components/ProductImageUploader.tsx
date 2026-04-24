@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Image as ImageIcon, Upload, X } from 'lucide-react';
+import { Image as ImageIcon, Sparkles, Upload, X } from 'lucide-react';
 import { imageUploadService } from '../services/imageUploadService';
 
 interface Props {
@@ -42,7 +42,7 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
   return (
     <div className="space-y-2">
       {currentImageUrl ? (
-        <div className="relative h-56 w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+        <div className="relative h-56 w-full overflow-hidden rounded-[28px] border border-[var(--admin-pro-line)] bg-[linear-gradient(180deg,rgba(255,252,244,0.95)_0%,rgba(250,240,210,0.88)_100%)] shadow-[0_18px_36px_rgba(74,56,16,0.12)]">
           <img
             src={currentImageUrl}
             alt="Mahsulot rasmi"
@@ -51,12 +51,12 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
               (e.target as HTMLImageElement).src = '';
             }}
           />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/35 to-transparent p-3">
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#18120a]/55 via-[#18120a]/22 to-transparent p-3">
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/70 bg-white/90 px-3 text-xs font-semibold text-slate-700 backdrop-blur active:scale-95"
+                className="inline-flex h-10 items-center gap-1 rounded-xl border border-white/45 bg-white/88 px-3 text-xs font-black text-[var(--admin-pro-text)] backdrop-blur transition hover:bg-white active:scale-95"
               >
                 <Upload size={14} />
                 O'zgartirish
@@ -64,7 +64,7 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
               <button
                 type="button"
                 onClick={onImageRemove}
-                className="inline-flex h-9 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50/95 px-3 text-xs font-semibold text-rose-600 backdrop-blur active:scale-95"
+                className="inline-flex h-10 items-center gap-1 rounded-xl border border-rose-200/90 bg-[rgba(255,244,244,0.92)] px-3 text-xs font-black text-rose-600 backdrop-blur transition hover:bg-white active:scale-95"
               >
                 <X size={14} />
                 Olib tashlash
@@ -77,17 +77,22 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="group flex h-56 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 px-4 text-center transition hover:border-blue-300 hover:bg-blue-50/40 active:scale-[0.998] disabled:opacity-70"
+          className="group flex h-56 w-full flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-[rgba(190,150,58,0.28)] bg-[linear-gradient(180deg,rgba(255,252,244,0.96)_0%,rgba(251,243,218,0.9)_100%)] px-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_20px_40px_rgba(74,56,16,0.08)] transition hover:border-[rgba(255,190,11,0.5)] hover:-translate-y-0.5 active:scale-[0.998] disabled:opacity-70"
         >
           {uploading ? (
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--admin-pro-primary-strong)] border-t-transparent" />
           ) : (
             <>
-              <div className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 text-slate-500 shadow-sm">
+              <div className="mb-3 rounded-[22px] border border-[rgba(190,150,58,0.16)] bg-white/88 p-3 text-[var(--admin-pro-text-muted)] shadow-[0_12px_26px_rgba(74,56,16,0.08)] transition group-hover:scale-105 group-hover:text-[var(--admin-pro-primary-contrast)]">
                 <ImageIcon size={24} />
               </div>
-              <p className="text-sm font-bold text-slate-800">Rasm yuklash</p>
-              <p className="mt-1 text-xs font-medium text-slate-500">PNG, JPG - maksimal 5MB</p>
+              <p className="inline-flex items-center gap-2 text-sm font-black text-[var(--admin-pro-text)]">
+                <Sparkles size={14} className="text-[var(--admin-pro-primary-strong)]" />
+                Rasm yuklash
+              </p>
+              <p className="mt-1 text-xs font-semibold text-[var(--admin-pro-text-muted)]">
+                PNG, JPG - maksimal 5MB
+              </p>
             </>
           )}
         </button>
@@ -101,7 +106,7 @@ const ProductImageUploader: React.FC<Props> = ({ currentImageUrl, onImageChange,
         className="hidden"
       />
 
-      {error ? <p className="text-xs font-medium text-red-500">{error}</p> : null}
+      {error ? <p className="text-xs font-bold text-rose-500">{error}</p> : null}
     </div>
   );
 };

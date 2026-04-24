@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Save, X } from 'lucide-react';
+import { Layers3, Loader2, Save, Sparkles, Trash2, X } from 'lucide-react';
 import type { CategoryFormData, MenuCategory } from '../types';
 
 interface Props {
@@ -78,70 +78,108 @@ const CategoryForm: React.FC<Props> = ({
   return (
     <form onSubmit={handleSubmit} className="animate-in fade-in duration-300">
       <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+108px)]">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-black tracking-tight text-slate-900">{title}</h2>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500"
-          >
-            <X size={20} />
-          </button>
-        </div>
+        <header className="admin-pro-card admin-hero-card overflow-hidden px-5 py-5 text-[#fff8e9]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#ffe8a3]">
+                <Layers3 size={13} />
+                Kategoriya formi
+              </span>
+              <h2 className="mt-4 text-[30px] font-black tracking-tight">{title}</h2>
+              <p className="mt-1 max-w-[260px] text-sm font-medium text-[#f5e7bf]/86">
+                Menyu bo&apos;limini aniq tartib va ko&apos;rinish bilan boshqaring.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/12 bg-white/10 text-[#fff4cf] shadow-[0_14px_30px_rgba(0,0,0,0.2)] transition hover:bg-white/16 active:scale-95"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </header>
 
         {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
-            <p className="text-xs font-bold uppercase tracking-widest text-rose-500">Xatolik</p>
+          <div className="admin-pro-card rounded-[28px] border-rose-200/80 bg-[linear-gradient(180deg,rgba(255,245,246,0.98)_0%,rgba(255,237,240,0.92)_100%)] px-4 py-3 shadow-[0_16px_34px_rgba(244,63,94,0.12)]">
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-rose-500">Xatolik</p>
             <p className="mt-1 text-sm font-bold leading-relaxed text-rose-700">{error}</p>
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Eslatma</p>
-          <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
+        <div className="admin-pro-card admin-pro-card-muted rounded-[28px] px-4 py-4">
+          <p className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]">
+            <Sparkles size={14} className="text-[var(--admin-pro-primary-strong)]" />
+            Eslatma
+          </p>
+          <p className="mt-2 text-sm font-semibold leading-relaxed text-[var(--admin-pro-text-muted)]">
             Kategoriya rasmi mahsulot kartalaridagi birinchi rasm asosida ko'rsatiladi.
           </p>
         </div>
 
-        <div className="space-y-4">
+        <section className="admin-pro-card space-y-4 rounded-[32px] px-5 py-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--admin-pro-text-muted)]">
+                Asosiy ma&apos;lumot
+              </p>
+              <h3 className="mt-2 text-lg font-black tracking-tight text-[var(--admin-pro-text)]">
+                Kategoriya parametrlari
+              </h3>
+            </div>
+            <div className="rounded-2xl border border-[var(--admin-pro-line)] bg-[rgba(255,249,233,0.86)] px-3 py-2 text-right shadow-[0_14px_28px_rgba(74,56,16,0.08)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]">
+                Status
+              </p>
+              <p className="mt-1 text-sm font-black text-[var(--admin-pro-text)]">
+                {isActive ? 'Faol' : 'Nofaol'}
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Kategoriya nomi *</label>
+            <label className="admin-label !mb-2 !pl-0">Kategoriya nomi *</label>
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Masalan: Somsa"
-              className={`h-14 w-full rounded-xl border px-4 text-base font-medium text-slate-800 outline-none transition ${
-                errors.name ? 'border-red-300 focus:border-red-500' : 'border-slate-200 focus:border-blue-400'
+              className={`admin-input h-14 ${
+                errors.name
+                  ? 'border-red-300 focus:border-red-500 focus:shadow-[0_0_0_4px_rgba(244,63,94,0.12)]'
+                  : 'focus:border-[rgba(255,190,11,0.66)]'
               }`}
             />
             {errors.name ? <p className="text-xs font-medium text-red-500">{errors.name}</p> : null}
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Tartib raqami</label>
+            <label className="admin-label !mb-2 !pl-0">Tartib raqami</label>
             <input
               type="number"
               inputMode="numeric"
               value={sortOrder}
               onChange={(event) => setSortOrder(parseInt(event.target.value, 10) || 0)}
               min={0}
-              className={`h-14 w-full rounded-xl border px-4 text-base font-medium text-slate-800 outline-none transition ${
+              className={`admin-input h-14 ${
                 errors.sortOrder
-                  ? 'border-red-300 focus:border-red-500'
-                  : 'border-slate-200 focus:border-blue-400'
+                  ? 'border-red-300 focus:border-red-500 focus:shadow-[0_0_0_4px_rgba(244,63,94,0.12)]'
+                  : 'focus:border-[rgba(255,190,11,0.66)]'
               }`}
             />
             {errors.sortOrder ? (
               <p className="text-xs font-medium text-red-500">{errors.sortOrder}</p>
             ) : null}
           </div>
-        </div>
+        </section>
 
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <div className="admin-pro-card rounded-[30px] px-4 py-4">
+          <div className="flex items-center justify-between gap-3 rounded-[24px] border border-[var(--admin-pro-line)] bg-[linear-gradient(180deg,rgba(255,252,244,0.98)_0%,rgba(252,244,220,0.96)_100%)] px-4 py-4 shadow-[0_14px_30px_rgba(74,56,16,0.08)]">
           <div>
-            <p className="text-sm font-semibold text-slate-800">Faol holat</p>
-            <p className="mt-0.5 text-xs text-slate-500">Nofaol kategoriya mijozlarga ko'rinmaydi</p>
+            <p className="text-sm font-black text-[var(--admin-pro-text)]">Faol holat</p>
+            <p className="mt-0.5 text-xs font-semibold text-[var(--admin-pro-text-muted)]">
+              Nofaol kategoriya mijozlarga ko&apos;rinmaydi
+            </p>
           </div>
           <button
             type="button"
@@ -149,15 +187,18 @@ const CategoryForm: React.FC<Props> = ({
             aria-checked={isActive}
             onClick={() => setIsActive(!isActive)}
             className={`relative inline-flex h-7 w-12 items-center rounded-full p-1 transition ${
-              isActive ? 'bg-emerald-500' : 'bg-slate-300'
+              isActive
+                ? 'bg-[linear-gradient(135deg,var(--admin-pro-primary)_0%,var(--admin-pro-primary-strong)_100%)] shadow-[0_10px_22px_rgba(255,190,11,0.28)]'
+                : 'bg-[#c9bf9f]'
             }`}
           >
             <span
-              className={`h-5 w-5 rounded-full bg-white shadow-sm transition ${
+              className={`h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_rgba(74,56,16,0.22)] transition ${
                 isActive ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>
+          </div>
         </div>
 
         {onDelete ? (
@@ -165,15 +206,16 @@ const CategoryForm: React.FC<Props> = ({
             type="button"
             onClick={() => onDelete()}
             disabled={isSubmitting || isDeleting}
-            className="h-11 w-full rounded-xl border border-rose-200 bg-rose-50 text-sm font-bold text-rose-600 disabled:opacity-60"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-[22px] border border-rose-200/80 bg-[linear-gradient(180deg,rgba(255,247,247,0.96)_0%,rgba(255,237,237,0.94)_100%)] text-sm font-black text-rose-600 shadow-[0_14px_30px_rgba(244,63,94,0.08)] transition hover:-translate-y-0.5 disabled:opacity-60"
           >
-            {isDeleting ? <Loader2 size={18} className="mx-auto animate-spin" /> : "Kategoriyani o'chirish"}
+            {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={16} />}
+            Kategoriyani o&apos;chirish
           </button>
         ) : null}
       </div>
 
       <div
-        className="fixed inset-x-0 z-40 mx-auto w-full max-w-[430px] border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur"
+        className="fixed inset-x-0 z-40 mx-auto w-full max-w-[430px] border-t border-[var(--admin-pro-line)] bg-[rgba(255,251,240,0.92)] px-4 py-3 backdrop-blur-xl"
         style={{
           bottom: `${Math.max(0, keyboardInset - 6)}px`,
           paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 12px)`,
@@ -182,7 +224,7 @@ const CategoryForm: React.FC<Props> = ({
         <button
           type="submit"
           disabled={isSubmitting || isDeleting}
-          className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-base font-bold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] disabled:bg-blue-300 disabled:shadow-none"
+          className="admin-btn-save h-14 max-w-none rounded-[22px] text-[13px] disabled:opacity-60 disabled:shadow-none"
         >
           {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
           Saqlash
