@@ -10,9 +10,17 @@ import { PullToRefreshIndicator } from './components/customer/PullToRefreshIndic
 import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
 import { NotFoundPage } from './components/ui/FeedbackStates';
 import CustomerLayout from './components/layout/CustomerLayout';
-
-const AdminLayout = React.lazy(() => import('./components/layout/AdminLayout'));
-const CourierLayout = React.lazy(() => import('./components/layout/CourierLayout'));
+import AdminLayout from './components/layout/AdminLayout';
+import CourierLayout from './components/layout/CourierLayout';
+import {
+  AdminDashboardRouteSkeleton,
+  AdminFormRouteSkeleton,
+  AdminListRouteSkeleton,
+  CourierCardsRouteSkeleton,
+  CourierDetailRouteSkeleton,
+  CourierListRouteSkeleton,
+  CourierMapRouteSkeleton,
+} from './components/ui/RouteSkeletons';
 
 // Customer flow to'liq eager-load qilinadi.
 // Sabab: mini app ichida customer route almashganda global Suspense fallback
@@ -75,15 +83,8 @@ const queryClient = new QueryClient({
   },
 });
 
-function RouteFallback() {
-  return (
-    <div className="app-page flex min-h-screen items-center justify-center px-6">
-      <div className="app-card flex items-center gap-3 rounded-[18px] px-5 py-4 text-sm font-bold text-[var(--app-text)]">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--app-line)] border-t-[#111827] dark:border-t-white" />
-        Sahifa yuklanmoqda...
-      </div>
-    </div>
-  );
+function withPageSkeleton(node: React.ReactNode, fallback: React.ReactNode) {
+  return <React.Suspense fallback={fallback}>{node}</React.Suspense>;
 }
 
 export default function App() {
@@ -93,98 +94,171 @@ export default function App() {
       <PullToRefreshIndicator />
       <AppBootstrapGate>
         <AppErrorBoundary theme="dark" homeUrl="/">
-          <React.Suspense fallback={<RouteFallback />}>
-            <Routes>
-              {/* Base Redirect is handled inside AppBootstrapGate */}
-              <Route path="/" element={<div />} />
-              <Route path="/menu" element={<Navigate to="/customer/menu" replace />} />
-              <Route path="/search" element={<Navigate to="/customer/search" replace />} />
-              <Route path="/cart" element={<Navigate to="/customer/cart" replace />} />
-              <Route path="/profile" element={<Navigate to="/customer/profile" replace />} />
-              <Route path="/orders" element={<Navigate to="/customer/orders" replace />} />
+          <Routes>
+            {/* Base Redirect is handled inside AppBootstrapGate */}
+            <Route path="/" element={<div />} />
+            <Route path="/menu" element={<Navigate to="/customer/menu" replace />} />
+            <Route path="/search" element={<Navigate to="/customer/search" replace />} />
+            <Route path="/cart" element={<Navigate to="/customer/cart" replace />} />
+            <Route path="/profile" element={<Navigate to="/customer/profile" replace />} />
+            <Route path="/orders" element={<Navigate to="/customer/orders" replace />} />
 
-              <Route
-                path="/customer/orders/:orderId/tracking"
-                element={
-                  <RoleGuard allowedRoles={[UserRoleEnum.CUSTOMER, UserRoleEnum.ADMIN]}>
-                    <TrackingMapPage />
-                  </RoleGuard>
-                }
-              />
-
-              {/* Customer Module */}
-              <Route path="/customer" element={
+            <Route
+              path="/customer/orders/:orderId/tracking"
+              element={
                 <RoleGuard allowedRoles={[UserRoleEnum.CUSTOMER, UserRoleEnum.ADMIN]}>
-                  <CustomerLayout />
+                  <TrackingMapPage />
                 </RoleGuard>
-              }>
-                <Route index element={<HomePage />} />
-                <Route path="search" element={<SearchPage />} />
-                <Route path="favorites" element={<FavoritesPage />} />
-                <Route path="category/:id" element={<CategoryPage />} />
-                <Route path="menu" element={<MenuPage />} />
-                <Route path="product/:id" element={<ProductPage />} />
-                <Route path="cart" element={<CartPage />} />
-                <Route path="checkout" element={<CheckoutPage />} />
-                <Route path="address-success" element={<OrderSuccessPage />} /> 
-                <Route path="order-success" element={<OrderSuccessPage />} />
-                <Route path="addresses" element={<AddressListPage />} />
-                <Route path="address/new" element={<AddressFormPage />} />
-                <Route path="address/map" element={<MapSelectionPage />} />
-                <Route path="orders" element={<OrdersPage />} />
-                <Route path="orders/:orderId" element={<OrderDetailPage />} />
-                <Route path="profile" element={<ProfilePage />} />
-                <Route path="promos" element={<CustomerPromosPage />} />
-                <Route path="support" element={<SupportPage />} />
-                <Route path="notifications" element={<CustomerNotificationsPage />} />
-              </Route>
+              }
+            />
 
-              {/* Admin Module */}
-              <Route path="/admin" element={
-                <RoleGuard allowedRoles={[UserRoleEnum.ADMIN]}>
-                  <AdminLayout />
-                </RoleGuard>
-              }>
-                <Route index element={<Navigate to="dashboard" replace />} />
-                <Route path="dashboard" element={<AdminDashboardPage />} />
-                <Route path="orders" element={<AdminOrdersPage />} />
-                <Route path="orders/:orderId" element={<AdminOrderDetailPage />} />
-                <Route path="notifications" element={<AdminNotificationsPage />} />
-                <Route path="menu" element={<AdminMenuDashboard />} />
-                <Route path="menu/categories" element={<AdminCategoriesPage />} />
-                <Route path="menu/categories/new" element={<AdminCategoryFormPage />} />
-                <Route path="menu/categories/:categoryId/edit" element={<AdminCategoryFormPage />} />
-                <Route path="menu/products" element={<AdminProductsPage />} />
-                <Route path="menu/products/new" element={<AdminProductFormPage />} />
-                <Route path="menu/products/:productId/edit" element={<AdminProductFormPage />} />
-                <Route path="promos" element={<AdminPromosPage />} />
-                <Route path="promos/new" element={<AdminPromoFormPage />} />
-                <Route path="promos/:promoId/edit" element={<AdminPromoFormPage />} />
-                <Route path="couriers" element={<AdminCouriersPage />} />
-                <Route path="reports" element={<AdminReportsPage />} />
-                <Route path="chats" element={<AdminChatsPage />} />
-                <Route path="restaurant" element={<RestaurantSettingsPage />} />
-              </Route>
+            {/* Customer Module */}
+            <Route path="/customer" element={
+              <RoleGuard allowedRoles={[UserRoleEnum.CUSTOMER, UserRoleEnum.ADMIN]}>
+                <CustomerLayout />
+              </RoleGuard>
+            }>
+              <Route index element={<HomePage />} />
+              <Route path="search" element={<SearchPage />} />
+              <Route path="favorites" element={<FavoritesPage />} />
+              <Route path="category/:id" element={<CategoryPage />} />
+              <Route path="menu" element={<MenuPage />} />
+              <Route path="product/:id" element={<ProductPage />} />
+              <Route path="cart" element={<CartPage />} />
+              <Route path="checkout" element={<CheckoutPage />} />
+              <Route path="address-success" element={<OrderSuccessPage />} /> 
+              <Route path="order-success" element={<OrderSuccessPage />} />
+              <Route path="addresses" element={<AddressListPage />} />
+              <Route path="address/new" element={<AddressFormPage />} />
+              <Route path="address/map" element={<MapSelectionPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/:orderId" element={<OrderDetailPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="promos" element={<CustomerPromosPage />} />
+              <Route path="support" element={<SupportPage />} />
+              <Route path="notifications" element={<CustomerNotificationsPage />} />
+            </Route>
 
-              {/* Courier Module */}
-              <Route path="/courier" element={
-                <RoleGuard allowedRoles={[UserRoleEnum.COURIER]}>
-                  <CourierLayout />
-                </RoleGuard>
-              }>
-                <Route index element={<CourierStatusPage />} />
-                <Route path="orders" element={<CourierOrdersPage />} />
-                <Route path="order/:orderId" element={<CourierOrderDetailPage />} />
-                <Route path="map/:orderId" element={<CourierMapPage />} />
-                <Route path="history" element={<CourierHistoryPage />} />
-                <Route path="profile" element={<CourierProfilePage />} />
-                <Route path="notifications" element={<CourierNotificationsPage />} />
-              </Route>
+            {/* Admin Module */}
+            <Route path="/admin" element={
+              <RoleGuard allowedRoles={[UserRoleEnum.ADMIN]}>
+                <AdminLayout />
+              </RoleGuard>
+            }>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route
+                path="dashboard"
+                element={withPageSkeleton(<AdminDashboardPage />, <AdminDashboardRouteSkeleton />)}
+              />
+              <Route
+                path="orders"
+                element={withPageSkeleton(<AdminOrdersPage />, <AdminListRouteSkeleton />)}
+              />
+              <Route
+                path="orders/:orderId"
+                element={withPageSkeleton(<AdminOrderDetailPage />, <AdminFormRouteSkeleton />)}
+              />
+              <Route
+                path="notifications"
+                element={withPageSkeleton(<AdminNotificationsPage />, <AdminListRouteSkeleton />)}
+              />
+              <Route
+                path="menu"
+                element={withPageSkeleton(<AdminMenuDashboard />, <AdminDashboardRouteSkeleton />)}
+              />
+              <Route
+                path="menu/categories"
+                element={withPageSkeleton(<AdminCategoriesPage />, <AdminListRouteSkeleton />)}
+              />
+              <Route
+                path="menu/categories/new"
+                element={withPageSkeleton(<AdminCategoryFormPage />, <AdminFormRouteSkeleton />)}
+              />
+              <Route
+                path="menu/categories/:categoryId/edit"
+                element={withPageSkeleton(<AdminCategoryFormPage />, <AdminFormRouteSkeleton />)}
+              />
+              <Route
+                path="menu/products"
+                element={withPageSkeleton(<AdminProductsPage />, <AdminListRouteSkeleton />)}
+              />
+              <Route
+                path="menu/products/new"
+                element={withPageSkeleton(<AdminProductFormPage />, <AdminFormRouteSkeleton />)}
+              />
+              <Route
+                path="menu/products/:productId/edit"
+                element={withPageSkeleton(<AdminProductFormPage />, <AdminFormRouteSkeleton />)}
+              />
+              <Route
+                path="promos"
+                element={withPageSkeleton(<AdminPromosPage />, <AdminListRouteSkeleton />)}
+              />
+              <Route
+                path="promos/new"
+                element={withPageSkeleton(<AdminPromoFormPage />, <AdminFormRouteSkeleton />)}
+              />
+              <Route
+                path="promos/:promoId/edit"
+                element={withPageSkeleton(<AdminPromoFormPage />, <AdminFormRouteSkeleton />)}
+              />
+              <Route
+                path="couriers"
+                element={withPageSkeleton(<AdminCouriersPage />, <AdminListRouteSkeleton />)}
+              />
+              <Route
+                path="reports"
+                element={withPageSkeleton(<AdminReportsPage />, <AdminDashboardRouteSkeleton />)}
+              />
+              <Route
+                path="chats"
+                element={withPageSkeleton(<AdminChatsPage />, <AdminListRouteSkeleton />)}
+              />
+              <Route
+                path="restaurant"
+                element={withPageSkeleton(<RestaurantSettingsPage />, <AdminFormRouteSkeleton />)}
+              />
+            </Route>
 
-              {/* Fallback 404 */}
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </React.Suspense>
+            {/* Courier Module */}
+            <Route path="/courier" element={
+              <RoleGuard allowedRoles={[UserRoleEnum.COURIER]}>
+                <CourierLayout />
+              </RoleGuard>
+            }>
+              <Route
+                index
+                element={withPageSkeleton(<CourierStatusPage />, <CourierCardsRouteSkeleton />)}
+              />
+              <Route
+                path="orders"
+                element={withPageSkeleton(<CourierOrdersPage />, <CourierListRouteSkeleton />)}
+              />
+              <Route
+                path="order/:orderId"
+                element={withPageSkeleton(<CourierOrderDetailPage />, <CourierDetailRouteSkeleton />)}
+              />
+              <Route
+                path="map/:orderId"
+                element={withPageSkeleton(<CourierMapPage />, <CourierMapRouteSkeleton />)}
+              />
+              <Route
+                path="history"
+                element={withPageSkeleton(<CourierHistoryPage />, <CourierListRouteSkeleton />)}
+              />
+              <Route
+                path="profile"
+                element={withPageSkeleton(<CourierProfilePage />, <CourierCardsRouteSkeleton />)}
+              />
+              <Route
+                path="notifications"
+                element={withPageSkeleton(<CourierNotificationsPage />, <CourierListRouteSkeleton />)}
+              />
+            </Route>
+
+            {/* Fallback 404 */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
         </AppErrorBoundary>
       </AppBootstrapGate>
       </BrowserRouter>

@@ -36,6 +36,53 @@ const DashboardCard: React.FC<React.PropsWithChildren<{ className?: string }>> =
   children,
 }) => <section className={`${cardClassName} ${className}`.trim()}>{children}</section>;
 
+const DashboardLoadingState: React.FC = () => (
+  <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]">
+    <DashboardCard>
+      <div className="animate-pulse">
+        <div className="h-3 w-24 rounded-full bg-slate-200" />
+        <div className="mt-3 h-8 w-56 rounded-[12px] bg-slate-200" />
+        <div className="mt-2 h-4 w-64 rounded-full bg-slate-100" />
+      </div>
+    </DashboardCard>
+
+    <div className="grid grid-cols-2 gap-3">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <DashboardCard key={index}>
+          <div className="animate-pulse">
+            <div className="flex items-start justify-between gap-2">
+              <div className="h-3 w-20 rounded-full bg-slate-200" />
+              <div className="h-9 w-9 rounded-xl bg-slate-100" />
+            </div>
+            <div className="mt-6 h-8 w-16 rounded-[12px] bg-slate-200" />
+            <div className="mt-3 h-3 w-24 rounded-full bg-slate-100" />
+          </div>
+        </DashboardCard>
+      ))}
+    </div>
+
+    <DashboardCard>
+      <div className="animate-pulse">
+        <div className="h-3 w-28 rounded-full bg-slate-200" />
+        <div className="mt-3 h-6 w-48 rounded-[12px] bg-slate-200" />
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4"
+          >
+            <div className="animate-pulse">
+              <div className="mx-auto h-11 w-11 rounded-xl bg-white" />
+              <div className="mx-auto mt-3 h-3 w-16 rounded-full bg-white" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </DashboardCard>
+  </div>
+);
+
 const StatCard: React.FC<{
   title: string;
   value: string;
@@ -115,6 +162,7 @@ const AdminDashboardPage: React.FC = () => {
     .reduce((sum, order) => sum + order.total, 0);
   const onlineCouriers = couriers.filter((courier) => courier.isOnline).length;
   const busyCouriers = couriers.filter((courier) => courier.activeAssignments > 0).length;
+  const isInitialLoading = isLoading && adminOrders.length === 0 && storeOrders.length === 0;
 
   const quickActions = useMemo(
     () => [
@@ -173,6 +221,10 @@ const AdminDashboardPage: React.FC = () => {
     ],
     [navigate, newOrders.length, busyCouriers, pendingOrders.length, chatUnread],
   );
+
+  if (isInitialLoading) {
+    return <DashboardLoadingState />;
+  }
 
   return (
     <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]">
