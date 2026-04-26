@@ -201,7 +201,7 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {summary.filteredCount === 0 ? (
+      {summary.filteredCount === 0 && summary.staleOrders.length === 0 ? (
         <div className="adminx-surface flex flex-col items-center justify-center rounded-[24px] px-6 py-16 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-[rgba(245,166,35,0.14)] text-[var(--adminx-color-primary-dark)]">
             <ShoppingBag size={30} />
@@ -225,11 +225,12 @@ export default function AdminOrdersPage() {
             </button>
           ) : null}
         </div>
-      ) : (
+      ) : null}
+
+      {summary.filteredCount > 0 ? (
         <section className="space-y-3">
           {summary.filteredOrders.map((order, index) => {
             const needsCourier = needsCourierAssignment(order);
-
             return (
               <AdminOrderCard
                 key={order.id}
@@ -245,7 +246,32 @@ export default function AdminOrdersPage() {
             );
           })}
         </section>
-      )}
+      ) : null}
+
+      {summary.staleOrders.length > 0 ? (
+        <section className="space-y-3">
+          <div className="flex items-center gap-3 px-1">
+            <div className="h-px flex-1 bg-[rgba(28,18,7,0.06)]" />
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[var(--adminx-color-faint)]">
+              Eskirgan · {summary.staleOrders.length} ta
+            </p>
+            <div className="h-px flex-1 bg-[rgba(28,18,7,0.06)]" />
+          </div>
+          {summary.staleOrders.map((order, index) => (
+            <AdminOrderCard
+              key={order.id}
+              order={order}
+              index={index}
+              isMutating={false}
+              primaryActionLabel="Ko'rish"
+              needsCourier={false}
+              isStale
+              onOpen={() => navigate(`/admin/orders/${order.id}`)}
+              onPrimaryAction={() => navigate(`/admin/orders/${order.id}`)}
+            />
+          ))}
+        </section>
+      ) : null}
 
     </div>
   );

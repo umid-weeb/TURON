@@ -1,5 +1,6 @@
 import { OrderStatusEnum, PaymentStatusEnum } from '@turon/shared';
 import type { Order, AdminCourierDirectoryItem } from '../../../data/types';
+import { isOrderStale } from '../../../lib/orderStaleUtils';
 
 export type DashboardMetricTone = 'pending' | 'revenue' | 'active' | 'done';
 
@@ -79,11 +80,13 @@ export const buildDashboardSummary = (
 ): DashboardSummary => {
   const pendingOrders = orders.filter(
     (order) =>
-      order.orderStatus === OrderStatusEnum.PENDING ||
-      order.paymentStatus === PaymentStatusEnum.PENDING,
+      !isOrderStale(order) &&
+      (order.orderStatus === OrderStatusEnum.PENDING ||
+        order.paymentStatus === PaymentStatusEnum.PENDING),
   );
   const activeOrders = orders.filter(
     (order) =>
+      !isOrderStale(order) &&
       order.orderStatus !== OrderStatusEnum.PENDING &&
       order.orderStatus !== OrderStatusEnum.DELIVERED &&
       order.orderStatus !== OrderStatusEnum.CANCELLED,

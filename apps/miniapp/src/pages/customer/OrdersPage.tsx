@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
 import { OrderCard, OrderTimeline, OrdersEmptyState } from '../../components/customer/OrderHistoryComponents';
 import { Order, OrderStatus } from '../../data/types';
+import { isOrderStale } from '../../lib/orderStaleUtils';
 import { useMyOrders } from '../../hooks/queries/useOrders';
 import { useProducts } from '../../hooks/queries/useMenu';
 import { useCartStore } from '../../store/useCartStore';
@@ -125,10 +126,13 @@ const OrdersPage: React.FC = () => {
   const handleCallCourier = useCallback((phone: string) => initiateCall(phone, 'kuryer'), []);
   const handleRefetch = useCallback(() => { void refetch(); }, [refetch]);
 
-  const { activeOrders, completedOrders } = useMemo(() => {
+  const { activeOrders, staleOrders, completedOrders } = useMemo(() => {
+    const isTerminal = (order: Order) =>
+      order.orderStatus === OrderStatus.DELIVERED || order.orderStatus === OrderStatus.CANCELLED;
     return {
-      activeOrders: orders.filter((order) => order.orderStatus !== OrderStatus.DELIVERED && order.orderStatus !== OrderStatus.CANCELLED),
-      completedOrders: orders.filter((order) => order.orderStatus === OrderStatus.DELIVERED || order.orderStatus === OrderStatus.CANCELLED)
+      activeOrders: orders.filter((order) => !isTerminal(order) && !isOrderStale(order)),
+      staleOrders: orders.filter((order) => !isTerminal(order) && isOrderStale(order)),
+      completedOrders: orders.filter(isTerminal),
     };
   }, [orders]);
 
@@ -207,16 +211,35 @@ const OrdersPage: React.FC = () => {
 
       <div className="px-4 pb-6 pt-4 space-y-8">
         {activeOrders.length > 0 && (
-          <ActiveOrdersList 
-            orders={activeOrders} 
+          <ActiveOrdersList
+            orders={activeOrders}
             onNavigate={handleNavigate}
             onCall={handleCallCourier}
           />
         )}
 
+        {staleOrders.length > 0 && (
+          <section>
+            <div className="mb-4 flex items-end justify-between">
+              <div>
+                <p className="text-[12px] font-black uppercase tracking-[0.1em] text-[#8c8c96]">Muddati o'tgan</p>
+                <h2 className="mt-1 text-[22px] font-black tracking-tight text-[#202020]">Eskirgan</h2>
+              </div>
+              <span className="rounded-full bg-[#f4f4f5] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#8c8c96]">
+                {staleOrders.length} ta
+              </span>
+            </div>
+            <div className="space-y-4">
+              {staleOrders.map((order) => (
+                <OrderCard key={order.id} order={order} onClick={() => handleNavigate(order.id)} onReorder={() => handleReorder(order)} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {completedOrders.length > 0 && (
-          <CompletedOrdersList 
-            orders={completedOrders} 
+          <CompletedOrdersList
+            orders={completedOrders}
             onNavigate={handleNavigate}
             onReorder={handleReorder}
             onRefetch={handleRefetch}

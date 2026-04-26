@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserRoleEnum } from '@turon/shared';
 import { api } from '../../lib/api';
 import type { AppNotification } from '../../features/notifications/notificationTypes';
+import { isNotificationStale } from '../../lib/orderStaleUtils';
 
 function resolveNotificationActionRoute(notification: AppNotification) {
   if (!notification.relatedOrderId) {
@@ -38,7 +39,9 @@ export const useUnreadNotificationCount = (role: UserRoleEnum) => {
   const query = useNotifications(role);
   return {
     ...query,
-    unreadCount: (query.data || []).filter((notification) => !notification.isRead).length,
+    unreadCount: (query.data || []).filter(
+      (notification) => !notification.isRead && !isNotificationStale(notification.createdAt),
+    ).length,
   };
 };
 

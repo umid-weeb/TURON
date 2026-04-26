@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight, Loader2, MapPin, Phone, Truck } from 'lucide-react';
 import { Order } from '../../../data/types';
+import { getStaleAgeLabel } from '../../../lib/orderStaleUtils';
 import {
   formatCurrency,
   formatOrderTime,
@@ -18,6 +19,7 @@ interface AdminOrderCardProps {
   isMutating: boolean;
   primaryActionLabel: string;
   needsCourier: boolean;
+  isStale?: boolean;
   onOpen: () => void;
   onPrimaryAction: () => void;
   onAssignCourier?: () => void;
@@ -29,6 +31,7 @@ export function AdminOrderCard({
   isMutating,
   primaryActionLabel,
   needsCourier,
+  isStale,
   onOpen,
   onPrimaryAction,
   onAssignCourier,
@@ -42,6 +45,7 @@ export function AdminOrderCard({
     <article
       className="adminx-order-card"
       data-status={order.orderStatus}
+      data-stale={isStale ? 'true' : undefined}
       style={{ ['--i' as string]: index } as React.CSSProperties}
     >
       <div className="adminx-order-top">
@@ -53,9 +57,15 @@ export function AdminOrderCard({
                 <p className="text-base font-black tracking-[-0.03em] text-[var(--adminx-color-ink)]">
                   #{order.orderNumber}
                 </p>
-                <span className={`inline-flex min-h-8 items-center rounded-full border px-3 text-[11px] font-black uppercase tracking-[0.14em] ${statusMeta.className}`}>
-                  {statusMeta.label}
-                </span>
+                {isStale ? (
+                  <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[rgba(28,18,7,0.1)] bg-[rgba(28,18,7,0.05)] px-3 text-[11px] font-black uppercase tracking-[0.14em] text-[var(--adminx-color-muted)]">
+                    Eskirgan · {getStaleAgeLabel(order)}
+                  </span>
+                ) : (
+                  <span className={`inline-flex min-h-8 items-center rounded-full border px-3 text-[11px] font-black uppercase tracking-[0.14em] ${statusMeta.className}`}>
+                    {statusMeta.label}
+                  </span>
+                )}
               </div>
               <p className="mt-3 truncate text-[15px] font-black text-[var(--adminx-color-ink)]">
                 {getOrderCustomerTitle(order)}
@@ -102,27 +112,40 @@ export function AdminOrderCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {needsCourier && onAssignCourier ? (
+      {!isStale ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {needsCourier && onAssignCourier ? (
+            <button
+              type="button"
+              onClick={onAssignCourier}
+              disabled={isMutating}
+              className="inline-flex min-h-12 items-center justify-center rounded-[16px] border border-[rgba(28,18,7,0.08)] bg-white px-4 text-sm font-black text-[var(--adminx-color-ink)] disabled:opacity-60"
+            >
+              Biriktirish
+            </button>
+          ) : null}
           <button
             type="button"
-            onClick={onAssignCourier}
+            onClick={onPrimaryAction}
             disabled={isMutating}
-            className="inline-flex min-h-12 items-center justify-center rounded-[16px] border border-[rgba(28,18,7,0.08)] bg-white px-4 text-sm font-black text-[var(--adminx-color-ink)] disabled:opacity-60"
+            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,var(--adminx-color-primary)_0%,var(--adminx-color-primary-dark)_100%)] px-5 text-sm font-black text-[var(--adminx-color-dark)] shadow-[var(--adminx-shadow-glow)] disabled:opacity-60"
           >
-            Biriktirish
+            {isMutating ? <Loader2 size={16} className="animate-spin" /> : primaryActionLabel}
+            {!isMutating ? <ChevronRight size={16} /> : null}
           </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={onPrimaryAction}
-          disabled={isMutating}
-          className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,var(--adminx-color-primary)_0%,var(--adminx-color-primary-dark)_100%)] px-5 text-sm font-black text-[var(--adminx-color-dark)] shadow-[var(--adminx-shadow-glow)] disabled:opacity-60"
-        >
-          {isMutating ? <Loader2 size={16} className="animate-spin" /> : primaryActionLabel}
-          {!isMutating ? <ChevronRight size={16} /> : null}
-        </button>
-      </div>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[14px] border border-[rgba(28,18,7,0.08)] bg-white px-4 text-sm font-black text-[var(--adminx-color-muted)]"
+          >
+            Ko'rish
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
     </article>
   );
 }

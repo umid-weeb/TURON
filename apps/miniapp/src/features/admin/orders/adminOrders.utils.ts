@@ -1,4 +1,5 @@
 import { Order, OrderStatus, PaymentStatus, type OrderDispatchState } from '../../../data/types';
+import { isOrderStale } from '../../../lib/orderStaleUtils';
 
 export type AdminOrderFilter = 'ALL' | OrderStatus;
 
@@ -89,6 +90,10 @@ function getStatusSortValue(status: OrderStatus) {
 
 export function sortOrdersForAdmin(orders: Order[]) {
   return [...orders].sort((left, right) => {
+    const leftStale = isOrderStale(left);
+    const rightStale = isOrderStale(right);
+    if (leftStale !== rightStale) return leftStale ? 1 : -1;
+
     const leftPriority = getStatusSortValue(left.orderStatus);
     const rightPriority = getStatusSortValue(right.orderStatus);
 
@@ -238,18 +243,24 @@ export function buildAdminOrderFilters(orders: Order[]): AdminOrderFilterOption[
 
 export function buildAdminOrdersSummary(orders: Order[], activeFilter: AdminOrderFilter, query: string) {
   const sortedOrders = sortOrdersForAdmin(orders);
-  const filteredOrders = sortedOrders.filter((order) => {
+  const liveOrders = sortedOrders.filter((order) => !isOrderStale(order));
+  const allStaleOrders = sortedOrders.filter((order) => isOrderStale(order));
+
+  const matchesFilterAndQuery = (order: Order) => {
     const matchesFilter = activeFilter === 'ALL' || order.orderStatus === activeFilter;
     return matchesFilter && matchesOrderSearch(order, query);
-  });
+  };
 
-  const pendingOrders = sortedOrders.filter((order) => order.orderStatus === OrderStatus.PENDING);
-  const readyOrders = sortedOrders.filter((order) => order.orderStatus === OrderStatus.READY_FOR_PICKUP);
-  const deliveringOrders = sortedOrders.filter((order) => order.orderStatus === OrderStatus.DELIVERING);
-  const activeOrders = sortedOrders.filter(
+  const filteredOrders = liveOrders.filter(matchesFilterAndQuery);
+  const staleOrders = allStaleOrders.filter(matchesFilterAndQuery);
+
+  const pendingOrders = liveOrders.filter((order) => order.orderStatus === OrderStatus.PENDING);
+  const readyOrders = liveOrders.filter((order) => order.orderStatus === OrderStatus.READY_FOR_PICKUP);
+  const deliveringOrders = liveOrders.filter((order) => order.orderStatus === OrderStatus.DELIVERING);
+  const activeOrders = liveOrders.filter(
     (order) => order.orderStatus !== OrderStatus.DELIVERED && order.orderStatus !== OrderStatus.CANCELLED,
   );
-  const courierNeededOrders = sortedOrders.filter((order) => needsCourierAssignment(order));
+  const courierNeededOrders = liveOrders.filter((order) => needsCourierAssignment(order));
 
   return {
     totalCount: orders.length,
@@ -260,8 +271,10 @@ export function buildAdminOrdersSummary(orders: Order[], activeFilter: AdminOrde
     deliveringCount: deliveringOrders.length,
     activeCount: activeOrders.length,
     courierNeededCount: courierNeededOrders.length,
-    filters: buildAdminOrderFilters(sortedOrders),
+    staleCount: allStaleOrders.length,
+    filters: buildAdminOrderFilters(liveOrders),
     filteredOrders,
+    staleOrders,
     urgentOrder: pendingOrders[0] || readyOrders[0] || filteredOrders[0] || null,
   };
 }
