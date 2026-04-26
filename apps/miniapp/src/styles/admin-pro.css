@@ -443,3 +443,16 @@
   border-color: rgba(245, 166, 35, 0.3);
   box-shadow: 0 8px 24px rgba(245, 166, 35, 0.12);
 }
+
+/* ── Map lollipop pin bounce ──────────────────────────────── */
+
+@keyframes admin-pin-drop {
+  0%   { opacity: 0; transform: translateY(-18px) scale(0.7); }
+  60%  { opacity: 1; transform: translateY(4px)   scale(1.06); }
+  80%  { transform: translateY(-3px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0)     scale(1); }
+}
+
+.admin-pin-drop {
+  animation: admin-pin-drop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
