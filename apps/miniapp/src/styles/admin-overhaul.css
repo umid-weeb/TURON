@@ -30,6 +30,213 @@
   color: var(--adminx-color-ink);
 }
 
+.adminx-home-alert {
+  border-radius: 18px;
+  border: 1px solid rgba(214, 69, 69, 0.14);
+  background: linear-gradient(180deg, rgba(255, 247, 246, 0.98) 0%, rgba(255, 239, 236, 0.94) 100%);
+  padding: 14px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 12px 24px rgba(214, 69, 69, 0.08);
+}
+
+.adminx-home-hero {
+  border-radius: 26px;
+}
+
+.adminx-home-hero-top {
+  align-items: flex-start;
+}
+
+.adminx-home-hero-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+
+.adminx-home-pending-card,
+.adminx-home-kpi-card,
+.adminx-home-stat-card,
+.adminx-home-action {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(28, 18, 7, 0.08);
+  box-shadow: var(--adminx-shadow-soft);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.adminx-home-pending-card:hover,
+.adminx-home-kpi-card:hover,
+.adminx-home-stat-card:hover,
+.adminx-home-action:hover,
+.adminx-home-feed-row:hover {
+  transform: translateY(-2px);
+}
+
+.adminx-home-pending-card {
+  min-height: 198px;
+  padding: 16px;
+  background: linear-gradient(145deg, #fff7f5 0%, #ffffff 58%, #fff1eb 100%);
+  color: var(--adminx-color-ink);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 18px 34px rgba(214, 69, 69, 0.12);
+}
+
+.adminx-home-pending-card::after {
+  content: '';
+  position: absolute;
+  right: -40px;
+  bottom: -56px;
+  width: 160px;
+  height: 160px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(214, 69, 69, 0.1) 0%, transparent 72%);
+}
+
+.adminx-home-pending-count {
+  font-size: clamp(40px, 10vw, 58px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.08em;
+  color: var(--adminx-color-danger);
+}
+
+.adminx-home-kpi-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.adminx-home-kpi-card {
+  min-height: 94px;
+  padding: 14px;
+}
+
+.adminx-home-kpi-card[data-tone='revenue'] {
+  background: linear-gradient(180deg, rgba(255, 245, 215, 0.98) 0%, rgba(255, 233, 184, 0.94) 100%);
+  border-color: rgba(245, 166, 35, 0.22);
+}
+
+.adminx-home-kpi-card[data-tone='ops'] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 244, 0.96) 100%);
+}
+
+.adminx-home-mini-metric {
+  border-radius: 16px;
+  border: 1px solid rgba(28, 18, 7, 0.06);
+  background: rgba(255, 255, 255, 0.76);
+  padding: 10px;
+}
+
+.adminx-home-mini-metric span {
+  display: block;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--adminx-color-faint);
+}
+
+.adminx-home-mini-metric strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--adminx-color-ink);
+}
+
+.adminx-home-stat-shell {
+  padding-top: 2px;
+}
+
+.adminx-home-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adminx-home-stat-card {
+  min-height: 118px;
+  padding: 14px;
+  animation: adminx-fade-up 0.34s ease calc(0.16s + var(--i, 0) * 0.06s) both;
+}
+
+.adminx-home-stat-card[data-tone='revenue'] {
+  background: linear-gradient(180deg, rgba(240, 255, 246, 0.98) 0%, rgba(225, 255, 236, 0.94) 100%);
+  border-color: rgba(36, 159, 99, 0.18);
+}
+
+.adminx-home-stat-card[data-tone='active'] {
+  background: linear-gradient(180deg, rgba(255, 247, 232, 0.98) 0%, rgba(255, 240, 199, 0.94) 100%);
+  border-color: rgba(245, 166, 35, 0.2);
+}
+
+.adminx-home-stat-card[data-tone='pending'] {
+  background: linear-gradient(180deg, rgba(255, 245, 243, 0.98) 0%, rgba(255, 232, 228, 0.94) 100%);
+  border-color: rgba(214, 69, 69, 0.2);
+}
+
+.adminx-home-stat-card[data-tone='done'] {
+  background: linear-gradient(180deg, rgba(239, 245, 255, 0.98) 0%, rgba(226, 236, 255, 0.94) 100%);
+  border-color: rgba(45, 108, 223, 0.2);
+}
+
+.adminx-home-stat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--adminx-color-ink);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+.adminx-home-actions-shell {
+  overflow: hidden;
+}
+
+.adminx-home-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adminx-home-action {
+  min-height: 118px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 248, 231, 0.96) 100%);
+  animation: adminx-scale-in 0.24s ease calc(0.36s + var(--i, 0) * 0.05s) both;
+}
+
+.adminx-home-action[data-urgent='true'] {
+  border-color: rgba(214, 69, 69, 0.22);
+  background: linear-gradient(180deg, rgba(255, 248, 248, 0.98) 0%, rgba(255, 238, 236, 0.96) 100%);
+}
+
+.adminx-home-feed-shell {
+  padding-bottom: 2px;
+}
+
+.adminx-home-feed-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 66px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(28, 18, 7, 0.06);
+  transition: transform 0.18s ease, background-color 0.18s ease;
+  animation: adminx-slide-right 0.32s ease calc(0.26s + var(--i, 0) * 0.05s) both;
+}
+
+.adminx-home-feed-row:last-child {
+  border-bottom: 0;
+}
+
+.adminx-home-feed-row:hover {
+  background: rgba(255, 247, 232, 0.58);
+}
+
 .adminx-surface {
   border: 1px solid var(--adminx-color-line);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 244, 0.94) 100%);
@@ -748,16 +955,24 @@
   .adminx-zone-alert,
   .adminx-zone-hero,
   .adminx-stat-pill,
+  .adminx-home-stat-card,
   .adminx-feed-row,
+  .adminx-home-feed-row,
   .adminx-action-tile,
+  .adminx-home-action,
   .adminx-tab-panel,
   .adminx-pin-bounce {
     animation: none !important;
   }
 
   .adminx-stat-pill:hover,
+  .adminx-home-pending-card:hover,
+  .adminx-home-kpi-card:hover,
+  .adminx-home-stat-card:hover,
   .adminx-action-tile:hover,
+  .adminx-home-action:hover,
   .adminx-feed-row:hover,
+  .adminx-home-feed-row:hover,
   .adminx-hour-row:hover,
   .adminx-save-button:hover {
     transform: none !important;
@@ -1075,5 +1290,237 @@
   .adminx-promo-row,
   .adminx-promo-filter {
     animation: none !important;
+  }
+}
+
+/* ── Home Dashboard — Alert Banner ──────────────────────────── */
+
+.adminx-home-alert {
+  padding: 14px 18px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(214, 69, 69, 0.2);
+  background: linear-gradient(180deg, rgba(255, 248, 248, 0.98) 0%, rgba(255, 238, 236, 0.96) 100%);
+  box-shadow: 0 2px 8px rgba(214, 69, 69, 0.06), 0 12px 28px rgba(214, 69, 69, 0.1);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.adminx-home-alert:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(214, 69, 69, 0.1), 0 16px 36px rgba(214, 69, 69, 0.14);
+}
+
+.adminx-home-alert:active {
+  transform: scale(0.99);
+}
+
+/* ── Home Dashboard — Hero Card ──────────────────────────────── */
+
+.adminx-home-hero-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.adminx-home-pending-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.adminx-home-pending-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+}
+
+.adminx-home-pending-card:active {
+  transform: scale(0.99);
+}
+
+.adminx-home-pending-count {
+  font-size: 52px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--adminx-color-danger);
+}
+
+.adminx-home-kpi-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adminx-home-kpi-card {
+  flex: 1;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.adminx-home-kpi-card[data-tone='revenue'] {
+  background: linear-gradient(180deg, rgba(255, 249, 224, 0.98) 0%, rgba(255, 236, 180, 0.96) 100%);
+  border-color: rgba(245, 166, 35, 0.3);
+}
+
+.adminx-home-kpi-card[data-tone='ops'] {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.adminx-home-kpi-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.26);
+}
+
+.adminx-home-kpi-card:active {
+  transform: scale(0.99);
+}
+
+.adminx-home-mini-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  background: rgba(28, 18, 7, 0.05);
+}
+
+.adminx-home-mini-metric span {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--adminx-color-faint);
+}
+
+.adminx-home-mini-metric strong {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--adminx-color-ink);
+}
+
+/* ── Home Dashboard — Stat Cards ────────────────────────────── */
+
+.adminx-home-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .adminx-home-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.adminx-home-stat-card {
+  position: relative;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(28, 18, 7, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 244, 0.95) 100%);
+  box-shadow: var(--adminx-shadow-card);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  animation: adminx-fade-up 0.34s ease calc(0.16s + var(--i, 0) * 0.06s) both;
+}
+
+.adminx-home-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+}
+
+.adminx-home-stat-card[data-tone='revenue'] {
+  background: linear-gradient(180deg, rgba(240, 255, 246, 0.98) 0%, rgba(225, 255, 236, 0.94) 100%);
+  border-color: rgba(36, 159, 99, 0.18);
+}
+
+.adminx-home-stat-card[data-tone='active'] {
+  background: linear-gradient(180deg, rgba(255, 247, 232, 0.98) 0%, rgba(255, 240, 199, 0.94) 100%);
+  border-color: rgba(245, 166, 35, 0.2);
+}
+
+.adminx-home-stat-card[data-tone='pending'] {
+  background: linear-gradient(180deg, rgba(255, 245, 243, 0.98) 0%, rgba(255, 232, 228, 0.94) 100%);
+  border-color: rgba(214, 69, 69, 0.2);
+}
+
+.adminx-home-stat-card[data-tone='done'] {
+  background: linear-gradient(180deg, rgba(239, 245, 255, 0.98) 0%, rgba(226, 236, 255, 0.94) 100%);
+  border-color: rgba(45, 108, 223, 0.2);
+}
+
+.adminx-home-stat-badge {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  background: rgba(28, 18, 7, 0.06);
+  color: var(--adminx-color-muted);
+}
+
+/* ── Home Dashboard — Quick Actions ─────────────────────────── */
+
+.adminx-home-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adminx-home-action {
+  display: flex;
+  flex-direction: column;
+  min-height: 130px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(28, 18, 7, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 244, 0.95) 100%);
+  box-shadow: var(--adminx-shadow-soft);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  animation: adminx-fade-up 0.3s ease calc(0.36s + var(--i, 0) * 0.05s) both;
+}
+
+.adminx-home-action[data-urgent='true'] {
+  border-color: rgba(214, 69, 69, 0.22);
+  background: linear-gradient(180deg, rgba(255, 248, 248, 0.98) 0%, rgba(255, 238, 236, 0.96) 100%);
+}
+
+.adminx-home-action:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--adminx-shadow-card);
+  border-color: rgba(245, 166, 35, 0.22);
+}
+
+.adminx-home-action:active {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adminx-home-stat-card,
+  .adminx-home-action {
+    animation: none !important;
+  }
+
+  .adminx-home-stat-card:hover,
+  .adminx-home-action:hover,
+  .adminx-home-pending-card:hover,
+  .adminx-home-kpi-card:hover,
+  .adminx-home-alert:hover {
+    transform: none !important;
   }
 }

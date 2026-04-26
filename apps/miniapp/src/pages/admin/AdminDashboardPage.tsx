@@ -49,7 +49,9 @@ export default function AdminDashboardPage() {
         pendingCount={summary.pendingCount}
         pendingValue={summary.pendingValue}
         todayRevenue={summary.todayRevenue}
-        activeCouriers={summary.recentlyActiveCouriersCount}
+        activeCouriers={summary.onlineCouriersCount}
+        activeOrdersCount={summary.activeOrdersCount}
+        deliveredTodayCount={summary.deliveredTodayCount}
         onOpenOrders={() => navigate('/admin/orders')}
         onOpenReports={() => navigate('/admin/reports')}
       />
