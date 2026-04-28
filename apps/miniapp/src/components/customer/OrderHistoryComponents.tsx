@@ -116,12 +116,15 @@ export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () =
 
   if (status === OrderStatus.CANCELLED) {
     return (
-      <section className="rounded-[20px] bg-rose-50 p-5 shadow-sm">
+      <section
+        className="rounded-[20px] p-5"
+        style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.14)' }}
+      >
         <p className="text-[12px] font-black uppercase tracking-[0.1em] text-rose-500">Holat</p>
-        <p className="mt-2 text-lg font-black text-rose-700">
+        <p className="mt-2 text-lg font-black text-rose-600">
           {getLocalizedOrderStatusLabel(status, language)}
         </p>
-        <p className="mt-2 text-[14px] leading-relaxed text-rose-600/80">
+        <p className="mt-2 text-[14px] leading-relaxed text-rose-500/80">
           Buyurtma bekor qilingan. Zarurat bo'lsa support orqali operator bilan bog'laning.
         </p>
       </section>
@@ -129,38 +132,64 @@ export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () =
   }
 
   return (
-    <section className="rounded-[20px] bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
-      <p className="text-[12px] font-black uppercase tracking-[0.1em] text-[#8c8c96]">Jarayon</p>
+    <section
+      className="rounded-[20px] p-5 shadow-[0_4px_16px_rgba(0,0,0,0.07)]"
+      style={{ background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)' }}
+    >
+      <p
+        className="text-[12px] font-black uppercase tracking-[0.1em]"
+        style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}
+      >
+        Jarayon
+      </p>
       <div className="relative mt-5 space-y-5">
-        <div className="absolute left-[13px] top-3 bottom-5 w-[2px] bg-[#f4f4f5]" />
+        <div
+          className="absolute bottom-5 left-[13px] top-3 w-[2px] rounded-full"
+          style={{ background: 'rgba(0,0,0,0.08)' }}
+        />
         {steps.map((step) => {
           const stepIndex = getStatusStep(step.id);
           const isCompleted = currentStep > stepIndex;
           const isActive = currentStep === stepIndex;
 
-          let bulletStyle = "border-2 border-[#f4f4f5] bg-white text-[#8c8c96]";
-          if (isCompleted) {
-            bulletStyle = "bg-[#C62020] text-white border-0";
-          } else if (isActive) {
-            bulletStyle = "bg-[#C2FF00] text-[#111] border-0 shadow-md transform scale-110";
-          }
-
           return (
             <div key={step.id} className="relative flex items-start gap-4">
               <div
-                className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${bulletStyle}`}
+                className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                  isActive ? 'scale-110 shadow-md' : ''
+                }`}
+                style={
+                  isCompleted
+                    ? { background: '#C62020', color: '#fff' }
+                    : isActive
+                    ? { background: '#C2FF00', color: '#111' }
+                    : { background: 'rgba(0,0,0,0.06)', color: 'var(--tg-theme-hint-color, #8e8e93)', border: '2px solid rgba(0,0,0,0.06)' }
+                }
               >
-                {isCompleted ? <CheckCircle2 size={16} /> : <span className="text-[12px] font-black">{stepIndex + 1}</span>}
+                {isCompleted
+                  ? <CheckCircle2 size={16} />
+                  : <span className="text-[12px] font-black">{stepIndex + 1}</span>}
               </div>
-              <div className="min-w-0 pt-0.5 pb-2">
+              <div className="min-w-0 pb-2 pt-0.5">
                 <p
-                  className={`text-[15px] font-black ${
-                    isActive ? 'text-[#202020]' : isCompleted ? 'text-[#202020]' : 'text-[#8c8c96]'
-                  }`}
+                  className="text-[15px] font-black"
+                  style={{
+                    color: isActive || isCompleted
+                      ? 'var(--tg-theme-text-color)'
+                      : 'var(--tg-theme-hint-color, #8e8e93)',
+                  }}
                 >
                   {step.label}
                 </p>
-                <p className={`mt-1 text-[13px] leading-snug ${isActive ? 'text-[#202020]/80' : 'text-[#8c8c96]'}`}>
+                <p
+                  className="mt-1 text-[13px] leading-snug"
+                  style={{
+                    color: isActive
+                      ? 'var(--tg-theme-text-color)'
+                      : 'var(--tg-theme-hint-color, #8e8e93)',
+                    opacity: isActive ? 0.75 : 1,
+                  }}
+                >
                   {step.description}
                 </p>
               </div>
@@ -170,10 +199,11 @@ export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () =
       </div>
 
       {currentStep >= 2 && currentStep < 4 ? (
-        <button 
+        <button
           onClick={onCallCourier}
-          type="button" 
-          className="mt-6 w-full rounded-[14px] bg-[#f4f4f5] p-3 text-center text-[15px] font-bold text-[#C62020] transition-colors active:bg-[#e4e4e5]"
+          type="button"
+          className="mt-6 w-full rounded-[14px] p-3 text-center text-[15px] font-bold text-[#C62020] transition-opacity active:opacity-70"
+          style={{ background: 'rgba(198,32,32,0.07)' }}
         >
           Kuryerga qo'ng'iroq qilish
         </button>

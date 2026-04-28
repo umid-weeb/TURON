@@ -9,14 +9,27 @@ export const CheckoutSectionCard: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ title, children, actionLabel, onAction }) => (
-  <section className="py-5 border-b border-slate-100 last:border-none">
+  <section
+    className="py-5 last:border-b-0"
+    style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}
+  >
     <div className="flex items-center justify-between gap-4">
-      <h3 className="text-[18px] font-black tracking-tight text-[#202020]">{title}</h3>
+      <h3
+        className="text-[18px] font-black tracking-tight"
+        style={{ color: 'var(--tg-theme-text-color)' }}
+      >
+        {title}
+      </h3>
       {actionLabel ? (
         <button
           type="button"
           onClick={onAction}
-          className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 active:scale-95 transition-transform"
+          className="rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition-transform active:scale-95"
+          style={{
+            background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)',
+            border: '1px solid rgba(0,0,0,0.06)',
+            color: 'var(--tg-theme-hint-color, #8e8e93)',
+          }}
         >
           {actionLabel}
         </button>
