@@ -1,10 +1,20 @@
 import React from 'react';
 import { OrderDistanceDisplay } from '../../components/OrderDistanceDisplay';
-import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, Star, XCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Copy,
+  RefreshCcw,
+  Headphones,
+  Loader2,
+  MapPinned,
+  MessageCircle,
+  ShieldCheck,
+  Star,
+  XCircle,
+} from 'lucide-react';
 import { OrderRatingModal } from '../../components/customer/OrderRatingModal';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
-import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
 import { OrderTimeline } from '../../components/customer/OrderHistoryComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '../../data/types';
@@ -23,10 +33,29 @@ function getPaymentLabel(method: PaymentMethod) {
 }
 
 function getPaymentStatusLabel(status: PaymentStatus) {
-  if (status === PaymentStatus.COMPLETED) return 'Tasdiqlangan';
+  if (status === PaymentStatus.COMPLETED) return 'To\'langan';
   if (status === PaymentStatus.FAILED) return 'Rad etilgan';
   return 'Tekshiruvda';
 }
+
+// Card wrapper used for all content sections below the hero
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div
+    className={`rounded-[22px] px-5 py-5 ${className}`}
+    style={{ background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)' }}
+  >
+    {children}
+  </div>
+);
+
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <p
+    className="mb-4 text-[17px] font-black tracking-tight"
+    style={{ color: 'var(--tg-theme-text-color)' }}
+  >
+    {children}
+  </p>
+);
 
 const OrderDetailPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
@@ -55,8 +84,8 @@ const OrderDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[80vh] items-center justify-center">
-        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }} />
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 size={36} className="animate-spin" style={{ color: '#C62020' }} />
       </div>
     );
   }
@@ -117,7 +146,7 @@ const OrderDetailPage: React.FC = () => {
     } catch {
       setCopyState('failed');
     }
-    window.setTimeout(() => setCopyState('idle'), 1600);
+    window.setTimeout(() => setCopyState('idle'), 1800);
   };
 
   const handleReorder = () => {
@@ -149,446 +178,472 @@ const OrderDetailPage: React.FC = () => {
     navigate('/customer/cart');
   };
 
-  // Hero card gradient adapts to order status — text is always white over colored bg
+  // Hero gradient by order state
   const heroGradient = isActiveOrder
-    ? 'linear-gradient(135deg, #8B0000 0%, #C62020 55%, #E83535 100%)'
+    ? 'linear-gradient(160deg, #7A0000 0%, #C62020 50%, #E83535 100%)'
     : isDelivered
-    ? 'linear-gradient(135deg, #064e3b 0%, #065f46 55%, #047857 100%)'
-    : undefined;
+    ? 'linear-gradient(160deg, #064e3b 0%, #059669 50%, #10b981 100%)'
+    : 'linear-gradient(160deg, #1c1c1e 0%, #2c2c2e 100%)';
 
-  const heroOnColor = heroGradient !== undefined; // white text is safe over colored bg
-  const heroText: React.CSSProperties = heroOnColor
-    ? { color: 'rgba(255,255,255,0.96)' }
-    : { color: 'var(--tg-theme-text-color)' };
-  const heroHint: React.CSSProperties = heroOnColor
-    ? { color: 'rgba(255,255,255,0.60)' }
-    : { color: 'var(--tg-theme-hint-color, #8e8e93)' };
-  const heroChip: React.CSSProperties = heroOnColor
-    ? { background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.88)' }
-    : { background: 'var(--tg-theme-bg-color)', border: '1px solid rgba(0,0,0,0.07)', color: 'var(--tg-theme-hint-color, #8e8e93)' };
-
-  const iconBtn: React.CSSProperties = {
-    background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)',
-    border: '1px solid rgba(0,0,0,0.06)',
-    color: 'var(--tg-theme-text-color)',
-  };
+  // Overlay circle decoration inside hero (decorative)
+  const heroOverlay = (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 overflow-hidden rounded-b-[32px]"
+    >
+      <div
+        className="absolute -right-12 -top-12 h-52 w-52 rounded-full opacity-10"
+        style={{ background: 'rgba(255,255,255,0.6)' }}
+      />
+      <div
+        className="absolute -bottom-8 -left-8 h-36 w-36 rounded-full opacity-10"
+        style={{ background: 'rgba(255,255,255,0.5)' }}
+      />
+    </div>
+  );
 
   return (
     <div
-      className="min-h-screen animate-in fade-in duration-300"
-      style={{ paddingBottom: 'calc(var(--customer-nav-top-edge, 78px) + 20px)' }}
+      className="animate-in fade-in duration-300"
+      style={{
+        minHeight: '100dvh',
+        background: 'var(--tg-theme-bg-color, #ffffff)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)',
+      }}
     >
-      {/* ── Header ─────────────────────────────────────────────────────────────── */}
-      <section className="px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+14px)]">
-        <div className="flex items-center justify-between gap-3">
+      {/* ━━━ HERO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div
+        className="relative"
+        style={{
+          background: heroGradient,
+          borderRadius: '0 0 32px 32px',
+          paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + 10px)',
+          paddingBottom: 28,
+        }}
+      >
+        {heroOverlay}
+
+        {/* top row: back + copy */}
+        <div className="relative flex items-center justify-between px-4 pb-3">
           <button
             type="button"
             onClick={() => navigate('/customer/orders')}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
-            style={iconBtn}
+            className="flex h-10 w-10 items-center justify-center rounded-full transition-opacity active:opacity-60"
+            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
+            aria-label="Orqaga"
           >
             <ArrowLeft size={20} />
           </button>
 
-          <div className="min-w-0 flex-1 px-1">
-            <p
-              className="text-[10px] font-black uppercase tracking-[0.16em]"
-              style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}
-            >
-              Turon Kafesi
-            </p>
-            <h1
-              className="mt-1 text-[1.85rem] font-black tracking-[-0.05em]"
-              style={{ color: 'var(--tg-theme-text-color)' }}
-            >
-              #{order.orderNumber}
-            </h1>
-            <p
-              className="mt-1 text-sm font-semibold"
-              style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}
-            >
-              {createdAt}
-            </p>
-          </div>
-
           <button
             type="button"
             onClick={handleCopyOrderNumber}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
-            style={iconBtn}
-            title="Nusxalash"
+            className="flex h-10 w-10 items-center justify-center rounded-full transition-opacity active:opacity-60"
+            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
             aria-label="Nusxalash"
           >
-            <Copy size={18} />
+            {copyState === 'copied'
+              ? <span className="text-[10px] font-black">✓</span>
+              : <Copy size={17} />}
           </button>
         </div>
-      </section>
 
-      {/* ── Status Hero Card ────────────────────────────────────────────────────── */}
-      <section className="px-4">
-        <div
-          className="rounded-[22px] p-5 shadow-[0_8px_28px_rgba(0,0,0,0.13)]"
-          style={
-            heroGradient
-              ? { background: heroGradient }
-              : { background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)' }
-          }
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em]" style={heroHint}>
-                {isConnected ? 'Jonli status' : isCancelled ? 'Holat' : 'Buyurtma holati'}
-              </p>
+        {/* restaurant + order number */}
+        <div className="relative px-5">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/60">
+            Turon Kafesi
+          </p>
+          <h1 className="mt-1 text-[2.4rem] font-black leading-none tracking-[-0.05em] text-white">
+            #{order.orderNumber}
+          </h1>
+          <p className="mt-1.5 text-[13px] font-semibold text-white/60">{createdAt}</p>
+        </div>
 
-              <h2
-                className="mt-2 text-[1.55rem] font-black leading-[0.98] tracking-[-0.04em]"
-                style={trackingMeta.isArrivingNow ? { color: '#6ee7b7' } : heroText}
-              >
-                {trackingMeta.stageLabel}
-              </h2>
+        {/* status block */}
+        <div className="relative mt-5 px-5">
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">
+            {isConnected ? 'Jonli status' : isCancelled ? 'Holat' : 'Buyurtma holati'}
+          </p>
+          <h2
+            className="mt-2 text-[1.6rem] font-black leading-tight tracking-[-0.03em]"
+            style={{ color: trackingMeta.isArrivingNow ? '#6ee7b7' : '#fff' }}
+          >
+            {trackingMeta.stageLabel}
+          </h2>
+          <p className="mt-1.5 text-[14px] leading-6 text-white/65">{trackingMeta.statusLine}</p>
 
-              <p className="mt-2 text-sm leading-6" style={heroHint}>
-                {trackingMeta.statusLine}
-              </p>
-
-              {trackingMeta.isArrivingNow && (
-                <div className="mt-2.5 flex items-center gap-1.5">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  </span>
-                  <span className="text-[11px] font-black text-emerald-300">Kuryer yetib keldi!</span>
-                </div>
-              )}
-
-              {!trackingMeta.isArrivingNow && trackingMeta.isNearArrival && (
-                <div className="mt-2.5 flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
-                  </span>
-                  <span className="text-[11px] font-black text-amber-300">Yaqin qoldi</span>
-                </div>
-              )}
+          {trackingMeta.isArrivingNow && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" />
+              </span>
+              <span className="text-[12px] font-black text-emerald-300">Kuryer yetib keldi!</span>
             </div>
-
-            {/* Total chip */}
-            <div className="shrink-0 rounded-[14px] px-3.5 py-3 text-right" style={heroChip}>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] opacity-70">Jami</p>
-              <p className="mt-1 text-[17px] font-black">{order.total.toLocaleString()} so'm</p>
+          )}
+          {!trackingMeta.isArrivingNow && trackingMeta.isNearArrival && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
+              </span>
+              <span className="text-[12px] font-black text-amber-300">Yaqin qoldi</span>
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Status pills */}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]" style={heroChip}>
+        {/* total + pills row */}
+        <div className="relative mt-5 flex flex-wrap items-center justify-between gap-3 px-5">
+          <div className="flex flex-wrap gap-2">
+            <span
+              className="rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em]"
+              style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.90)' }}
+            >
               {paymentLabel}
             </span>
-            <span className="rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]" style={heroChip}>
+            <span
+              className="rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em]"
+              style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.90)' }}
+            >
               {paymentStatusLabel}
             </span>
-
             {trackingMeta.courierLabel ? (
               <span
-                className="rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]"
-                style={{
-                  background: 'rgba(56,189,248,0.16)',
-                  border: '1px solid rgba(56,189,248,0.26)',
-                  color: heroOnColor ? 'rgba(186,230,253,1)' : '#0ea5e9',
-                }}
+                className="rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em]"
+                style={{ background: 'rgba(56,189,248,0.25)', color: 'rgba(186,230,253,1)' }}
               >
                 {trackingMeta.courierLabel}
               </span>
             ) : null}
+          </div>
 
-            {copyState === 'copied' && (
-              <span
-                className="rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]"
-                style={{
-                  background: 'rgba(52,211,153,0.16)',
-                  border: '1px solid rgba(52,211,153,0.26)',
-                  color: heroOnColor ? 'rgba(167,243,208,1)' : '#059669',
-                }}
-              >
-                Nusxalandi
-              </span>
-            )}
-            {copyState === 'failed' && (
-              <span
-                className="rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]"
-                style={{
-                  background: 'rgba(251,113,133,0.16)',
-                  border: '1px solid rgba(251,113,133,0.26)',
-                  color: heroOnColor ? 'rgba(253,164,175,1)' : '#f43f5e',
-                }}
-              >
-                Nusxalab bo'lmadi
-              </span>
-            )}
+          <div
+            className="rounded-[14px] px-4 py-2.5"
+            style={{ background: 'rgba(255,255,255,0.15)' }}
+          >
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/55">Jami</p>
+            <p className="mt-0.5 text-[18px] font-black text-white">{order.total.toLocaleString()} so'm</p>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* ── Action Buttons ──────────────────────────────────────────────────────── */}
-      <section className="px-4 pt-3">
-        <div className="grid grid-cols-2 gap-3">
-          {canOpenLiveTracking ? (
+      {/* ━━━ CONTENT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="space-y-3 px-4 pt-4">
+
+        {/* Action Buttons */}
+        {(canOpenLiveTracking || isActiveOrder) && (
+          <div className="grid grid-cols-2 gap-3">
+            {canOpenLiveTracking ? (
+              <button
+                type="button"
+                onClick={() => navigate(`/customer/orders/${order.id}/tracking`)}
+                className="flex flex-col items-center gap-2.5 rounded-[20px] px-3 py-4 text-white transition-opacity active:opacity-75"
+                style={{
+                  background: 'linear-gradient(135deg, #059669, #10b981)',
+                  boxShadow: '0 4px 14px rgba(5,150,105,0.35)',
+                }}
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20">
+                  <MapPinned size={20} />
+                </div>
+                <span className="text-[12px] font-black">Xaritada kuzat</span>
+              </button>
+            ) : null}
+
             <button
               type="button"
-              onClick={() => navigate(`/customer/orders/${order.id}/tracking`)}
-              className="flex flex-col items-center justify-center gap-2 rounded-[18px] px-3 py-4 text-white shadow-md transition-transform active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}
+              onClick={() => navigate(`/customer/support?orderId=${order.id}`)}
+              className="flex flex-col items-center gap-2.5 rounded-[20px] px-3 py-4 transition-opacity active:opacity-75"
+              style={{
+                background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)',
+                border: '1.5px solid rgba(0,0,0,0.06)',
+                color: 'var(--tg-theme-text-color)',
+              }}
             >
-              <MapPinned size={20} />
-              <span className="text-[12px] font-black">Xaritada kuzat</span>
+              <div
+                className="flex h-11 w-11 items-center justify-center rounded-full"
+                style={{ background: 'rgba(0,0,0,0.06)' }}
+              >
+                <Headphones size={20} />
+              </div>
+              <span className="text-[12px] font-black">Support</span>
             </button>
-          ) : null}
 
-          <button
-            type="button"
-            onClick={() => navigate(`/customer/support?orderId=${order.id}`)}
-            className="flex flex-col items-center justify-center gap-2 rounded-[18px] px-3 py-4 transition-transform active:scale-95"
-            style={{ background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)', border: '1px solid rgba(0,0,0,0.06)', color: 'var(--tg-theme-text-color)' }}
-          >
-            <Headphones size={20} />
-            <span className="text-[12px] font-black">Support</span>
-          </button>
+            {isActiveOrder && order.courierId && (
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(true)}
+                className="relative flex flex-col items-center gap-2.5 rounded-[20px] px-3 py-4 text-white transition-opacity active:opacity-75"
+                style={{
+                  background: 'linear-gradient(135deg, #4338ca, #6366f1)',
+                  boxShadow: '0 4px 14px rgba(67,56,202,0.35)',
+                }}
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20">
+                  <MessageCircle size={20} />
+                </div>
+                <span className="text-[12px] font-black">Kuryer chat</span>
+                {unreadCount > 0 && (
+                  <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
 
-          {isActiveOrder && order.courierId && (
-            <button
-              type="button"
-              onClick={() => setIsChatOpen(true)}
-              className="relative flex flex-col items-center justify-center gap-2 rounded-[18px] px-3 py-4 text-white shadow-md transition-transform active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #4338ca, #6366f1)' }}
-            >
-              <MessageCircle size={20} />
-              <span className="text-[12px] font-black">Kuryer chat</span>
-              {unreadCount > 0 && (
-                <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
-          )}
+            {isActiveOrder ? (
+              <button
+                type="button"
+                onClick={() => navigate(`/customer/support?orderId=${order.id}&topic=cancel`)}
+                className="flex flex-col items-center gap-2.5 rounded-[20px] px-3 py-4 transition-opacity active:opacity-75"
+                style={{
+                  background: 'rgba(239,68,68,0.08)',
+                  border: '1.5px solid rgba(239,68,68,0.18)',
+                  color: '#dc2626',
+                }}
+              >
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-full"
+                  style={{ background: 'rgba(239,68,68,0.10)' }}
+                >
+                  <XCircle size={20} />
+                </div>
+                <span className="text-[12px] font-black">Bekor qilish</span>
+              </button>
+            ) : null}
 
-          {isActiveOrder ? (
-            <button
-              type="button"
-              onClick={() => navigate(`/customer/support?orderId=${order.id}&topic=cancel`)}
-              className="flex flex-col items-center justify-center gap-2 rounded-[18px] px-3 py-4 transition-transform active:scale-95"
-              style={{ background: 'rgba(239,68,68,0.09)', border: '1px solid rgba(239,68,68,0.18)', color: '#dc2626' }}
-            >
-              <XCircle size={20} />
-              <span className="text-[12px] font-black">Bekor qilish</span>
-            </button>
-          ) : null}
-        </div>
-      </section>
+            {/* Support always visible even without live tracking */}
+            {!canOpenLiveTracking && !order.courierId && !isActiveOrder && (
+              <button
+                type="button"
+                onClick={() => navigate(`/customer/support?orderId=${order.id}`)}
+                className="flex flex-col items-center gap-2.5 rounded-[20px] px-3 py-4 transition-opacity active:opacity-75"
+                style={{
+                  background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)',
+                  border: '1.5px solid rgba(0,0,0,0.06)',
+                  color: 'var(--tg-theme-text-color)',
+                }}
+              >
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-full"
+                  style={{ background: 'rgba(0,0,0,0.06)' }}
+                >
+                  <Headphones size={20} />
+                </div>
+                <span className="text-[12px] font-black">Support</span>
+              </button>
+            )}
+          </div>
+        )}
 
-      {/* ── Chat overlay ────────────────────────────────────────────────────────── */}
-      {isChatOpen && (
-        <OrderChatPanel
-          orderId={order.id}
-          role="customer"
-          theme="dark"
-          onClose={() => setIsChatOpen(false)}
-        />
-      )}
-
-      {/* ── Order Timeline ──────────────────────────────────────────────────────── */}
-      <section className="px-4 pt-4">
+        {/* Timeline */}
         <OrderTimeline status={order.orderStatus} />
-      </section>
 
-      {/* ── Order Items ─────────────────────────────────────────────────────────── */}
-      <section className="px-4 pt-4">
-        <CheckoutSectionCard title="Buyurtma tarkibi">
+        {/* Order Items */}
+        <Card>
+          <SectionTitle>Buyurtma tarkibi</SectionTitle>
           <div className="space-y-2">
             {order.items.map((item, index) => (
               <div
                 key={`${item.id}-${index}`}
-                className="flex items-center justify-between rounded-[14px] px-3.5 py-3"
-                style={{ background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)' }}
+                className="flex items-center justify-between rounded-[14px] px-3.5 py-3.5"
+                style={{ background: 'var(--tg-theme-bg-color, #fff)' }}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white"
-                    style={{ background: '#C62020' }}>
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white"
+                    style={{ background: '#C62020' }}
+                  >
                     {item.quantity}x
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
+                    <p className="truncate text-[14px] font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
                       {formatText(item.name)}
                     </p>
-                    <p className="mt-0.5 text-xs" style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
-                      {item.price.toLocaleString()} so'm / dona
+                    <p className="mt-0.5 text-[12px]" style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
+                      {item.price.toLocaleString()} so'm
                     </p>
                   </div>
                 </div>
-                <p className="shrink-0 text-sm font-black" style={{ color: 'var(--tg-theme-text-color)' }}>
+                <p className="shrink-0 pl-2 text-[15px] font-black" style={{ color: 'var(--tg-theme-text-color)' }}>
                   {(item.price * item.quantity).toLocaleString()} so'm
                 </p>
               </div>
             ))}
           </div>
-        </CheckoutSectionCard>
-      </section>
+        </Card>
 
-      {/* ── Payment Summary ─────────────────────────────────────────────────────── */}
-      <section className="px-4">
-        <CheckoutSectionCard title="To'lov va yetkazish">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm font-semibold">
-              <span style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}>Taomlar summasi</span>
-              <span className="font-black" style={{ color: 'var(--tg-theme-text-color)' }}>
+        {/* Payment Summary */}
+        <Card>
+          <SectionTitle>To'lov va yetkazish</SectionTitle>
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] font-semibold" style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
+                Taomlar summasi
+              </span>
+              <span className="text-[14px] font-black" style={{ color: 'var(--tg-theme-text-color)' }}>
                 {order.subtotal.toLocaleString()} so'm
               </span>
             </div>
+
             {order.discount > 0 ? (
-              <div className="flex items-center justify-between text-sm font-semibold text-emerald-600">
-                <span>Chegirma</span>
-                <span className="font-black">-{order.discount.toLocaleString()} so'm</span>
+              <div className="flex items-center justify-between">
+                <span className="text-[14px] font-semibold text-emerald-600">Chegirma</span>
+                <span className="text-[14px] font-black text-emerald-600">
+                  -{order.discount.toLocaleString()} so'm
+                </span>
               </div>
             ) : null}
-            <div className="flex items-center justify-between text-sm font-semibold">
-              <span style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}>Yetkazish</span>
-              <span className="font-black" style={{ color: 'var(--tg-theme-text-color)' }}>
+
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] font-semibold" style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
+                Yetkazish
+              </span>
+              <span className="text-[14px] font-black" style={{ color: 'var(--tg-theme-text-color)' }}>
                 {order.deliveryFee.toLocaleString()} so'm
               </span>
             </div>
+
             <div
-              className="flex items-center justify-between pt-4"
-              style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }}
+              className="flex items-center justify-between pt-3.5"
+              style={{ borderTop: '1.5px solid rgba(0,0,0,0.07)' }}
             >
               <span
-                className="text-[10px] font-black uppercase tracking-[0.14em]"
+                className="text-[11px] font-black uppercase tracking-[0.14em]"
                 style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}
               >
                 Umumiy
               </span>
-              <span className="text-xl font-black" style={{ color: 'var(--tg-theme-text-color)' }}>
+              <span className="text-[22px] font-black" style={{ color: 'var(--tg-theme-text-color)' }}>
                 {order.total.toLocaleString()} so'm
               </span>
             </div>
           </div>
-        </CheckoutSectionCard>
-      </section>
+        </Card>
 
-      {/* ── Delivery Info ───────────────────────────────────────────────────────── */}
-      <section className="px-4">
-        <CheckoutSectionCard title="Yetkazish ma'lumoti">
+        {/* Delivery Info */}
+        <Card>
+          <SectionTitle>Yetkazish ma'lumoti</SectionTitle>
           <div className="space-y-4">
             <div>
               <p
-                className="text-[10px] font-black uppercase tracking-[0.14em]"
+                className="mb-1.5 text-[11px] font-black uppercase tracking-[0.14em]"
                 style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}
               >
                 Manzil
               </p>
-              <p
-                className="mt-1.5 text-sm font-semibold leading-6"
-                style={{ color: 'var(--tg-theme-text-color)' }}
-              >
+              <p className="text-[14px] font-semibold leading-6" style={{ color: 'var(--tg-theme-text-color)' }}>
                 {formatText(order.customerAddress?.addressText || "Manzil ko'rsatilmagan")}
               </p>
               <OrderDistanceDisplay
                 courier={courierLocation}
                 destination={destinationLocation}
                 label="Buyurtmagacha masofa"
-                className="mt-1 text-xs"
+                className="mt-1 text-[12px] font-semibold"
               />
             </div>
+
+            <div
+              className="h-px"
+              style={{ background: 'rgba(0,0,0,0.07)' }}
+            />
+
             <div>
               <p
-                className="text-[10px] font-black uppercase tracking-[0.14em]"
+                className="mb-1.5 text-[11px] font-black uppercase tracking-[0.14em]"
                 style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}
               >
                 Izoh
               </p>
-              <p
-                className="mt-1.5 text-sm font-semibold leading-6"
-                style={{ color: 'var(--tg-theme-text-color)' }}
-              >
+              <p className="text-[14px] font-semibold leading-6" style={{ color: 'var(--tg-theme-text-color)' }}>
                 {order.note ? formatText(order.note) : "Izoh qoldirilmagan"}
               </p>
             </div>
+
+            <div
+              className="h-px"
+              style={{ background: 'rgba(0,0,0,0.07)' }}
+            />
+
             <div>
               <p
-                className="text-[10px] font-black uppercase tracking-[0.14em]"
+                className="mb-1.5 text-[11px] font-black uppercase tracking-[0.14em]"
                 style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}
               >
                 To'lov
               </p>
-              <div
-                className="mt-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold"
-                style={{ color: 'var(--tg-theme-text-color)' }}
-              >
-                <span>{paymentLabel}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[14px] font-semibold" style={{ color: 'var(--tg-theme-text-color)' }}>
+                  {paymentLabel}
+                </span>
                 {order.verificationStatus ? (
                   <span
-                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]"
+                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]"
                     style={{
-                      background: 'rgba(16,185,129,0.09)',
-                      border: '1px solid rgba(16,185,129,0.18)',
+                      background: 'rgba(5,150,105,0.10)',
+                      border: '1px solid rgba(5,150,105,0.18)',
                       color: '#059669',
                     }}
                   >
-                    <ShieldCheck size={12} />
+                    <ShieldCheck size={11} />
                     Admin tasdiqlagan
                   </span>
                 ) : null}
               </div>
             </div>
           </div>
-        </CheckoutSectionCard>
-      </section>
+        </Card>
 
-      {/* ── Rating Prompt ───────────────────────────────────────────────────────── */}
-      {order.orderStatus === OrderStatus.DELIVERED && !order.customerRating && (
-        <section className="px-4 pb-2">
+        {/* Rating prompt */}
+        {order.orderStatus === OrderStatus.DELIVERED && !order.customerRating && (
           <button
             type="button"
             onClick={() => setIsRatingOpen(true)}
-            className="flex w-full items-center gap-4 rounded-[18px] px-4 py-4 text-left transition-transform active:scale-[0.985]"
-            style={{ background: 'rgba(245,158,11,0.09)', border: '1px solid rgba(245,158,11,0.20)' }}
+            className="flex w-full items-center gap-4 rounded-[20px] px-4 py-4 text-left transition-opacity active:opacity-75"
+            style={{
+              background: 'rgba(245,158,11,0.09)',
+              border: '1.5px solid rgba(245,158,11,0.22)',
+            }}
           >
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-              style={{ background: 'rgba(245,158,11,0.14)' }}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+              style={{ background: 'rgba(245,158,11,0.15)' }}
             >
-              <Star size={20} className="text-amber-500" />
+              <Star size={22} className="text-amber-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-black text-amber-600">Yetkazishni baholang</p>
-              <p className="mt-0.5 text-[11px] text-amber-500/70">Fikringiz bizga muhim</p>
+              <p className="text-[14px] font-black text-amber-600">Yetkazishni baholang</p>
+              <p className="mt-0.5 text-[12px] text-amber-500/70">Fikringiz bizga muhim</p>
             </div>
             <div className="flex gap-0.5">
               {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} size={12} className="fill-amber-400/35 text-amber-400/35" />
+                <Star key={s} size={13} className="fill-amber-400/40 text-amber-400/40" />
               ))}
             </div>
           </button>
-        </section>
-      )}
+        )}
 
-      {order.orderStatus === OrderStatus.DELIVERED && order.customerRating && (
-        <section className="px-4 pb-2">
+        {order.orderStatus === OrderStatus.DELIVERED && order.customerRating && (
           <div
-            className="flex items-center gap-4 rounded-[18px] px-4 py-4"
-            style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.15)' }}
+            className="flex items-center gap-4 rounded-[20px] px-4 py-4"
+            style={{
+              background: 'rgba(5,150,105,0.07)',
+              border: '1.5px solid rgba(5,150,105,0.15)',
+            }}
           >
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-              style={{ background: 'rgba(16,185,129,0.12)' }}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+              style={{ background: 'rgba(5,150,105,0.12)' }}
             >
-              <Star size={20} className="fill-emerald-500 text-emerald-500" />
+              <Star size={22} className="fill-emerald-500 text-emerald-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-black text-emerald-600">Bahoyingiz</p>
+              <p className="text-[14px] font-black text-emerald-600">Bahoyingiz</p>
               <div className="mt-1 flex gap-0.5">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <Star
                     key={s}
-                    size={14}
+                    size={15}
                     className={
                       s <= (order.customerRating ?? 0)
                         ? 'fill-amber-400 text-amber-400'
@@ -599,7 +654,40 @@ const OrderDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </section>
+        )}
+
+        {/* Reorder CTA */}
+        <button
+          type="button"
+          onClick={handleReorder}
+          className="flex h-[58px] w-full items-center justify-center gap-3 rounded-[20px] text-[16px] font-black transition-opacity active:opacity-80"
+          style={
+            isActiveOrder
+              ? {
+                  background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)',
+                  border: '1.5px solid rgba(0,0,0,0.06)',
+                  color: 'var(--tg-theme-text-color)',
+                }
+              : {
+                  background: 'linear-gradient(135deg, #8B0000 0%, #C62020 100%)',
+                  color: '#fff',
+                  boxShadow: '0 6px 20px rgba(198,32,32,0.40)',
+                }
+          }
+        >
+          <RefreshCcw size={19} />
+          <span>{isActiveOrder ? "Savatga qayta qo'shish" : 'Qayta buyurtma berish'}</span>
+        </button>
+      </div>
+
+      {/* ━━━ Chat overlay ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {isChatOpen && (
+        <OrderChatPanel
+          orderId={order.id}
+          role="customer"
+          theme="dark"
+          onClose={() => setIsChatOpen(false)}
+        />
       )}
 
       {isRatingOpen && (
@@ -609,30 +697,6 @@ const OrderDetailPage: React.FC = () => {
           onClose={() => setIsRatingOpen(false)}
         />
       )}
-
-      {/* ── Reorder Button ──────────────────────────────────────────────────────── */}
-      <section className="px-4 pt-2">
-        <button
-          type="button"
-          onClick={handleReorder}
-          className="flex h-[56px] w-full items-center justify-center gap-3 rounded-[18px] text-base font-black shadow-md transition-transform active:scale-[0.985]"
-          style={
-            isActiveOrder
-              ? {
-                  background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)',
-                  border: '1px solid rgba(0,0,0,0.06)',
-                  color: 'var(--tg-theme-text-color)',
-                }
-              : {
-                  background: 'linear-gradient(135deg, #8B0000 0%, #C62020 100%)',
-                  color: '#fff',
-                }
-          }
-        >
-          <RefreshCcw size={18} />
-          <span>{isActiveOrder ? "Savatga qayta qo'shish" : 'Qayta buyurtma berish'}</span>
-        </button>
-      </section>
     </div>
   );
 };

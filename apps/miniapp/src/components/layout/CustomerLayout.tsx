@@ -15,6 +15,7 @@ const NO_HEADER_PATHS = [
   /^\/customer\/profile$/,
   /^\/customer$/,
   /^\/customer\/search$/,
+  /^\/customer\/orders\/[^/]+$/, // order detail owns its full-bleed hero
 ];
 
 const HIDE_BOTTOM_NAV_PATHS = [
