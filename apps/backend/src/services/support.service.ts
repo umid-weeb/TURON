@@ -182,6 +182,190 @@ export class SupportService {
     `);
   }
 
+  /**
+   * Returns support threads that have CUSTOMER messages newer than the latest
+   * ADMIN reply in the same thread. Used by admin panel inbox.
+   */
+  static async getAdminInbox(): Promise<
+    Array<{
+      threadId: string;
+      orderId: string | null;
+      orderNumber: string | null;
+      customerName: string;
+      unreadCount: number;
+      lastMessage: string;
+      lastAt: string;
+    }>
+  > {
+    const rows = await prisma.$queryRaw<
+      Array<{
+        thread_id: string;
+        order_id: string | null;
+        order_number: bigint | null;
+        customer_name: string | null;
+        unread_count: bigint;
+        last_message: string;
+        last_at: Date;
+      }>
+    >(Prisma.sql`
+      with admin_anchor as (
+        select thread_id, max(created_at) as anchor_at
+        from public.support_messages
+        where sender_role = 'ADMIN'::public.user_role_enum
+        group by thread_id
+      ),
+      unread_msgs as (
+        select sm.thread_id,
+               count(*)::bigint as unread_count,
+               max(sm.created_at) as last_at
+        from public.support_messages sm
+        left join admin_anchor a on a.thread_id = sm.thread_id
+        where sm.sender_role = 'CUSTOMER'::public.user_role_enum
+          and sm.created_at > coalesce(a.anchor_at, '1970-01-01'::timestamptz)
+        group by sm.thread_id
+      ),
+      last_msg as (
+        select distinct on (sm.thread_id) sm.thread_id, sm.message_text
+        from public.support_messages sm
+        join unread_msgs u on u.thread_id = sm.thread_id
+        where sm.sender_role = 'CUSTOMER'::public.user_role_enum
+          and sm.created_at = u.last_at
+        order by sm.thread_id, sm.created_at desc
+      )
+      select st.id as thread_id,
+             st.order_id,
+             o.order_number as order_number,
+             u.full_name as customer_name,
+             um.unread_count,
+             lm.message_text as last_message,
+             um.last_at
+      from public.support_threads st
+      join unread_msgs um on um.thread_id = st.id
+      join last_msg lm on lm.thread_id = st.id
+      join public.users u on u.id = st.user_id
+      left join public.orders o on o.id = st.order_id
+      order by um.last_at desc
+    `);
+
+    return rows.map((row) => ({
+      threadId: row.thread_id,
+      orderId: row.order_id,
+      orderNumber: row.order_number !== null ? String(row.order_number) : null,
+      customerName: row.customer_name || 'Mijoz',
+      unreadCount: Number(row.unread_count),
+      lastMessage: row.last_message.slice(0, 100),
+      lastAt: row.last_at.toISOString(),
+    }));
+  }
+
+  /**
+   * Fetch a single support thread by id, including all messages.
+   * Admin-only (no ownership check).
+   */
+  static async getThreadForAdmin(threadId: string) {
+    const rows = await prisma.$queryRaw<
+      Array<
+        SupportThreadRow & { customer_name: string | null; order_number: bigint | null }
+      >
+    >(Prisma.sql`
+      select st.id,
+             st.order_id,
+             st.status,
+             st.created_at,
+             st.updated_at,
+             st.last_message_at,
+             u.full_name as customer_name,
+             o.order_number as order_number
+      from public.support_threads st
+      join public.users u on u.id = st.user_id
+      left join public.orders o on o.id = st.order_id
+      where st.id = ${threadId}::uuid
+      limit 1
+    `);
+
+    const thread = rows[0];
+    if (!thread) return null;
+
+    const messages = await getThreadMessages(threadId);
+    return {
+      thread: mapThreadRow(thread, messages),
+      customerName: thread.customer_name || 'Mijoz',
+      orderNumber: thread.order_number !== null ? String(thread.order_number) : null,
+    };
+  }
+
+  /**
+   * Admin sends a reply via the mini-app panel (not Telegram).
+   * Persists to support_messages with sender_role = 'ADMIN', channel = 'MINI_APP'.
+   */
+  static async createAdminMessageFromPanel(input: {
+    threadId: string;
+    adminUserId: string;
+    senderLabel: string;
+    text: string;
+  }) {
+    const trimmed = input.text.trim();
+    if (!trimmed) {
+      throw new Error("Xabar bo'sh bo'lishi mumkin emas");
+    }
+    if (trimmed.length > 2000) {
+      throw new Error("Xabar 2000 belgidan oshmasligi kerak");
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const threadRows = await tx.$queryRaw<
+        Array<{ id: string; user_id: string; order_id: string | null }>
+      >(Prisma.sql`
+        select id, user_id, order_id
+        from public.support_threads
+        where id = ${input.threadId}::uuid
+        limit 1
+      `);
+
+      const thread = threadRows[0];
+      if (!thread) {
+        throw new Error('Support thread topilmadi');
+      }
+
+      const inserted = await tx.$queryRaw<Array<{ id: string; created_at: Date }>>(Prisma.sql`
+        insert into public.support_messages (
+          thread_id,
+          sender_role,
+          sender_label,
+          message_text,
+          channel
+        )
+        values (
+          ${input.threadId}::uuid,
+          'ADMIN'::public.user_role_enum,
+          ${input.senderLabel},
+          ${trimmed},
+          'MINI_APP'
+        )
+        returning id, created_at
+      `);
+
+      await tx.$executeRaw(Prisma.sql`
+        update public.support_threads
+        set last_message_at = now()
+        where id = ${input.threadId}::uuid
+      `);
+
+      const row = inserted[0];
+      return {
+        id: row.id,
+        threadId: input.threadId,
+        userId: thread.user_id,
+        orderId: thread.order_id,
+        senderRole: 'ADMIN' as const,
+        senderLabel: input.senderLabel,
+        text: trimmed,
+        channel: 'MINI_APP' as const,
+        createdAt: row.created_at.toISOString(),
+      };
+    });
+  }
+
   static async createAdminReplyFromTelegram(input: {
     adminChatId: string;
     telegramMessageId: number;

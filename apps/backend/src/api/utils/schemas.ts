@@ -11,6 +11,10 @@ import {
 // Common Schemas
 export const UuidSchema = z.string().uuid();
 export const IdParamSchema = z.object({ id: UuidSchema });
+export const ThreadIdParamSchema = z.object({ threadId: UuidSchema });
+export const AdminSupportSendSchema = z.object({
+  content: z.string().trim().min(1).max(2000),
+});
 
 // Auth
 export const TelegramAuthSchema = z.object({

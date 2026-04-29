@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Bike, Check, CheckCheck, Loader2, MessageCircle, Send, User } from 'lucide-react';
+import { ArrowLeft, Bike, Check, CheckCheck, LifeBuoy, Loader2, MessageCircle, Send, User } from 'lucide-react';
 import {
   useAdminInbox,
   useAdminOrderChat,
@@ -22,10 +22,23 @@ function formatMsgTime(iso: string) {
   return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
 }
 
-function entryIconTone(senderType: 'courier' | 'customer') {
+function entryIconTone(senderType: 'courier' | 'customer' | 'support') {
+  if (senderType === 'support') return 'bg-[#fff5db] text-[#a36a00]';
   return senderType === 'courier'
     ? 'bg-[#1f1a12] text-[#ffe39b]'
     : 'bg-[rgba(255,212,59,0.18)] text-[#7a5600]';
+}
+
+function isSupportEntry(orderId: string) {
+  return orderId.startsWith('support:');
+}
+
+function formatEntryLabel(entry: { orderId: string; orderNumber: string }) {
+  if (isSupportEntry(entry.orderId)) {
+    // orderNumber comes as "1234 · Customer Name" or "Support · Customer Name"
+    return entry.orderNumber;
+  }
+  return `#${entry.orderNumber.padStart(3, '0')}`;
 }
 
 const InboxItem = React.memo(function InboxItem({
@@ -39,6 +52,11 @@ const InboxItem = React.memo(function InboxItem({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const isSupport = isSupportEntry(entry.orderId);
+  const tone = isSupport ? 'support' : senderType;
+  const badgeLabel = isSupport ? 'Support' : senderType === 'courier' ? 'Kuryer' : 'Mijoz';
+  const Icon = isSupport ? LifeBuoy : senderType === 'courier' ? Bike : User;
+
   return (
     <button
       type="button"
@@ -50,19 +68,19 @@ const InboxItem = React.memo(function InboxItem({
       }`}
     >
       <span
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/40 shadow-sm ${entryIconTone(senderType)}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/40 shadow-sm ${entryIconTone(tone)}`}
       >
-        {senderType === 'courier' ? <Bike size={18} /> : <User size={18} />}
+        <Icon size={18} />
       </span>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-[13px] font-black text-[var(--admin-pro-text)]">
-              #{entry.orderNumber.padStart(3, '0')}
+              {formatEntryLabel(entry)}
             </span>
             <span className="rounded-full border border-[rgba(255,190,11,0.14)] bg-[rgba(255,212,59,0.12)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#7a5600]">
-              {senderType === 'courier' ? 'Kuryer' : 'Mijoz'}
+              {badgeLabel}
             </span>
           </div>
           <span className="text-[11px] text-[var(--admin-pro-text-muted)]">{formatTime(entry.lastAt)}</span>
@@ -174,8 +192,18 @@ const ChatPanel: React.FC<{
     }
   };
 
-  const recipientLabel =
-    targetRole === 'COURIER' ? 'Kuryerga' : targetRole === 'CUSTOMER' ? 'Mijozga' : null;
+  const isSupport = orderId.startsWith('support:');
+  const recipientLabel = isSupport
+    ? 'Support'
+    : targetRole === 'COURIER'
+      ? 'Kuryerga'
+      : targetRole === 'CUSTOMER'
+        ? 'Mijozga'
+        : null;
+
+  const headerLabel = isSupport
+    ? `Support · ${orderId.slice(-12, -6)}`
+    : `#${orderId.slice(-6).toUpperCase()}`;
 
   return (
     <div className="flex h-full flex-col rounded-[32px] border border-[rgba(118,90,35,0.14)] bg-[rgba(255,251,243,0.96)] shadow-[0_24px_48px_rgba(74,56,16,0.12)] backdrop-blur-xl">
@@ -190,7 +218,7 @@ const ChatPanel: React.FC<{
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-[16px] font-black text-[var(--admin-pro-text)]">
-              #{orderId.slice(-6).toUpperCase()}
+              {headerLabel}
             </span>
             {recipientLabel ? (
               <span className="rounded-full border border-[rgba(255,190,11,0.16)] bg-[rgba(255,212,59,0.16)] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#7a5600]">
@@ -199,7 +227,7 @@ const ChatPanel: React.FC<{
             ) : null}
           </div>
           <p className="mt-1 text-[11px] font-semibold text-[var(--admin-pro-text-muted)]">
-            Jonli admin chat oqimi
+            {isSupport ? 'Support thread (mini app + Telegram)' : 'Jonli admin chat oqimi'}
           </p>
         </div>
         <span

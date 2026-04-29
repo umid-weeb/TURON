@@ -75,6 +75,31 @@ export function useAdminInbox() {
 }
 
 /**
+ * Returns the API endpoints for a given chat orderId.
+ * Order chats use /orders/:id/admin-chat; support threads tagged with the
+ * "support:<threadId>" prefix use /support/admin/:threadId/messages.
+ */
+function resolveChatEndpoints(orderId: string) {
+  if (orderId.startsWith('support:')) {
+    const threadId = orderId.slice('support:'.length);
+    return {
+      kind: 'support' as const,
+      threadId,
+      list: `/support/admin/${threadId}/messages`,
+      send: `/support/admin/${threadId}/messages`,
+      pollMs: 2_500, // support has no per-thread SSE → poll faster
+    };
+  }
+  return {
+    kind: 'order' as const,
+    threadId: null,
+    list: `/orders/${orderId}/admin-chat`,
+    send: `/orders/${orderId}/admin-chat`,
+    pollMs: 10_000,
+  };
+}
+
+/**
  * Admin order chat hook.
  *
  * Real-time delivery is handled by the global `/orders/stream` SSE (opened in
@@ -83,6 +108,9 @@ export function useAdminInbox() {
  * hook listens to — so zero per-order SSE connections are needed here.
  *
  * Falls back to 10-second polling when the global stream is not connected.
+ *
+ * Support threads (orderId prefixed with "support:") are routed to the
+ * `/support/admin/...` endpoints and rely on polling (no SSE bridge yet).
  */
 export function useAdminOrderChat(
   orderId: string,
@@ -93,17 +121,24 @@ export function useAdminOrderChat(
   const adminId = useAuthStore((s) => s.user?.id ?? '');
   const adminName = useAuthStore((s) => s.user?.fullName ?? 'Admin');
 
+  const endpoints = resolveChatEndpoints(orderId);
+  const isSupport = endpoints.kind === 'support';
+
   const { data: messages = [], isLoading } = useQuery({
     queryKey: chatKey(orderId),
     queryFn: async () => {
-      const msgs = await (api.get(`/orders/${orderId}/admin-chat`) as Promise<AdminChatMessage[]>);
+      const msgs = await (api.get(endpoints.list) as Promise<AdminChatMessage[]>);
       // Invalidate inbox counters since fetching marks messages as read
       queryClient.invalidateQueries({ queryKey: ['admin-inbox'] });
       return msgs;
     },
     enabled: Boolean(orderId),
-    staleTime: 10_000,
-    refetchInterval: globalConnected ? false : 10_000,
+    staleTime: isSupport ? 1_500 : 10_000,
+    refetchInterval: isSupport
+      ? endpoints.pollMs
+      : globalConnected
+        ? false
+        : endpoints.pollMs,
   });
 
   // ── Append helper (dedup by id) ────────────────────────────────────────────
@@ -120,8 +155,9 @@ export function useAdminOrderChat(
   );
 
   // ── DOM event listeners — fed by useOrdersRealtimeSync global stream ──────
+  // Support threads have no SSE yet → rely on the polling above.
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId || isSupport) return;
 
     const handleChatMessage = (e: Event) => {
       const { orderId: evtOrderId, chatMessage } = (e as CustomEvent).detail;
@@ -144,7 +180,7 @@ export function useAdminOrderChat(
       window.removeEventListener('turon:chat-message', handleChatMessage);
       window.removeEventListener('turon:chat-read', handleChatRead);
     };
-  }, [orderId, appendMessage, queryClient]);
+  }, [orderId, isSupport, appendMessage, queryClient]);
 
   // ── Send mutation with optimistic update ──────────────────────────────────
   const sendMutation = useMutation({
@@ -155,10 +191,12 @@ export function useAdminOrderChat(
       content: string;
       targetRole: 'COURIER' | 'CUSTOMER' | null;
     }) =>
-      api.post(`/orders/${orderId}/admin-chat`, {
-        content,
-        targetRole: targetRole ?? undefined,
-      }) as Promise<AdminChatMessage>,
+      api.post(
+        endpoints.send,
+        isSupport
+          ? { content }
+          : { content, targetRole: targetRole ?? undefined },
+      ) as Promise<AdminChatMessage>,
 
     onMutate: ({ content, targetRole }) => {
       const tempId = `optimistic-${Date.now()}-${Math.random()}`;

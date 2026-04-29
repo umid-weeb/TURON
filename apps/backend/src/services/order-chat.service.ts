@@ -2,6 +2,7 @@ import { ChatSenderRoleEnum } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { orderTrackingService } from './order-tracking.service.js';
 import { scheduleFallback, cancelFallbacksForOrder, getFallbackDelayMs } from './admin-chat-fallback.service.js';
+import { SupportService } from './support.service.js';
 
 export interface ChatMessageDto {
   id: string;
@@ -258,9 +259,33 @@ export class OrderChatService {
       }
     }
 
+    // ── Merge in support thread inbox so admin sees them under "Mijozlar" ──
+    // Support entries are tagged with orderId = "support:<threadId>" so the
+    // frontend can route to the support endpoints when opened.
+    try {
+      const supportEntries = await SupportService.getAdminInbox();
+      for (const entry of supportEntries) {
+        const orderLabel = entry.orderNumber
+          ? `${entry.orderNumber} · ${entry.customerName}`
+          : `Support · ${entry.customerName}`;
+        customerMap.set(`support:${entry.threadId}`, {
+          orderId: `support:${entry.threadId}`,
+          orderNumber: orderLabel,
+          unreadCount: entry.unreadCount,
+          lastMessage: entry.lastMessage,
+          lastAt: entry.lastAt,
+        });
+      }
+    } catch (error) {
+      // Support inbox is best-effort; never break the order chat inbox
+      console.error('Failed to merge support inbox into admin inbox.', error);
+    }
+
     return {
       courierMessages: Array.from(courierMap.values()),
-      customerMessages: Array.from(customerMap.values()),
+      customerMessages: Array.from(customerMap.values()).sort(
+        (a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime(),
+      ),
     };
   }
 }
