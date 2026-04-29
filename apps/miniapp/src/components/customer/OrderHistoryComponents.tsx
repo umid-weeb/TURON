@@ -9,12 +9,12 @@ import {
 } from '../../features/i18n/customerLocale';
 
 function getBadgeClass(status: OrderStatus) {
-  if (status === OrderStatus.PREPARING) return 'bg-amber-100 text-amber-700';
-  if (status === OrderStatus.READY_FOR_PICKUP) return 'bg-sky-100 text-sky-700';
-  if (status === OrderStatus.DELIVERING) return 'bg-indigo-100 text-indigo-700';
-  if (status === OrderStatus.DELIVERED) return 'bg-emerald-100 text-emerald-700';
-  if (status === OrderStatus.CANCELLED) return 'bg-rose-100 text-rose-700';
-  return 'bg-[#f4f4f5] text-[#202020]';
+  if (status === OrderStatus.PREPARING) return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300';
+  if (status === OrderStatus.READY_FOR_PICKUP) return 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300';
+  if (status === OrderStatus.DELIVERING) return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300';
+  if (status === OrderStatus.DELIVERED) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
+  if (status === OrderStatus.CANCELLED) return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300';
+  return 'bg-[var(--app-soft)] text-[var(--app-text)]';
 }
 
 function getPaymentPill(method: PaymentMethod, status: PaymentStatus) {
@@ -58,18 +58,25 @@ export const OrderCard: React.FC<{ order: Order; onClick: () => void; onReorder?
 
   const isCompleted = order.orderStatus === OrderStatus.DELIVERED;
   const isCancelled = order.orderStatus === OrderStatus.CANCELLED;
-  
+
   const statusText = isCompleted ? 'Muvaffaqiyatli yakunlandi' : isCancelled ? 'Rad etildi' : 'Jarayonda';
-  const statusColor = isCompleted ? 'text-emerald-600' : isCancelled ? 'text-rose-600' : 'text-amber-600';
+  const statusColor = isCompleted
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : isCancelled
+      ? 'text-rose-600 dark:text-rose-400'
+      : 'text-amber-600 dark:text-amber-400';
 
   return (
-    <div className="w-full rounded-[20px] bg-[#f4f4f5] p-4 text-left shadow-sm">
+    <div
+      className="w-full rounded-[20px] bg-[var(--app-card)] p-4 text-left"
+      style={{ boxShadow: 'var(--app-soft-shadow)' }}
+    >
       {/* Header */}
-      <div className="mb-3 flex items-start justify-between">
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold text-[#8c8c96]">{date}</p>
+          <p className="text-[12px] font-semibold text-[var(--app-muted)]">{date}</p>
           <div className="mt-1 flex items-center gap-2">
-            <h3 className="text-[16px] font-black text-[#202020]">#{order.orderNumber}</h3>
+            <h3 className="text-[16px] font-black text-[var(--app-text)]">#{order.orderNumber}</h3>
           </div>
         </div>
         <p className={`text-[13px] font-bold ${statusColor}`}>{statusText}</p>
@@ -77,21 +84,24 @@ export const OrderCard: React.FC<{ order: Order; onClick: () => void; onReorder?
 
       {/* Items List */}
       <div className="mb-4">
-        <p className="text-[14px] font-semibold text-[#202020] leading-snug">
-          {order.items.map(item => formatText(item.name)).join(', ')}
+        <p className="text-[14px] font-semibold leading-snug text-[var(--app-text)]">
+          {order.items.map((item) => formatText(item.name)).join(', ')}
         </p>
       </div>
 
       {/* Footer and Reorder */}
-      <div className="flex items-center justify-between border-t border-slate-200/60 pt-4">
+      <div className="flex items-center justify-between border-t border-[var(--app-line)] pt-4">
         <div>
-          <p className="text-[12px] font-semibold text-[#8c8c96]">Umumiy summa</p>
-          <p className="text-[16px] font-black text-[#202020]">{order.total.toLocaleString()} so'm</p>
+          <p className="text-[12px] font-semibold text-[var(--app-muted)]">Umumiy summa</p>
+          <p className="text-[16px] font-black text-[var(--app-text)]">{order.total.toLocaleString()} so'm</p>
         </div>
-        
+
         {isCompleted || isCancelled ? (
           <button
-            onClick={(e) => { e.stopPropagation(); onReorder?.(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onReorder?.();
+            }}
             className="rounded-full bg-[#C2FF00] px-4 py-2.5 text-[14px] font-black text-[#111] shadow-sm transition-transform active:scale-95"
           >
             Qayta buyurtma
@@ -117,14 +127,13 @@ export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () =
   if (status === OrderStatus.CANCELLED) {
     return (
       <section
-        className="rounded-[20px] p-5"
-        style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.14)' }}
+        className="rounded-[20px] border border-rose-200/70 bg-rose-50 p-5 dark:border-rose-500/25 dark:bg-rose-500/10"
       >
-        <p className="text-[12px] font-black uppercase tracking-[0.1em] text-rose-500">Holat</p>
-        <p className="mt-2 text-lg font-black text-rose-600">
+        <p className="text-[12px] font-black uppercase tracking-[0.1em] text-rose-500 dark:text-rose-300">Holat</p>
+        <p className="mt-2 text-lg font-black text-rose-600 dark:text-rose-300">
           {getLocalizedOrderStatusLabel(status, language)}
         </p>
-        <p className="mt-2 text-[14px] leading-relaxed text-rose-500/80">
+        <p className="mt-2 text-[14px] leading-relaxed text-rose-500/80 dark:text-rose-200/70">
           Buyurtma bekor qilingan. Zarurat bo'lsa support orqali operator bilan bog'laning.
         </p>
       </section>
@@ -133,20 +142,14 @@ export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () =
 
   return (
     <section
-      className="rounded-[20px] p-5 shadow-[0_4px_16px_rgba(0,0,0,0.07)]"
-      style={{ background: 'var(--tg-theme-secondary-bg-color, #f2f2f7)' }}
+      className="rounded-[20px] bg-[var(--app-card)] p-5"
+      style={{ boxShadow: 'var(--app-soft-shadow)' }}
     >
-      <p
-        className="text-[12px] font-black uppercase tracking-[0.1em]"
-        style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}
-      >
+      <p className="text-[12px] font-black uppercase tracking-[0.1em] text-[var(--app-muted)]">
         Jarayon
       </p>
       <div className="relative mt-5 space-y-5">
-        <div
-          className="absolute bottom-5 left-[13px] top-3 w-[2px] rounded-full"
-          style={{ background: 'rgba(0,0,0,0.08)' }}
-        />
+        <div className="absolute bottom-5 left-[13px] top-3 w-[2px] rounded-full bg-[var(--app-line)]" />
         {steps.map((step) => {
           const stepIndex = getStatusStep(step.id);
           const isCompleted = currentStep > stepIndex;
@@ -162,21 +165,25 @@ export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () =
                   isCompleted
                     ? { background: '#C62020', color: '#fff' }
                     : isActive
-                    ? { background: '#C2FF00', color: '#111' }
-                    : { background: 'rgba(0,0,0,0.06)', color: 'var(--tg-theme-hint-color, #8e8e93)', border: '2px solid rgba(0,0,0,0.06)' }
+                      ? { background: '#C2FF00', color: '#111' }
+                      : {
+                          background: 'var(--app-soft)',
+                          color: 'var(--app-muted)',
+                        }
                 }
               >
-                {isCompleted
-                  ? <CheckCircle2 size={16} />
-                  : <span className="text-[12px] font-black">{stepIndex + 1}</span>}
+                {isCompleted ? (
+                  <CheckCircle2 size={16} />
+                ) : (
+                  <span className="text-[12px] font-black">{stepIndex + 1}</span>
+                )}
               </div>
               <div className="min-w-0 pb-2 pt-0.5">
                 <p
                   className="text-[15px] font-black"
                   style={{
-                    color: isActive || isCompleted
-                      ? 'var(--tg-theme-text-color)'
-                      : 'var(--tg-theme-hint-color, #8e8e93)',
+                    color:
+                      isActive || isCompleted ? 'var(--app-text)' : 'var(--app-muted)',
                   }}
                 >
                   {step.label}
@@ -184,10 +191,8 @@ export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () =
                 <p
                   className="mt-1 text-[13px] leading-snug"
                   style={{
-                    color: isActive
-                      ? 'var(--tg-theme-text-color)'
-                      : 'var(--tg-theme-hint-color, #8e8e93)',
-                    opacity: isActive ? 0.75 : 1,
+                    color: isActive ? 'var(--app-text)' : 'var(--app-muted)',
+                    opacity: isActive ? 0.78 : 1,
                   }}
                 >
                   {step.description}
@@ -202,8 +207,7 @@ export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () =
         <button
           onClick={onCallCourier}
           type="button"
-          className="mt-6 w-full rounded-[14px] p-3 text-center text-[15px] font-bold text-[#C62020] transition-opacity active:opacity-70"
-          style={{ background: 'rgba(198,32,32,0.07)' }}
+          className="mt-6 w-full rounded-[14px] bg-[#C62020]/8 p-3 text-center text-[15px] font-bold text-[#C62020] transition-opacity active:opacity-70 dark:bg-[#C62020]/15 dark:text-[#ff8a8a]"
         >
           Kuryerga qo'ng'iroq qilish
         </button>
@@ -242,11 +246,16 @@ export const TrackingMapPlaceholder: React.FC = () => (
 
 export const OrdersEmptyState: React.FC<{ onShop: () => void }> = ({ onShop }) => (
   <div className="flex flex-col items-center justify-center py-20 text-center">
-    <div className="flex h-20 w-20 items-center justify-center rounded-[20px] bg-[#f4f4f5] text-[#8c8c96] shadow-sm">
+    <div
+      className="flex h-20 w-20 items-center justify-center rounded-[20px] bg-[var(--app-soft)] text-[var(--app-muted)]"
+      style={{ boxShadow: 'var(--app-soft-shadow)' }}
+    >
       <ShoppingBag size={38} />
     </div>
-    <h3 className="mt-6 text-[1.5rem] font-black tracking-tight text-[#202020]">Buyurtmalar hali yo'q</h3>
-    <p className="mt-3 max-w-[260px] text-sm leading-6 text-[#8c8c96]">
+    <h3 className="mt-6 text-[1.5rem] font-black tracking-tight text-[var(--app-text)]">
+      Buyurtmalar hali yo'q
+    </h3>
+    <p className="mt-3 max-w-[260px] text-sm leading-6 text-[var(--app-muted)]">
       Turon Kafesi menyusidan taom tanlang, keyingi buyurtmalaringiz shu yerda jamlanadi.
     </p>
     <button
