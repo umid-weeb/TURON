@@ -16,7 +16,11 @@
       "Bash(git add *)",
       "Bash(git pull *)",
       "Bash(git push *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(git commit -m ' *)",
+      "Bash(pnpm.cmd --filter @turon/miniapp exec tsc --noEmit --pretty false)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(pnpm.cmd --filter @turon/backend exec tsc --noEmit --pretty false)"
     ]
   }
 }

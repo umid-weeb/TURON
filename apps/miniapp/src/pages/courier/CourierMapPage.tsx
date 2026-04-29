@@ -175,7 +175,8 @@ const CourierMapPage: React.FC = () => {
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [courierIconSvg, setCourierIconSvg]    = useState<string>(''); // 3D pyramid SVG
   const [cameraConfig, setCameraConfig]         = useState<CameraConfig>({ tilt: 0, zoom: 15, updateFreqMs: 5000 });
-  const [followMode, setFollowMode]             = useState(false); // Auto-enable after 4s
+  const [followMode, setFollowMode]             = useState(false);
+  const [mapReady, setMapReady]                 = useState(false);
   const [routeInfo, setRouteInfo]               = useState<RouteInfo | null>(null);
   const [currentStep, setCurrentStep]           = useState<RouteStep | null>(null);
   const [isProblemSheetOpen, setProblemSheetOpen] = useState(false);
@@ -194,16 +195,43 @@ const CourierMapPage: React.FC = () => {
   const approachingNotifiedRef  = useRef(false);
   const copiedTimerRef          = useRef<number | null>(null);
   const followModeTimerRef      = useRef<number | null>(null);
+  const warmupStartedAtRef      = useRef<number | null>(null);
+  const autoFollowDisarmedRef   = useRef(false);
   // headingAnimationRef kept for cleanup safety (interval no longer started here)
 
-  // ── Auto-enable follow mode after 4 seconds ────────────────────────────────
+  // ── Reset follow mode + warmup state when order changes ────────────────────
   useEffect(() => {
-    if (!order?.id || followMode) return; // Already enabled or no order
-    
-    // Enable follow mode after 4 seconds for safer driving
+    setFollowMode(false);
+    setMapReady(false);
+    warmupStartedAtRef.current = Date.now(); // screen opened for this order
+    autoFollowDisarmedRef.current = false;
+    if (followModeTimerRef.current) {
+      window.clearTimeout(followModeTimerRef.current);
+      followModeTimerRef.current = null;
+    }
+  }, [order?.id]);
+
+  // ── Auto-enable follow mode after 3s warmup, once map is ready ─────────────
+  useEffect(() => {
+    if (!order?.id) return;
+    if (!mapReady) return;
+    if (followMode) return;
+    if (autoFollowDisarmedRef.current) return;
+
+    const startedAt = warmupStartedAtRef.current ?? Date.now();
+    warmupStartedAtRef.current = startedAt;
+    const elapsed = Date.now() - startedAt;
+    const remaining = Math.max(0, 3000 - elapsed);
+
+    if (followModeTimerRef.current) {
+      window.clearTimeout(followModeTimerRef.current);
+      followModeTimerRef.current = null;
+    }
+
     followModeTimerRef.current = window.setTimeout(() => {
-      setFollowMode(true);
-    }, 4000);
+      // Re-check guards at fire time
+      if (!autoFollowDisarmedRef.current) setFollowMode(true);
+    }, remaining);
 
     return () => {
       if (followModeTimerRef.current) {
@@ -211,12 +239,7 @@ const CourierMapPage: React.FC = () => {
         followModeTimerRef.current = null;
       }
     };
-  }, [order?.id, followMode]);
-
-  // ── Reset follow mode when order changes ───────────────────────────────────
-  useEffect(() => {
-    setFollowMode(false);
-  }, [order?.id]);
+  }, [order?.id, mapReady, followMode]);
 
   // ── Derived positions (memoised) ───────────────────────────────────────────
   const restaurantPos = useMemo(
@@ -455,6 +478,21 @@ const CourierMapPage: React.FC = () => {
     });
   }, [order?.customerAddress?.addressText]);
 
+  const handleFollowModeChange = useCallback((enabled: boolean) => {
+    setFollowMode(enabled);
+    if (!enabled) {
+      // If the user explicitly turns follow off, do not auto-reenable it.
+      autoFollowDisarmedRef.current = true;
+      if (followModeTimerRef.current) {
+        window.clearTimeout(followModeTimerRef.current);
+        followModeTimerRef.current = null;
+      }
+      return;
+    }
+    // User turned follow on — re-arm so auto-follow logic can resume if needed.
+    autoFollowDisarmedRef.current = false;
+  }, []);
+
   // GPS and compass are now managed by useGPS() and useCompass() hooks above.
   // They write directly to courierStore — no local GPS useEffect needed here.
 
@@ -661,12 +699,18 @@ const CourierMapPage: React.FC = () => {
           heading={heading}
           tilt={cameraConfig.tilt}
           courierIconSvg={courierIconSvg}
+          onMapReady={() => setMapReady(true)}
           onRouteInfoChange={setRouteInfo}
           onNextStepChange={setCurrentStep}
           onMapInteraction={() => {
             setFollowMode(false);
+            autoFollowDisarmedRef.current = true;
+            if (followModeTimerRef.current) {
+              window.clearTimeout(followModeTimerRef.current);
+              followModeTimerRef.current = null;
+            }
           }}
-          onFollowModeChange={setFollowMode}
+          onFollowModeChange={handleFollowModeChange}
         />
         {/* Subtle bottom gradient for panel legibility */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-slate-950/70 to-transparent" />

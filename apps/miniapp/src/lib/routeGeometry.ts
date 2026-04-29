@@ -111,3 +111,96 @@ export function bearingDegrees(from: LngLat, to: LngLat): number {
     Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
   return (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360;
 }
+
+export interface ArrowSpot {
+  point: LngLat;
+  /** Heading from this point to the next polyline vertex (degrees, 0..360). */
+  bearingDeg: number;
+}
+
+/**
+ * Place direction arrows along a polyline. Returns one spot every
+ * `intervalMeters` of accumulated polyline length, plus an arrow at every
+ * "vertex" where the bearing changes by more than `vertexAngleDeg` degrees
+ * (these are the visible turn points / maneuver corners on the map).
+ *
+ * The first `skipStartMeters` of the polyline is left empty so the arrows
+ * never overlap the courier's own location marker.
+ */
+export function arrowSpotsAlongPolyline(
+  polyline: LngLat[],
+  options: {
+    intervalMeters?: number;
+    vertexAngleDeg?: number;
+    skipStartMeters?: number;
+    skipEndMeters?: number;
+  } = {},
+): ArrowSpot[] {
+  const intervalMeters = options.intervalMeters ?? 110;
+  const vertexAngleDeg = options.vertexAngleDeg ?? 25;
+  const skipStartMeters = options.skipStartMeters ?? 35;
+  const skipEndMeters = options.skipEndMeters ?? 25;
+
+  if (polyline.length < 2) return [];
+
+  // Pre-compute per-segment length and bearing.
+  const segs: Array<{ length: number; bearing: number }> = [];
+  let totalLength = 0;
+  for (let i = 0; i < polyline.length - 1; i++) {
+    const length = haversineMeters(polyline[i], polyline[i + 1]);
+    segs.push({
+      length,
+      bearing: bearingDegrees(polyline[i], polyline[i + 1]),
+    });
+    totalLength += length;
+  }
+
+  const lowerBound = skipStartMeters;
+  const upperBound = Math.max(0, totalLength - skipEndMeters);
+
+  /** True when this offset is inside the visible band. */
+  const inBand = (offset: number) => offset >= lowerBound && offset <= upperBound;
+
+  const spots: ArrowSpot[] = [];
+  // Track placed offsets so we don't put two arrows on the same spot.
+  const placed: number[] = [];
+  const isTooClose = (offset: number) =>
+    placed.some((existing) => Math.abs(existing - offset) < intervalMeters * 0.5);
+
+  // 1) Vertex arrows — every polyline vertex with a noticeable bearing change.
+  let cum = 0;
+  for (let i = 0; i < segs.length - 1; i++) {
+    cum += segs[i].length;
+    const a = segs[i].bearing;
+    const b = segs[i + 1].bearing;
+    const delta = Math.abs(((b - a + 540) % 360) - 180);
+    if (delta < vertexAngleDeg) continue;
+    if (!inBand(cum)) continue;
+    spots.push({ point: polyline[i + 1], bearingDeg: b });
+    placed.push(cum);
+  }
+
+  // 2) Even-spacing fillers along long straight runs.
+  let walked = 0;
+  let next = lowerBound + intervalMeters * 0.5;
+  for (let i = 0; i < segs.length; i++) {
+    const start = walked;
+    const end = walked + segs[i].length;
+    while (next <= end) {
+      if (next >= lowerBound && next <= upperBound && !isTooClose(next)) {
+        const t = segs[i].length === 0 ? 0 : (next - start) / segs[i].length;
+        const lng =
+          polyline[i][0] + (polyline[i + 1][0] - polyline[i][0]) * t;
+        const lat =
+          polyline[i][1] + (polyline[i + 1][1] - polyline[i][1]) * t;
+        spots.push({ point: [lng, lat], bearingDeg: segs[i].bearing });
+        placed.push(next);
+      }
+      next += intervalMeters;
+    }
+    walked = end;
+  }
+
+  return spots;
+}
+
