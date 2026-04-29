@@ -200,17 +200,20 @@ export const useCourierStore = create<CourierState>((set, get) => ({
 
   _updateSmoothedHeading: () => {
     const { speed, gpsHeading, compassHeading, smoothedHeading } = get();
-    
+
     let targetHeading = compassHeading;
-    
-    // Speed > 1.5 m/s (~5.4 km/h) = override with highly accurate GPS bearing
+
+    // > 1.5 m/s (~5.4 km/h) = trust GPS bearing — it's much smoother than
+    // the magnetometer once the courier is actually moving on a bike.
     if (speed !== null && speed > 1.5 && gpsHeading !== null) {
       targetHeading = gpsHeading;
     }
 
     if (targetHeading === null) return;
-    
-    const newSmoothed = lowPassFilterCircular(smoothedHeading, targetHeading, 0.15);
+
+    // 0.25 reaches ~99% of target in ~14 ticks — snappy enough for a real
+    // turn but still drops sensor jitter. Previous 0.15 felt laggy on bikes.
+    const newSmoothed = lowPassFilterCircular(smoothedHeading, targetHeading, 0.25);
     set({ smoothedHeading: newSmoothed });
   }
 }));
