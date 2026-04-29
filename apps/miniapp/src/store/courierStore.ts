@@ -3,6 +3,22 @@ import { lowPassFilterCircular } from '../lib/headingUtils';
 
 export type CourierDeliveryStage = 1 | 2 | 3;
 
+/** Single turn-by-turn instruction, derived from Yandex multiRouter segments. */
+export interface RouteStep {
+  /** Human-readable instruction (e.g. "Yangi Sergeli ko'chasiga chiqing"). */
+  instruction: string;
+  /** Distance from the START of this step to its END, in meters. */
+  distanceMeters: number;
+  /** Pre-formatted distance label (e.g. "120 m" or "1.2 km"). */
+  distanceText: string;
+  /** Maneuver category — used by the panel arrow icon. */
+  action: 'left' | 'right' | 'straight';
+  /** Optional street name extracted from the segment. */
+  street?: string;
+  /** Coordinates of the START of this step (where the maneuver begins). */
+  startCoords: [number, number];
+}
+
 export interface OrderItem {
   id: string;
   name: string;
@@ -48,6 +64,14 @@ interface CourierState {
   timeLeft: number | null;
   /** Polyline nuqtalari [longitude, latitude][] */
   routePoints: [number, number][];
+  /** Turn-by-turn steps extracted from the active multiRouter route. */
+  routeSteps: RouteStep[];
+  /** Index of the step the courier is currently inside. null until snapped. */
+  currentStepIndex: number | null;
+  /** True when the courier is more than the off-route threshold from the polyline. */
+  isOffRoute: boolean;
+  /** Wall-clock timestamp of the last successful route fetch. */
+  lastRouteFetchAt: number | null;
 
   // ── Delivery Stage & Info ─────────────────────────────────────────────────
   deliveryStage: CourierDeliveryStage;
@@ -76,6 +100,10 @@ interface CourierState {
   setCompassHeading: (raw: number) => void;
   setCompassPermission: (status: 'granted' | 'denied') => void;
   setRouteInfo: (distance: number, time: number, points: [number, number][]) => void;
+  setRouteSteps: (steps: RouteStep[]) => void;
+  setCurrentStepIndex: (index: number | null) => void;
+  setOffRoute: (off: boolean) => void;
+  markRouteFetched: () => void;
   setDeliveryStage: (stage: CourierDeliveryStage) => void;
   setOrderInfo: (info: OrderInfo) => void;
   setPanelExpanded: (v: boolean) => void;
@@ -94,7 +122,11 @@ export const useCourierStore = create<CourierState>((set, get) => ({
   distanceLeft: null,
   timeLeft: null,
   routePoints: [],
-  
+  routeSteps: [],
+  currentStepIndex: null,
+  isOffRoute: false,
+  lastRouteFetchAt: null,
+
   isPanelExpanded: true,
 
   deliveryStage: 1,
@@ -148,6 +180,11 @@ export const useCourierStore = create<CourierState>((set, get) => ({
       timeToDestination: time,
       routePoints: points,
     }),
+
+  setRouteSteps: (steps) => set({ routeSteps: steps }),
+  setCurrentStepIndex: (index) => set({ currentStepIndex: index }),
+  setOffRoute: (off) => set({ isOffRoute: off }),
+  markRouteFetched: () => set({ lastRouteFetchAt: Date.now() }),
     
   setDeliveryStage: (stage) => set({ deliveryStage: stage }),
   setPanelExpanded: (v) => set({ isPanelExpanded: v }),
@@ -181,6 +218,10 @@ export const useCourierStore = create<CourierState>((set, get) => ({
       distanceLeft: null,
       timeLeft: null,
       routePoints: [],
+      routeSteps: [],
+      currentStepIndex: null,
+      isOffRoute: false,
+      lastRouteFetchAt: null,
       deliveryStage: 1,
       orderInfo: null,
       orderId: null,

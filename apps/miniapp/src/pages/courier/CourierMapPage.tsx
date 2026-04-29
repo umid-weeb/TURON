@@ -31,6 +31,7 @@ import {
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { useGPS } from '../../hooks/useGPS';
 import { useCompass } from '../../hooks/useCompass';
+import { useCourierNavigation } from '../../hooks/useCourierNavigation';
 import { useCourierStore } from '../../store/courierStore';
 import { api } from '../../lib/api';
 import { initiateCall } from '../../lib/callUtils';
@@ -162,6 +163,9 @@ const CourierMapPage: React.FC = () => {
   const setPanelStage   = useCourierStore((s) => s.setDeliveryStage);
   const setStoreOrderInfo = useCourierStore((s) => s.setOrderInfo);
   const setStoreRouteInfo = useCourierStore((s) => s.setRouteInfo);
+  const setStoreRouteSteps = useCourierStore((s) => s.setRouteSteps);
+  const storeCurrentStepIndex = useCourierStore((s) => s.currentStepIndex);
+  const isOffRoute = useCourierStore((s) => s.isOffRoute);
 
   // Convert [lon, lat] → {lat, lng} for business logic (haversine, heartbeat, etc.)
   const liveCourierPos: { lat: number; lng: number } | null = storeCoords
@@ -294,7 +298,28 @@ const CourierMapPage: React.FC = () => {
       routeInfo.etaSeconds,
       (routeInfo.polyline || []).map((point) => [point.lng, point.lat]),
     );
-  }, [routeInfo, setStoreRouteInfo]);
+    setStoreRouteSteps(
+      (routeInfo.steps ?? []).map((step) => ({
+        instruction: step.instruction,
+        distanceMeters: step.distanceMeters,
+        distanceText: step.distanceText,
+        action: step.action ?? 'straight',
+        street: step.street,
+        // The provider doesn't surface per-step start coords, so we estimate
+        // by indexing into the polyline. Good enough for the navigation
+        // tracker — it only uses these for distance fall-back math.
+        startCoords: [
+          routeInfo.polyline?.[0]?.lng ?? 0,
+          routeInfo.polyline?.[0]?.lat ?? 0,
+        ],
+      })),
+    );
+  }, [routeInfo, setStoreRouteInfo, setStoreRouteSteps]);
+
+  // Track the active maneuver, detect off-route, and speak Uzbek voice
+  // prompts. The hook reads coords + steps from the courier store and writes
+  // back currentStepIndex / isOffRoute so the UI panel can react.
+  useCourierNavigation({ voiceEnabled: true });
 
   const courierPos    = liveCourierPos ?? trackedCourierPos ?? restaurantPos;
   // heading = smoothedHeading from Zustand (compass primary, GPS fallback — filtered in store)
@@ -311,8 +336,25 @@ const CourierMapPage: React.FC = () => {
   const metricsRouteInfo = useMemo(() => createRouteInfo(remainingMetrics), [remainingMetrics]);
   const displayRouteInfo = routeInfo ?? metricsRouteInfo;
   const routeSteps = routeInfo?.steps ?? [];
-  const activeStep = currentStep ?? routeSteps[0] ?? null;
-  const currentStepIndex = activeStep ? Math.max(routeSteps.findIndex((step) => step.instruction === activeStep.instruction && step.distanceText === activeStep.distanceText && step.action === activeStep.action), 0) : 0;
+  // currentStepIndex is driven by useCourierNavigation (projection of GPS
+  // onto polyline). Fall back to the YandexRouteMap-emitted first step so
+  // the panel still renders before the first projection completes.
+  const currentStepIndex = (() => {
+    if (typeof storeCurrentStepIndex === 'number' && storeCurrentStepIndex >= 0) {
+      return Math.min(storeCurrentStepIndex, Math.max(routeSteps.length - 1, 0));
+    }
+    if (currentStep) {
+      const idx = routeSteps.findIndex(
+        (step) =>
+          step.instruction === currentStep.instruction &&
+          step.distanceText === currentStep.distanceText &&
+          step.action === currentStep.action,
+      );
+      return idx >= 0 ? idx : 0;
+    }
+    return 0;
+  })();
+  const activeStep = routeSteps[currentStepIndex] ?? currentStep ?? routeSteps[0] ?? null;
   const routes = useMemo<RouteAlternative[]>(() => {
     if (!displayRouteInfo.distance || !displayRouteInfo.eta) {
       return [];
@@ -649,7 +691,21 @@ const CourierMapPage: React.FC = () => {
         <div className="pointer-events-auto absolute bottom-44 left-1/2 z-50 -translate-x-1/2">
           <button
             type="button"
-            onClick={() => void requestCompassPermission()}
+            onClick={() => {
+              void requestCompassPermission();
+              // iOS requires a user gesture before speechSynthesis can speak.
+              // Fire a silent priming utterance inside the click handler so
+              // the voice navigation hook can actually announce later.
+              try {
+                if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                  const primer = new SpeechSynthesisUtterance(' ');
+                  primer.volume = 0;
+                  window.speechSynthesis.speak(primer);
+                }
+              } catch {
+                /* ignore */
+              }
+            }}
             className="courier-map-fab courier-map-fab--accent flex items-center gap-2 rounded-[20px] px-5 py-3 text-sm font-black transition-transform active:scale-95"
           >
             <span>Navigatsiyani boshlash</span>
@@ -664,7 +720,13 @@ const CourierMapPage: React.FC = () => {
           className="pointer-events-none absolute left-4 top-0 z-30 px-0"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 76px)' }}
         >
-          <div className="pointer-events-auto w-fit">
+          <div className="pointer-events-auto flex w-fit flex-col gap-2">
+            {isOffRoute ? (
+              <div className="flex items-center gap-2 rounded-full bg-amber-500/95 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-amber-950 shadow-lg">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-900" />
+                Yo'l qayta hisoblanmoqda
+              </div>
+            ) : null}
             <CourierNavigationPanel
               routes={routes}
               selectedRouteId={selectedRouteId}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCourierStore } from '../store/courierStore';
+import { extractRouteSteps } from '../features/maps/maneuvers';
 
 interface UseRouteResult {
   isLoading: boolean;
@@ -68,6 +69,9 @@ function readRouteMetric(route: any, key: 'distance' | 'duration' | 'durationInT
 export function useRoute(ymaps: any | null, destination: [number, number] | null): UseRouteResult {
   const coords = useCourierStore((s) => s.coords);
   const setRouteInfo = useCourierStore((s) => s.setRouteInfo);
+  const setRouteSteps = useCourierStore((s) => s.setRouteSteps);
+  const setCurrentStepIndex = useCourierStore((s) => s.setCurrentStepIndex);
+  const markRouteFetched = useCourierStore((s) => s.markRouteFetched);
   const multiRouteRef = useRef<any>(null);
   const destinationRef = useRef<[number, number] | null>(destination);
   const [isLoading, setLoading] = useState(false);
@@ -87,11 +91,16 @@ export function useRoute(ymaps: any | null, destination: [number, number] | null
     const timeSeconds =
       readRouteMetric(activeRoute, 'durationInTraffic') || readRouteMetric(activeRoute, 'duration');
     const points = extractRoutePoints(activeRoute);
+    const steps = extractRouteSteps(activeRoute);
 
     setRouteInfo(distanceMeters, timeSeconds, points);
+    setRouteSteps(steps);
+    // Reset step pointer; the navigation tracker will set it from courier coords.
+    setCurrentStepIndex(steps.length > 0 ? 0 : null);
+    markRouteFetched();
     setLoading(false);
     setError(null);
-  }, [setRouteInfo]);
+  }, [setRouteInfo, setRouteSteps, setCurrentStepIndex, markRouteFetched]);
 
   const updateReferencePoints = useCallback(
     (from: [number, number], to: [number, number]) => {
