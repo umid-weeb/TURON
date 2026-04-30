@@ -4,6 +4,11 @@ import { LiveMultiRouteTracker } from '../yandex-routing';
 import { isYandexMaps3Enabled, loadYandexMaps3, toLngLat } from '../yandex3';
 import MockMapComponent from './MockMapComponent';
 import { useCourierStore } from '../../../store/courierStore';
+import {
+  arrowSpotsAlongPolyline,
+  projectOntoPolyline,
+  type LngLat,
+} from '../../../lib/routeGeometry';
 
 const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_KEY` ni sozlang.';
 const NAV_ZOOM = 17;
@@ -20,13 +25,63 @@ function normalizeDegrees(value: number) {
 function createCourierElement(initialHeading = 0): HTMLDivElement {
   const el = document.createElement('div');
   el.style.cssText =
-    'width:44px;height:44px;transform-origin:center center;will-change:transform;' +
-    `transform:translate(-50%,-50%) rotate(${initialHeading}deg);`;
-  el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" width="44" height="44">
-    <circle cx="22" cy="22" r="20" fill="rgba(239,68,68,0.20)"/>
-    <path d="M22 6 L35 37 L22 30 L9 37 Z"
-      fill="#EF4444" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
-  </svg>`;
+    'width:60px;height:60px;transform-origin:center center;will-change:transform;' +
+    `transform:translate(-50%,-50%) rotate(${initialHeading}deg);` +
+    'pointer-events:none;';
+  // 3D red navigation arrow:
+  //  - vertical linear gradient gives the body a lit-from-above 3D feel
+  //  - radial halo behind it pulses to draw attention without being noisy
+  //  - white stroke + drop shadow + glossy highlight stripe lift it off the map
+  el.innerHTML = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="60" height="60">
+  <defs>
+    <linearGradient id="navArrowFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF6A6A"/>
+      <stop offset="55%" stop-color="#E83535"/>
+      <stop offset="100%" stop-color="#9C0000"/>
+    </linearGradient>
+    <linearGradient id="navArrowHi" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.95)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <radialGradient id="navHalo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(232,53,53,0.32)"/>
+      <stop offset="60%" stop-color="rgba(232,53,53,0.14)"/>
+      <stop offset="100%" stop-color="rgba(232,53,53,0)"/>
+    </radialGradient>
+    <filter id="navShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.2" flood-color="rgba(0,0,0,0.55)"/>
+    </filter>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#navHalo)">
+    <animate attributeName="opacity" values="0.45;0.85;0.45" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <path d="M32 8 L52 52 L32 42 L12 52 Z"
+    fill="url(#navArrowFill)" stroke="white" stroke-width="2.6"
+    stroke-linejoin="round" filter="url(#navShadow)"/>
+  <path d="M32 12 L46 46 L32 38 Z" fill="url(#navArrowHi)" opacity="0.55"/>
+  <line x1="32" y1="14" x2="32" y2="36" stroke="rgba(255,255,255,0.55)"
+    stroke-width="1.4" stroke-linecap="round"/>
+</svg>`;
+  return el;
+}
+
+/**
+ * Small white directional chevron used as a repeating "this way" indicator
+ * along the polyline. Rotates per spot bearing so it always points down the
+ * route in the direction of travel.
+ */
+function createDirectionArrowElement(bearingDeg: number): HTMLDivElement {
+  const el = document.createElement('div');
+  el.style.cssText =
+    'width:18px;height:18px;transform-origin:center center;pointer-events:none;' +
+    `transform:translate(-50%,-50%) rotate(${bearingDeg}deg);`;
+  el.innerHTML = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="18" height="18">
+  <path d="M9 1.5 L14.5 14 L9 11 L3.5 14 Z"
+    fill="white" stroke="rgba(0,0,0,0.45)" stroke-width="1.2"
+    stroke-linejoin="round"/>
+</svg>`;
   return el;
 }
 
@@ -88,6 +143,9 @@ export default function YandexRouteMap({
   // Last polyline coords from multiRouter (road-snapped). Used to instantly move
   // the polyline head on GPS tick before the full re-route response arrives.
   const lastPolylineCoordsRef = useRef<[number, number][]>([]);
+  // Direction-arrow markers placed along the polyline. We rebuild the array
+  // each time the route changes; refs let us detach the old markers cleanly.
+  const arrowMarkersRef       = useRef<any[]>([]);
   const lastRouteKeyRef       = useRef<string | null>(null);
   const followModeRef    = useRef(followMode);
   const courierPosRef    = useRef(courierPos);
@@ -200,12 +258,60 @@ export default function YandexRouteMap({
       const feature = new ymaps3.YMapFeature({
         id: 'courier-route',
         geometry: { type: 'LineString', coordinates: coords },
-        style: { stroke: [{ color: '#ffd84c', width: 7, opacity: 0.95 }] },
+        style: {
+          stroke: [
+            // soft outer shadow so the polyline reads on dark tiles
+            { color: 'rgba(0,0,0,0.45)', width: 11, opacity: 0.55 },
+            // primary Yandex-Navigator yellow
+            { color: '#ffd84c', width: 7, opacity: 0.95 },
+            // hairline highlight on top
+            { color: 'rgba(255,255,255,0.6)', width: 2, opacity: 0.8 },
+          ],
+        },
       });
       map.addChild(feature);
       routeFeatureRef.current = feature;
     } catch (err) {
       console.warn('[YandexRouteMap] YMapFeature draw error:', err);
+    }
+  }
+
+  // ── Direction-of-travel arrows along the polyline ─────────────────────────
+  // Replaces ymaps3's missing dash/pattern primitives with explicit white
+  // chevron markers placed every ~110m and at every clear bearing change.
+  function refreshDirectionArrows(coords: [number, number][]) {
+    const ymaps3 = ymaps3Ref.current;
+    const map    = mapRef.current;
+    if (!ymaps3 || !map) return;
+
+    // Remove existing arrows so we can rebuild for the new geometry.
+    for (const marker of arrowMarkersRef.current) {
+      try { map.removeChild(marker); } catch { /* skip */ }
+    }
+    arrowMarkersRef.current = [];
+
+    if (coords.length < 2) return;
+
+    const polyline = coords.map((c) => [c[0], c[1]] as LngLat);
+    const spots = arrowSpotsAlongPolyline(polyline, {
+      intervalMeters: 110,
+      vertexAngleDeg: 25,
+      skipStartMeters: 35,
+      skipEndMeters: 25,
+    });
+
+    for (const spot of spots) {
+      try {
+        const el = createDirectionArrowElement(spot.bearingDeg);
+        const marker = new ymaps3.YMapMarker(
+          { coordinates: spot.point, zIndex: 150 },
+          el,
+        );
+        map.addChild(marker);
+        arrowMarkersRef.current.push(marker);
+      } catch {
+        /* skip individual arrow on error */
+      }
     }
   }
 
@@ -223,36 +329,100 @@ export default function YandexRouteMap({
     }
 
     let cleanup: (() => void) | null = null;
+    let disposed = false;
     loadYandexMaps3()
       .then((ymaps3) => {
+        if (disposed || !mapContainerRef.current) return;
         ymaps3Ref.current = ymaps3;
         const map = new ymaps3.YMap(mapContainerRef.current, {
           location: {
             center: toLngLat(pickup || { lat: 0, lng: 0 }),
             zoom: NAV_ZOOM,
+            azimuth: 0,
             tilt: DEFAULT_NAV_TILT,
           },
+          camera: { tilt: DEFAULT_NAV_TILT, azimuth: 0 },
+          mode: 'vector',
+          behaviors: ['drag', 'pinchZoom', 'pinchRotate', 'oneFingerZoom', 'scrollZoom'],
         });
+        cameraAzimuthRef.current = 0;
+        cameraTiltRef.current = DEFAULT_NAV_TILT;
+
+        // Layers
+        try { map.addChild(new ymaps3.YMapDefaultSchemeLayer({ theme: 'dark' })); }
+        catch { /* skip */ }
+        try {
+          if (ymaps3.YMapDefaultFeaturesLayer) {
+            map.addChild(new ymaps3.YMapDefaultFeaturesLayer({}));
+          }
+        } catch { /* skip */ }
+
+        // Endpoint markers
+        try {
+          const pEl = createPickupElement();
+          const pMarker = new ymaps3.YMapMarker(
+            { coordinates: toLngLat(pickup), zIndex: 100 },
+            pEl,
+          );
+          map.addChild(pMarker);
+          pickupMarkerRef.current = pMarker;
+        } catch { /* skip */ }
+
+        try {
+          const dEl = createDestinationElement();
+          const dMarker = new ymaps3.YMapMarker(
+            { coordinates: toLngLat(destination), zIndex: 100 },
+            dEl,
+          );
+          map.addChild(dMarker);
+          destMarkerRef.current = dMarker;
+        } catch { /* skip */ }
+
+        // Live route tracker — feeds polyline + steps, refreshes arrows.
+        const tracker = new LiveMultiRouteTracker((info, polyline) => {
+          if (disposed) return;
+          const coords = polyline.map((p) => toLngLat(p));
+          lastPolylineCoordsRef.current = coords;
+          updateRoutePolyline(coords);
+          refreshDirectionArrows(coords);
+          if (polyline[0]) {
+            try { courierMarkerRef.current?.update({ coordinates: coords[0] }); }
+            catch { /* skip */ }
+          }
+          emitRouteInfo(info);
+          onNextStepRef.current?.(info.steps?.[0] ?? null);
+        });
+        trackerRef.current = tracker;
+        void tracker.init(activeFrom, activeTo);
+
         mapRef.current = map;
         onMapReadyRef.current?.(map);
 
         cleanup = () => {
-          map.destroy();
+          for (const arrow of arrowMarkersRef.current) {
+            try { map.removeChild(arrow); } catch { /* skip */ }
+          }
+          arrowMarkersRef.current = [];
+          try { trackerRef.current?.destroy(); } catch { /* skip */ }
+          trackerRef.current = null;
+          try { map.destroy(); } catch { /* skip */ }
           mapRef.current = null;
           ymaps3Ref.current = null;
         };
       })
       .catch(() => {
-        setHasFallback(true);
+        if (!disposed) setHasFallback(true);
       })
       .finally(() => {
-        setIsLoading(false);
+        if (!disposed) setIsLoading(false);
       });
 
     return () => {
+      disposed = true;
       cleanup?.();
     };
-  }, [pickup, destination]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Re-route when pickup / destination change ────────────────────────────
   useEffect(() => {
@@ -289,18 +459,38 @@ export default function YandexRouteMap({
       return;
     }
 
+    // Snap GPS to nearest point on the active polyline so the marker visually
+    // sits on the road even when the raw GPS lands inside a building. We
+    // accept up to 60m of drift between GPS and route — beyond that the
+    // courier is genuinely off-route and we keep the raw GPS so they can see
+    // where they actually are.
+    let displayCoord: [number, number] = toLngLat(courierPos);
+    const polyCoords = lastPolylineCoordsRef.current;
+    if (polyCoords.length >= 2) {
+      const projection = projectOntoPolyline(
+        displayCoord as LngLat,
+        polyCoords as LngLat[],
+      );
+      if (projection && projection.distanceMeters <= 60) {
+        displayCoord = projection.point;
+      }
+    }
+
     // Create courier marker on first GPS fix
     if (!courierMarkerRef.current) {
       try {
         const cEl = createCourierElement(0);
         courierElRef.current = cEl;
-        const cMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(courierPos), zIndex: 200 }, cEl);
+        const cMarker = new ymaps3.YMapMarker(
+          { coordinates: displayCoord, zIndex: 200 },
+          cEl,
+        );
         map.addChild(cMarker);
         courierMarkerRef.current = cMarker;
         syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
       } catch { /* skip */ }
     } else {
-      try { courierMarkerRef.current.update({ coordinates: toLngLat(courierPos) }); } catch { /* skip */ }
+      try { courierMarkerRef.current.update({ coordinates: displayCoord }); } catch { /* skip */ }
     }
 
     // Follow mode camera

@@ -71,12 +71,13 @@ function DirectionArrow({
   );
 }
 
-const parseDistance = (distanceText) => {
+const parseDistance = (distanceText: string | undefined | null): number | null => {
   if (!distanceText) return null;
   if (distanceText.includes('km')) {
-    return parseFloat(distanceText.replace('km', '').trim()) * 1000; // Convert km to meters
+    return parseFloat(distanceText.replace('km', '').trim()) * 1000;
   }
-  return parseInt(distanceText.replace('m', '').trim(), 10); // Treat as meters
+  const meters = parseInt(distanceText.replace('m', '').trim(), 10);
+  return Number.isFinite(meters) ? meters : null;
 };
 
 const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({

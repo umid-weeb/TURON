@@ -277,6 +277,58 @@ function requestYandexRoute(ymaps: { route?: (points: unknown[], params?: Record
   });
 }
 
+/**
+ * Project a raw GPS pin onto the nearest drivable road by asking Yandex
+ * Routing for an `auto` (driving) micro-route. Yandex automatically snaps
+ * routing endpoints to the nearest road graph vertex, so the first
+ * polyline coord of the response is the closest road point.
+ *
+ * Returns null when:
+ *   - Yandex isn't loaded yet
+ *   - The snapped point would move the courier > `maxDriftMeters` away
+ *     (defensive: avoids snapping a courier on a footpath onto a freeway
+ *     exit far from them).
+ */
+export async function snapPointToNearestRoad(
+  point: MapPin,
+  maxDriftMeters = 120,
+): Promise<MapPin | null> {
+  try {
+    const ymaps = await loadYandexMaps();
+    if (typeof ymaps.route !== 'function') return null;
+
+    // Cast a tiny driving probe to the same point — Yandex still snaps the
+    // start to the nearest car-accessible road and returns a 1-vertex
+    // polyline whose first coord is the snapped origin.
+    const result = await new Promise<any>((resolve, reject) => {
+      ymaps.route!(
+        [
+          [point.lat, point.lng],
+          [point.lat + 0.0003, point.lng + 0.0003],
+        ],
+        {
+          routingMode: 'auto',
+          mapStateAutoApply: false,
+          // single result is enough — we only need the first coord
+          results: 1,
+        } as any,
+      ).then(resolve, reject);
+    });
+
+    const polyline = extractRoutePolyline(result);
+    if (polyline.length === 0) return null;
+
+    const [snapped] = polyline;
+    const drift = Math.abs(snapped.lat - point.lat) + Math.abs(snapped.lng - point.lng);
+    // Quick deg→m sanity check (~111km per degree at the equator).
+    if (drift * 111_000 > maxDriftMeters) return null;
+    return snapped;
+  } catch (err) {
+    console.warn('[snapPointToNearestRoad] failed:', err);
+    return null;
+  }
+}
+
 export async function resolveRouteWithYandexJsApi(from: MapPin, to: MapPin): Promise<RouteInfo> {
   const ymaps = await loadYandexMaps();
   const route = await requestYandexRoute(ymaps, from, to);
@@ -307,6 +359,10 @@ export async function resolveRouteWithYandexJsApi(from: MapPin, to: MapPin): Pro
 export class LiveMultiRouteTracker {
   private multiRoute: any = null;
   private destination: MapPin | null = null;
+  /** Last raw origin received (pre-snap) — used to decide when to re-snap. */
+  private rawOrigin: MapPin | null = null;
+  /** Last road-snapped origin — replays into setReferencePoints between snaps. */
+  private snappedOrigin: MapPin | null = null;
   private readonly onRouteUpdate: (info: RouteInfo, polyline: MapPin[]) => void;
   /** Incremented on every init()/destroy() so stale async callbacks are ignored. */
   private generation = 0;
@@ -319,6 +375,16 @@ export class LiveMultiRouteTracker {
     const gen = ++this.generation;
     this.cleanupMultiRoute();
     this.destination = to;
+    this.rawOrigin = from;
+
+    // Snap the very first origin to the nearest drivable road so the
+    // polyline doesn't start from inside a building (Pdp University style).
+    // If snapping fails or moves the point too far we fall back to the raw
+    // GPS coords — multiRouter will still accept them.
+    const snapped = await snapPointToNearestRoad(from);
+    if (gen !== this.generation) return;
+    this.snappedOrigin = snapped ?? from;
+    const origin = this.snappedOrigin;
 
     try {
       const ymaps = await loadYandexMaps();
@@ -331,7 +397,7 @@ export class LiveMultiRouteTracker {
       const mr = new ymaps.multiRouter.MultiRoute(
         {
           referencePoints: [
-            [from.lat, from.lng],
+            [origin.lat, origin.lng],
             [to.lat, to.lng],
           ],
           params: {
@@ -359,12 +425,41 @@ export class LiveMultiRouteTracker {
     }
   }
 
-  /** Call on every GPS tick  -  multiRouter recalculates only what changed. */
-  updateOrigin(from: MapPin): void {
+  /**
+   * Call on every GPS tick — multiRouter recalculates only what changed.
+   * Re-snaps to the nearest road every time the courier has drifted > 30m
+   * from the last snap, so a courier that started inside a building keeps
+   * a clean road-aligned route as they approach the actual street.
+   */
+  async updateOrigin(from: MapPin): Promise<void> {
     if (!this.multiRoute || !this.destination) return;
+    const gen = this.generation;
+
+    // Decide whether to re-snap. Cheap deg→m using equirectangular approx.
+    const last = this.rawOrigin;
+    const movedMeters = last
+      ? Math.hypot(
+          (from.lat - last.lat) * 111_000,
+          (from.lng - last.lng) * 111_000 * Math.cos((from.lat * Math.PI) / 180),
+        )
+      : Infinity;
+    this.rawOrigin = from;
+
+    let origin: MapPin = this.snappedOrigin ?? from;
+    if (movedMeters > 30) {
+      const snapped = await snapPointToNearestRoad(from);
+      if (gen !== this.generation) return;
+      if (snapped) {
+        this.snappedOrigin = snapped;
+        origin = snapped;
+      } else {
+        origin = from;
+      }
+    }
+
     try {
       this.multiRoute.model.setReferencePoints([
-        [from.lat, from.lng],
+        [origin.lat, origin.lng],
         [this.destination.lat, this.destination.lng],
       ]);
     } catch { /* ignore transient errors */ }

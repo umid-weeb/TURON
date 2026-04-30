@@ -681,22 +681,10 @@ const CourierMapPage: React.FC = () => {
     currentState !== 'ARRIVED';
 
   // ── Reroute handling ───────────────────────────────────────────────────────
-  const [rerouteRequestedAt, setRerouteRequestedAt] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (isOffRoute && (!rerouteRequestedAt || Date.now() - rerouteRequestedAt > 12000)) {
-      setRerouteRequestedAt(Date.now());
-      // Trigger reroute logic here
-      if (liveCourierPos && routeInfo?.destination) {
-        updateLocationMutation.mutate({
-          orderId,
-          location: liveCourierPos,
-        });
-        setStoreRouteInfo(null); // Clear stale route info
-        setStoreRouteSteps([]); // Clear stale steps
-      }
-    }
-  }, [isOffRoute, rerouteRequestedAt, liveCourierPos, routeInfo, orderId, updateLocationMutation, setStoreRouteInfo, setStoreRouteSteps]);
+  // The map's LiveMultiRouteTracker already calls setReferencePoints on every
+  // GPS tick, so re-routing happens continuously without any extra work here.
+  // The store's `isOffRoute` flag is consumed by the off-route banner near
+  // the navigation panel — no additional React-side reroute is required.
 
   // ── Render ─────────────────────────────────────────────────────────────────
   
