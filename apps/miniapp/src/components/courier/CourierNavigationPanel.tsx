@@ -23,21 +23,22 @@ interface CourierNavigationPanelProps {
   eta?: string;
 }
 
-function DirectionArrow({
+// ── Yandex-Maps-style turn icon ──────────────────────────────────────────────
+//
+// Reference: the user-supplied screenshots from Yandex Maps. Each icon shows
+// a path from the bottom of the tile that bends in the maneuver direction
+// and ends in a chevron arrowhead. Designed to match the "↗ 35 m" pill the
+// reference shows in the upper-left.
+function TurnIcon({
   action,
-  distance,
-  color = '#111111',
+  size = 28,
+  color = 'white',
 }: {
   action?: NavigationStep['action'];
-  distance?: string;
+  size?: number;
   color?: string;
 }) {
-  const distanceNum = distance?.match(/\d+/)?.[0] || '';
-  if (distanceNum && parseInt(distanceNum, 10) < 5) {
-    return null;
-  }
-
-  const strokeStyle = {
+  const stroke = {
     stroke: color,
     strokeWidth: 4,
     strokeLinecap: 'round' as const,
@@ -47,36 +48,40 @@ function DirectionArrow({
 
   if (action === 'right') {
     return (
-      <svg viewBox="0 0 48 48" width="28" height="28" aria-hidden="true">
-        <path d="M13 40 L13 22 Q13 10 25 10 L37 10" {...strokeStyle} />
-        <path d="M29 4 L37 10 L29 16" {...strokeStyle} />
+      <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true">
+        <path d="M14 42 L14 24 Q14 12 26 12 L38 12" {...stroke} />
+        <path d="M30 6 L38 12 L30 18" {...stroke} />
       </svg>
     );
   }
 
   if (action === 'left') {
     return (
-      <svg viewBox="0 0 48 48" width="28" height="28" aria-hidden="true">
-        <path d="M35 40 L35 22 Q35 10 23 10 L11 10" {...strokeStyle} />
-        <path d="M19 4 L11 10 L19 16" {...strokeStyle} />
+      <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true">
+        <path d="M34 42 L34 24 Q34 12 22 12 L10 12" {...stroke} />
+        <path d="M18 6 L10 12 L18 18" {...stroke} />
       </svg>
     );
   }
 
+  // straight / unknown
   return (
-    <svg viewBox="0 0 48 48" width="28" height="28" aria-hidden="true">
-      <path d="M24 40 L24 10" {...strokeStyle} />
-      <path d="M13 21 L24 10 L35 21" {...strokeStyle} />
+    <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true">
+      <path d="M24 42 L24 10" {...stroke} />
+      <path d="M13 21 L24 10 L35 21" {...stroke} />
     </svg>
   );
 }
 
+// Parse a ymaps distance label like "35 m", "1.85 km", "1,2 km" into meters.
 const parseDistance = (distanceText: string | undefined | null): number | null => {
   if (!distanceText) return null;
-  if (distanceText.includes('km')) {
-    return parseFloat(distanceText.replace('km', '').trim()) * 1000;
+  const cleaned = distanceText.replace(',', '.').toLowerCase();
+  if (cleaned.includes('km')) {
+    const km = parseFloat(cleaned.replace('km', '').trim());
+    return Number.isFinite(km) ? km * 1000 : null;
   }
-  const meters = parseInt(distanceText.replace('m', '').trim(), 10);
+  const meters = parseInt(cleaned.replace('m', '').trim(), 10);
   return Number.isFinite(meters) ? meters : null;
 };
 
@@ -91,10 +96,14 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
 }) => {
   if (!currentStep) return null;
 
+  // Hide the panel for sub-5m maneuvers (we're already mid-turn) — matches
+  // Yandex Maps' "swallow" behaviour at the maneuver point.
   const distanceMeters = parseDistance(currentStep.distanceText);
   const shouldShowNavigation = distanceMeters === null || distanceMeters >= 5;
   if (!shouldShowNavigation) return null;
 
+  // Resolve the next non-straight maneuver so we can show a dim "Keyin"
+  // hint card under the primary one.
   const derivedIndex =
     typeof currentStepIndex === 'number' && currentStepIndex >= 0
       ? currentStepIndex
@@ -110,61 +119,76 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
     .find((step) => step.action && step.action !== 'straight');
   const nextTurnDistance = nextStep?.distanceText || '';
   const nextDistanceMeters = parseDistance(nextTurnDistance);
-  const shouldShowNextTurn = Boolean(nextStep) && (nextDistanceMeters === null || nextDistanceMeters >= 5);
+  const shouldShowNextTurn =
+    Boolean(nextStep) && (nextDistanceMeters === null || nextDistanceMeters >= 5);
 
-  const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null;
+  const selectedRoute =
+    routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null;
+  const tripMeta = selectedRoute
+    ? `${selectedRoute.distance} • ${selectedRoute.eta}`
+    : [distance, eta].filter(Boolean).join(' • ');
+
+  // Distance label trimmed for the pill (e.g. "35 m" not "35 m  ").
+  const primaryDistance = currentStep.distanceText?.trim() || '';
 
   return (
-    <div className="courier-enter-soft flex w-fit max-w-[min(320px,calc(100vw-32px))] flex-col gap-2">
-      <div className="courier-map-fab overflow-hidden rounded-[26px] px-3 py-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Navigatsiya</span>
-          {selectedRoute ? (
-            <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--courier-accent)]">
-              {selectedRoute.distance} • {selectedRoute.eta}
-            </span>
-          ) : distance || eta ? (
-            <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--courier-accent)]">
-              {[distance, eta].filter(Boolean).join(' • ')}
-            </span>
-          ) : null}
+    <div className="courier-enter-soft flex w-fit max-w-[min(280px,calc(100vw-32px))] flex-col gap-2">
+      {/* ── Primary maneuver card — Yandex Maps blue ────────────────────── */}
+      <div
+        className="flex items-center gap-3 rounded-[20px] px-4 py-3"
+        style={{
+          background: 'linear-gradient(135deg, #2D7CFF 0%, #1E66E0 100%)',
+          boxShadow:
+            '0 14px 32px rgba(30, 102, 224, 0.45), inset 0 1px 0 rgba(255,255,255,0.18)',
+        }}
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+          <TurnIcon action={currentStep.action} size={30} color="white" />
         </div>
-
-        <div className="courier-cta-primary flex items-center gap-2 rounded-[22px] px-3 py-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-black/8">
-            <DirectionArrow action={currentStep.action} distance={currentStep.distanceText} color="#111111" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-black uppercase tracking-[0.18em] text-black/55">Hozirgi qadam</p>
-            <div className="mt-1 flex items-end gap-2">
-              <span className="text-[22px] font-black leading-none text-[var(--courier-accent-contrast)]">{currentStep.distanceText}</span>
-              {currentStep.street ? (
-                <span className="truncate pb-0.5 text-[11px] font-bold text-black/62">{currentStep.street}</span>
-              ) : null}
-            </div>
-          </div>
+        <div className="min-w-0">
+          <p className="text-[24px] font-black leading-none tracking-tight text-white">
+            {primaryDistance}
+          </p>
+          {currentStep.street ? (
+            <p className="mt-1 truncate text-[11px] font-semibold text-white/80">
+              {currentStep.street}
+            </p>
+          ) : null}
         </div>
       </div>
 
+      {/* ── Secondary "next turn" hint, dim ──────────────────────────────── */}
       {shouldShowNextTurn && nextStep ? (
-        <div className="courier-map-fab flex items-center gap-3 rounded-[22px] px-3 py-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-white/8">
-            <DirectionArrow action={nextStep.action} distance={nextTurnDistance} color="var(--courier-accent)" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">Keyingi burilish</p>
-            <p className="mt-1 truncate text-[15px] font-black text-white">{nextTurnDistance}</p>
-          </div>
+        <div
+          className="flex items-center gap-2 rounded-[14px] px-3 py-2 backdrop-blur-md"
+          style={{
+            background: 'rgba(15, 23, 42, 0.62)',
+            boxShadow: '0 8px 18px rgba(0,0,0,0.35)',
+          }}
+        >
+          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">
+            Keyin
+          </span>
+          <span className="flex h-6 w-6 items-center justify-center">
+            <TurnIcon action={nextStep.action} size={18} color="white" />
+          </span>
+          <span className="truncate text-[12px] font-bold text-white">
+            {nextTurnDistance}
+          </span>
         </div>
       ) : null}
 
-      {routes.length > 1 ? (
-        <div className="courier-map-fab flex items-center gap-2 rounded-[20px] px-3 py-2 text-[11px] font-bold text-white/70">
-          <span className="rounded-full bg-white/8 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/52">
-            {routes.length} yo'l
-          </span>
-          <span className="truncate">
-            {selectedRoute?.instruction || "Tavsiya qilingan yo'l tanlangan"}
+      {/* ── Trip meta (distance + ETA) ───────────────────────────────────── */}
+      {tripMeta ? (
+        <div
+          className="flex items-center gap-2 rounded-full px-3 py-1.5 backdrop-blur-md"
+          style={{
+            background: 'rgba(15, 23, 42, 0.55)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          }}
+        >
+          <span className="text-[11px] font-black uppercase tracking-[0.16em] text-white">
+            {tripMeta}
           </span>
         </div>
       ) : null}
@@ -173,4 +197,3 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
 };
 
 export default CourierNavigationPanel;
-

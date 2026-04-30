@@ -97,19 +97,22 @@ function createCourierElement(initialHeading = 0): HTMLDivElement {
 }
 
 /**
- * Small white directional chevron used as a repeating "this way" indicator
- * along the polyline. Rotates per spot bearing so it always points down the
- * route in the direction of travel.
+ * White chevron used as a repeating "this way" indicator on the green
+ * polyline. Designed to read clearly on the bright-green stroke at zoom
+ * 17–18 (Yandex Maps reference). Rotates per spot bearing so it always
+ * points down the route in the direction of travel.
  */
 function createDirectionArrowElement(bearingDeg: number): HTMLDivElement {
   const el = document.createElement('div');
   el.style.cssText =
-    'width:18px;height:18px;transform-origin:center center;pointer-events:none;' +
+    'width:26px;height:26px;transform-origin:center center;pointer-events:none;' +
     `transform:translate(-50%,-50%) rotate(${bearingDeg}deg);`;
+  // Outer chevron has a thin dark stroke so it stays readable when it sits
+  // on the lighter green core; inner chevron is pure white.
   el.innerHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="18" height="18">
-  <path d="M9 1.5 L14.5 14 L9 11 L3.5 14 Z"
-    fill="white" stroke="rgba(0,0,0,0.45)" stroke-width="1.2"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26">
+  <path d="M12 2 L20 21 L12 16.5 L4 21 Z"
+    fill="white" stroke="rgba(0,0,0,0.35)" stroke-width="1.4"
     stroke-linejoin="round"/>
 </svg>`;
   return el;
@@ -316,11 +319,13 @@ export default function YandexRouteMap({
         style: {
           stroke: [
             // soft outer shadow so the polyline reads on dark tiles
-            { color: 'rgba(0,0,0,0.45)', width: 11, opacity: 0.55 },
-            // primary Yandex-Navigator yellow
-            { color: '#ffd84c', width: 7, opacity: 0.95 },
-            // hairline highlight on top
-            { color: 'rgba(255,255,255,0.6)', width: 2, opacity: 0.8 },
+            { color: 'rgba(0,0,0,0.55)', width: 14, opacity: 0.6 },
+            // dark green outer ring (Yandex Maps reference green)
+            { color: '#0A8F3A', width: 11, opacity: 1 },
+            // primary bright green core
+            { color: '#16C95C', width: 8, opacity: 1 },
+            // soft white centerline highlight for readability
+            { color: 'rgba(255,255,255,0.4)', width: 2, opacity: 0.85 },
           ],
         },
       });
