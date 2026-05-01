@@ -25,6 +25,7 @@ import { useOrderDetails, useOrderTrackingStream } from '../../hooks/queries/use
 import { useCartStore } from '../../store/useCartStore';
 import { OrderChatPanel } from '../../components/chat/OrderChatPanel';
 import { useOrderChatUnread } from '../../hooks/queries/useOrderChat';
+import { OrderModificationSheet } from '../../components/customer/OrderModificationSheet';
 
 function getPaymentLabel(method: PaymentMethod) {
   if (method === PaymentMethod.CASH) return 'Naqd';
@@ -64,6 +65,7 @@ const OrderDetailPage: React.FC = () => {
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const [isRatingOpen, setIsRatingOpen] = React.useState(false);
+  const [isModifyOpen, setIsModifyOpen] = React.useState(false);
   const { data: unreadCount = 0 } = useOrderChatUnread(orderId, 'customer');
   const prevArrivingNow = React.useRef(false);
 
@@ -378,21 +380,13 @@ const OrderDetailPage: React.FC = () => {
             {isActiveOrder ? (
               <button
                 type="button"
-                onClick={() => navigate(`/customer/support?orderId=${order.id}&topic=cancel`)}
-                className="flex flex-col items-center gap-2.5 rounded-[20px] px-3 py-4 transition-opacity active:opacity-75"
-                style={{
-                  background: 'rgba(239,68,68,0.08)',
-                  border: '1.5px solid rgba(239,68,68,0.18)',
-                  color: '#dc2626',
-                }}
+                onClick={() => setIsModifyOpen(true)}
+                className="flex flex-col items-center gap-2.5 rounded-[20px] border border-rose-200 bg-rose-50 px-3 py-4 text-rose-700 transition-opacity active:opacity-75 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-300"
               >
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-full"
-                  style={{ background: 'rgba(239,68,68,0.10)' }}
-                >
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/15">
                   <XCircle size={20} />
                 </div>
-                <span className="text-[12px] font-black">Bekor qilish</span>
+                <span className="text-[12px] font-black">O'zgartirish</span>
               </button>
             ) : null}
 
@@ -617,6 +611,14 @@ const OrderDetailPage: React.FC = () => {
           onClose={() => setIsRatingOpen(false)}
         />
       )}
+
+      <OrderModificationSheet
+        open={isModifyOpen}
+        onClose={() => setIsModifyOpen(false)}
+        orderId={order.id}
+        orderNumber={order.orderNumber}
+        orderStatus={order.orderStatus}
+      />
     </div>
   );
 };

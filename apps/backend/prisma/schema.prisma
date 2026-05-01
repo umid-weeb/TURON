@@ -168,6 +168,9 @@ model User {
   paymentSettings    PaymentUserSetting[]
   sentChatMessages   OrderChatMessage[]   @relation("ChatSender")
 
+  modificationsRequested OrderModificationRequest[] @relation("ModificationRequester")
+  modificationsDecided   OrderModificationRequest[] @relation("ModificationDecider")
+
   @@index([role, isActive])
   @@index([type, isActive])
   @@index([createdAt(sort: Desc)])
@@ -339,6 +342,7 @@ model Order {
   courierPresenceSnapshots CourierPresence[]
   notifications            Notification[]
   chatMessages             OrderChatMessage[]
+  modificationRequests     OrderModificationRequest[]
 
   @@index([userId, status, createdAt(sort: Desc)])
   @@index([courierId, status, createdAt(sort: Desc)])
@@ -348,6 +352,35 @@ model Order {
   @@index([orderNumber(sort: Desc)])
   @@index([isTestOrder])
   @@map("orders")
+}
+
+/// Customer-initiated modification request for an existing order.
+/// Mirrors Yandex Eats / Uber Eats post-confirmation flow:
+///   - PENDING orders auto-approve immediately (no admin needed).
+///   - PREPARING+ orders create a request that admin must approve/reject.
+model OrderModificationRequest {
+  id           String    @id @default(uuid())
+  orderId      String    @map("order_id")
+  requestedBy  String    @map("requested_by")
+  type         String    /// CANCEL | ADDRESS_CHANGE | OTHER
+  payload      Json?     /// Type-specific data (new address, items diff, ...)
+  status       String    @default("PENDING") /// PENDING | AUTO_APPROVED | APPROVED | REJECTED
+  reason       String?
+  decidedBy    String?   @map("decided_by")
+  decidedAt    DateTime? @map("decided_at")
+  decisionNote String?   @map("decision_note")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  requester User  @relation("ModificationRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+  decider   User? @relation("ModificationDecider", fields: [decidedBy], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([requestedBy])
+  @@index([decidedBy])
+  @@map("order_modification_requests")
 }
 
 model OrderItem {

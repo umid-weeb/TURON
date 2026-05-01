@@ -35,6 +35,7 @@ import { AdminCourierOption, Order, OrderStatus } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { estimateRouteMetrics, formatEtaMinutes, formatRouteDistance } from '../../features/maps/route';
+import { AdminModificationRequestsCard } from '../../components/admin/AdminModificationRequestsCard';
 
 const STATUS_STYLES: Record<
   string,
@@ -482,6 +483,8 @@ const AdminOrderDetailPage: React.FC = () => {
 
       {statusError ? <AlertBanner title="Status yangilanmadi" message={statusError} tone="danger" /> : null}
       {paymentError ? <AlertBanner title="To'lov yangilanmadi" message={paymentError} tone="danger" /> : null}
+
+      <AdminModificationRequestsCard orderId={order.id} orderNumber={order.orderNumber} />
 
       <PaymentVerificationCard
         order={order}

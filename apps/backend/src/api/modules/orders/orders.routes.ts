@@ -18,6 +18,12 @@ import {
 } from './orders.controller.js';
 import { getOrderChat, sendOrderChat, getUnreadCount } from '../chat/chat.controller.js';
 import { getAdminInbox, getAdminOrderChat, sendAdminOrderChat, markAdminOrderChatRead } from '../chat/admin-chat.controller.js';
+import {
+  createOrderModification,
+  decideOrderModification,
+  listOrderModifications,
+  listPendingModifications,
+} from './modifications.controller.js';
 import { 
   AssignCourierSchema,
   CreateOrderSchema, 
@@ -46,6 +52,18 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   fastify.get('/:id/chat', { schema: { params: IdParamSchema } }, getOrderChat);
   fastify.post('/:id/chat', { schema: { params: IdParamSchema } }, sendOrderChat);
   fastify.get('/:id/chat/unread', { schema: { params: IdParamSchema } }, getUnreadCount);
+
+  // ── Customer modification requests (cancel / address change / other) ─────
+  fastify.get(
+    '/:id/modifications',
+    { schema: { params: IdParamSchema } },
+    listOrderModifications,
+  );
+  fastify.post(
+    '/:id/modifications',
+    { schema: { params: IdParamSchema } },
+    createOrderModification,
+  );
   fastify.post('/quote', {
     schema: { body: QuoteOrderSchema }
   }, handleQuoteOrder);
@@ -101,5 +119,15 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     admin.get('/:id/admin-chat', { schema: { params: IdParamSchema } }, getAdminOrderChat);
     admin.post('/:id/admin-chat', { schema: { params: IdParamSchema } }, sendAdminOrderChat);
     admin.post('/:id/admin-chat/read', { schema: { params: IdParamSchema } }, markAdminOrderChatRead);
+
+    // ── Modification request decisions ──────────────────────────────────────
+    admin.get('/modifications/pending', listPendingModifications);
+    admin.post(
+      '/:id/modifications/:reqId/decide',
+      {
+        schema: { params: IdParamSchema },
+      },
+      decideOrderModification,
+    );
   });
 }
