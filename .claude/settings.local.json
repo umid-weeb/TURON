@@ -20,7 +20,10 @@
       "Bash(git commit -m ' *)",
       "Bash(pnpm.cmd --filter @turon/miniapp exec tsc --noEmit --pretty false)",
       "Bash(echo \"exit=$?\")",
-      "Bash(pnpm.cmd --filter @turon/backend exec tsc --noEmit --pretty false)"
+      "Bash(pnpm.cmd --filter @turon/backend exec tsc --noEmit --pretty false)",
+      "Bash(pnpm.cmd --filter @turon/backend exec prisma generate)",
+      "Bash(echo \"miniapp exit=$?\")",
+      "Bash(echo \"backend exit=$?\")"
     ]
   }
 }

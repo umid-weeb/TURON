@@ -276,6 +276,7 @@ export function serializeOrder(order: any) {
     verifiedAt: order.payment?.verifiedAt?.toISOString(),
     paymentReference: order.payment?.transactionRef,
     externalTransactionId: order.payment?.transactionRef,
+    receiptImageUrl: order.payment?.receiptImageBase64 || null,
     customerName: order.user?.fullName,
     customerUserId: order.userId,
     customerPhone: order.user?.phoneNumber || undefined,

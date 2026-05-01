@@ -100,6 +100,18 @@ export const PaymentVerificationCard: React.FC<{
            </div>
         </div>
 
+        {order.receiptImageUrl && (
+          <div className="mt-4 flex justify-center">
+            <a href={order.receiptImageUrl} target="_blank" rel="noreferrer">
+              <img
+                src={order.receiptImageUrl}
+                alt="Chek rasmi"
+                className="max-h-64 rounded-xl border border-white/20 object-contain shadow-md"
+              />
+            </a>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3 pt-2">
           <button 
             onClick={onReject}

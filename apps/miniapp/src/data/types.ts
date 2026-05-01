@@ -118,6 +118,7 @@ export interface Order {
   verifiedAt?: string;
   paymentReference?: string;
   externalTransactionId?: string;
+  receiptImageUrl?: string | null;
   customerUserId?: string;
   customerName?: string;
   customerPhone?: string | null;
