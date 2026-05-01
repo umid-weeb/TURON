@@ -188,6 +188,12 @@ const CourierMapPage: React.FC = () => {
   const [isChatOpen, setIsChatOpen]             = useState(false);
   const [copied, setCopied]                     = useState(false);
   const [selectedRouteId, setSelectedRouteId]   = useState<string | undefined>(undefined);
+  // Reroute throttle marker — must live above the early-return guards below.
+  // Moving it under `if (!order) return ...` violated the Rules of Hooks
+  // (Minified React error #310 in production: "Rendered more hooks than
+  // during the previous render") because the hook count changed between
+  // the loading and the loaded render.
+  const [rerouteRequestedAt, setRerouteRequestedAt] = useState<number | null>(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const lastHeartbeatRef        = useRef('');
@@ -584,6 +590,24 @@ const CourierMapPage: React.FC = () => {
     };
   }, []);
 
+  // ── Reroute push (must run for every render branch — keep above guards) ─
+  // Pushes the courier's current location to the server when the navigation
+  // hook flags us off-route. Throttled to one push per 12s. The actual
+  // route recalculation is performed by LiveMultiRouteTracker.updateOrigin
+  // on every GPS tick — we don't mutate the store from here.
+  useEffect(() => {
+    if (!isOffRoute) return;
+    if (rerouteRequestedAt && Date.now() - rerouteRequestedAt < 12_000) return;
+    setRerouteRequestedAt(Date.now());
+    if (liveCourierPos && orderId) {
+      updateLocationMutation.mutate({
+        id: orderId,
+        latitude: liveCourierPos.lat,
+        longitude: liveCourierPos.lng,
+      });
+    }
+  }, [isOffRoute, rerouteRequestedAt, liveCourierPos, orderId, updateLocationMutation]);
+
   // ── Loading / error screens ────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -679,25 +703,6 @@ const CourierMapPage: React.FC = () => {
     Boolean(order.customerAddress?.addressText) &&
     currentState !== 'ACCEPTED' &&
     currentState !== 'ARRIVED';
-
-  // ── Reroute handling ───────────────────────────────────────────────────────
-  const [rerouteRequestedAt, setRerouteRequestedAt] = useState<number | null>(null);
-
-  useEffect(() => {
-    // Re-routing is handled by LiveMultiRouteTracker.updateOrigin() on every
-    // GPS tick (see YandexRouteMap), so the React side only needs to push
-    // the location to the server for live tracking — no store mutations.
-    if (isOffRoute && (!rerouteRequestedAt || Date.now() - rerouteRequestedAt > 12_000)) {
-      setRerouteRequestedAt(Date.now());
-      if (liveCourierPos) {
-        updateLocationMutation.mutate({
-          id: orderId,
-          latitude: liveCourierPos.lat,
-          longitude: liveCourierPos.lng,
-        });
-      }
-    }
-  }, [isOffRoute, rerouteRequestedAt, liveCourierPos, orderId, updateLocationMutation]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   
