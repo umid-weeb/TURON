@@ -683,13 +683,32 @@ export async function handleCreateOrder(
 
   // --- SINXRON YARATISH (Yuklama kamligida yoki Redis ishlamaganda darhol yaratiladi) ---
   
+  // Receipt upload to Supabase Storage is BEST-EFFORT.
+  //
+  // Bug history: a failure here used to return 500 and block the entire
+  // order creation, even though the chek is also sent inline to the admin
+  // Telegram channel by `sendOrderNotificationToAdmin` (works regardless of
+  // Supabase). Customers reported "Chek rasmini yuklashda xatolik yuz berdi"
+  // while staring at a successful local preview — Supabase quota / network
+  // glitches were killing real orders.
+  //
+  // New contract:
+  //   - Try the upload so the admin panel can also show the receipt thumbnail.
+  //   - If it fails, log + continue. Order persists with `receiptImageBase64 = null`.
+  //   - The receipt still reaches admin via Telegram (sendOrderNotificationToAdmin
+  //     receives the raw base64 below), so they're not flying blind.
   let uploadedReceiptUrl = receiptImageUrl;
   if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER && !receiptImageUrl && receiptImageBase64) {
-    const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
-    if (!uploadedUrl) {
-      return reply.status(500).send({ error: "Chek rasmini yuklashda xatolik yuz berdi" });
+    try {
+      const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
+      if (uploadedUrl) {
+        uploadedReceiptUrl = uploadedUrl;
+      } else {
+        console.warn('[Orders] Receipt storage upload returned null — proceeding without panel thumbnail.');
+      }
+    } catch (err) {
+      console.warn('[Orders] Receipt storage upload threw — proceeding without panel thumbnail.', err);
     }
-    uploadedReceiptUrl = uploadedUrl;
   }
 
   const createdOrder = await prisma.$transaction(async (tx) => {

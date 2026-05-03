@@ -60,14 +60,23 @@ export const orderWorker = new Worker<OrderJobPayload>(
       return JSON.parse(existingKey.responseJson); // Eski natijani qaytarish
     }
 
-    // Katta rasmni Supabase ga yuklash (DB qotib qolmasligi uchun)
+    // Katta rasmni Supabase ga yuklash — BEST-EFFORT.
+    // Order'ni storage upload xatosi tufayli rad etmaslik kerak: chek
+    // baribir admin Telegram'iga inline yuboriladi (sendOrderNotification…
+    // funksiyasi base64'ni qabul qiladi). Storage muvaffaqiyatsiz bo'lsa
+    // faqat admin paneldagi thumbnail yo'qoladi, lekin buyurtma o'tib ketadi.
     let uploadedReceiptUrl = receiptImageUrl;
     if (paymentMethod === 'MANUAL_TRANSFER' && !receiptImageUrl && receiptImageBase64) {
-      const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
-      if (!uploadedUrl) {
-        throw new Error("To'lov cheki rasmini saqlab bo'lmadi");
+      try {
+        const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
+        if (uploadedUrl) {
+          uploadedReceiptUrl = uploadedUrl;
+        } else {
+          console.warn('[OrderWorker] Receipt storage upload returned null — continuing without panel thumbnail.');
+        }
+      } catch (err) {
+        console.warn('[OrderWorker] Receipt storage upload threw — continuing without panel thumbnail.', err);
       }
-      uploadedReceiptUrl = uploadedUrl;
     }
 
     // 2. HEAVY DATABASE TRANSACTION (Transaction yordamida DB ga yozish)
