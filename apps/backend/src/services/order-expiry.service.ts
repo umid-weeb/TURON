@@ -4,30 +4,37 @@
  * Runs every 5 minutes and handles three timeout rules:
  *
  * 1. UNACCEPTED warning (30 min): If a courier has not accepted within the
- *    first 30 minutes, admin is notified while 1 h 30 min still remains.
+ *    first 30 minutes, admin is notified while 2 h 30 min still remains.
  *
- * 2. UNACCEPTED timeout (2 h): If no courier accepts within 2 hours, the
+ * 2. UNACCEPTED timeout (3 h): If no courier accepts within 3 hours, the
  *    order is auto-cancelled and admin is notified.
  *
- * 3. DELIVERY timeout (2 h): If a courier accepted an order but has not delivered
- *    it within 2 hours, the assignment + order are auto-cancelled and admin gets
+ * 3. DELIVERY timeout (3 h): If a courier accepted an order but has not delivered
+ *    it within 3 hours, the assignment + order are auto-cancelled and admin gets
  *    an urgent Telegram alert.
+ *
+ * Production note: auto-cancellation USED to be gated behind the
+ * `ORDER_SYSTEM_CANCELLATION_ENABLED` env flag. Production never set it, so
+ * stale test orders piled up forever. The flag now defaults to ENABLED —
+ * opt out explicitly with `ORDER_SYSTEM_CANCELLATION_ENABLED=false` if you
+ * need to.
  */
 
-import { NotificationTypeEnum } from '@turon/shared';
+import { NotificationTypeEnum, OrderStatusEnum } from '@turon/shared';
 import { prisma } from '../lib/prisma.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { sendAdminAlert } from './telegram-bot.service.js';
 
 const SYSTEM_ORDER_CANCELLATION_ENABLED =
-  String(process.env.ORDER_SYSTEM_CANCELLATION_ENABLED || '').toLowerCase() === 'true';
+  String(process.env.ORDER_SYSTEM_CANCELLATION_ENABLED || 'true').toLowerCase() !== 'false';
 
-const UNACCEPTED_TIMEOUT_MS  = 2 * 60 * 60 * 1000; // 2 hours
-const UNACCEPTED_WARNING_MS  = 30 * 60 * 1000;      // warn admin when 1 h 30 min remains
-const DELIVERY_TIMEOUT_MS    = 2 * 60 * 60 * 1000; // 2 hours
-const CHECK_INTERVAL_MS      = 5 * 60 * 1000;       // every 5 minutes
-const PROXIMITY_SAFE_METERS  = 500;                  // don't cancel if courier ≤ 500 m from customer
-const UNACCEPTED_WARNING_TITLE = 'Kuryer qabul qilmayapti';
+const STALE_HOURS            = 3;
+const UNACCEPTED_TIMEOUT_MS  = STALE_HOURS * 60 * 60 * 1000;
+const UNACCEPTED_WARNING_MS  = 30 * 60 * 1000;       // warn admin once 30 min has passed
+const DELIVERY_TIMEOUT_MS    = STALE_HOURS * 60 * 60 * 1000;
+const CHECK_INTERVAL_MS      = 5 * 60 * 1000;        // every 5 minutes
+const PROXIMITY_SAFE_METERS  = 500;                   // don't cancel if courier ≤ 500 m from customer
+const UNACCEPTED_WARNING_TITLE = 'Buyurtma uzoq turibdi';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -117,14 +124,14 @@ async function warnUnacceptedOrders(): Promise<void> {
       await InAppNotificationsService.notifyAdmins({
         type: NotificationTypeEnum.WARNING,
         title: UNACCEPTED_WARNING_TITLE,
-        message: `#${String(order.orderNumber)} buyurtmani kuryer hali qabul qilgani yo'q. 1 soat 30 daqiqa vaqt qoldi, vaziyatni ko'rib chiqing.`,
+        message: `#${String(order.orderNumber)} buyurtmasi 30 daqiqadan ortiq kuryersiz. 2 soat 30 daqiqadan keyin avtomatik bekor qilinadi.`,
         relatedOrderId: order.id,
       });
 
       await sendAdminAlert(
-        `⚠️ <b>Kuryer qabul qilmayapti</b>\n\n` +
+        `⚠️ <b>Buyurtma uzoq turibdi</b>\n\n` +
         `📦 Buyurtma: <b>#${String(order.orderNumber)}</b>\n` +
-        `⏳ Qabul qilish uchun qolgan vaqt: <b>1 soat 30 daqiqa</b>\n` +
+        `⏳ Avtomatik bekor qilishgacha: <b>2 soat 30 daqiqa</b>\n` +
         `📅 Yaratildi: ${formatDate(order.createdAt)}\n\n` +
         `Iltimos, kuryer biriktirish holatini tekshiring.`,
       ).catch(() => {});
@@ -162,13 +169,26 @@ async function cancelUnacceptedOrders(): Promise<void> {
   for (const order of orders) {
     try {
       const now = new Date();
+      // Tailor the reason to the actual cause: an unconfirmed order is the
+      // admin's responsibility, an unaccepted-after-confirm order is the
+      // courier pool's. Either way the customer sees a clean Uzbek message.
+      const isPending = (order.status as string) === OrderStatusEnum.PENDING;
+      const cancellationReason = isPending
+        ? `${STALE_HOURS} soat ichida tasdiqlanmadi — avtomatik bekor qilindi`
+        : `${STALE_HOURS} soat ichida kuryer qabul qilmadi — avtomatik bekor qilindi`;
+      const adminTitle = isPending
+        ? 'Buyurtma tasdiqlanmadi (avtomatik bekor)'
+        : 'Buyurtma kuryersiz qoldi (avtomatik bekor)';
+      const adminAlertSubject = isPending
+        ? 'Buyurtma tasdiqlanmadi'
+        : 'Kuryer qabul qilmadi';
 
       await prisma.$transaction(async (tx) => {
         await tx.order.update({
           where: { id: order.id },
           data: {
             status: 'CANCELLED' as any,
-            cancellationReason: "2 soat ichida hech bir kuryer buyurtmani qabul qilmadi — avtomatik bekor",
+            cancellationReason,
             cancelledByRole: 'system',
           },
         });
@@ -187,16 +207,39 @@ async function cancelUnacceptedOrders(): Promise<void> {
               eventType: 'CANCELLED' as any,
               eventAt: now,
               actorUserId: null,
-              payload: { reason: 'system_unaccepted_timeout' } as any,
+              payload: {
+                reason: isPending ? 'system_pending_timeout' : 'system_unaccepted_timeout',
+              } as any,
             },
+          });
+        }
+
+        // Free the customer's promo code so they can retry the order with it.
+        if (order.promoCodeId) {
+          await tx.promoCode.update({
+            where: { id: order.promoCodeId },
+            data: { timesUsed: { decrement: 1 } },
           });
         }
 
         await InAppNotificationsService.notifyAdmins(
           {
             type: NotificationTypeEnum.WARNING,
-            title: 'Buyurtma avtomatik bekor qilindi',
-            message: `#${String(order.orderNumber)} buyurtma 2 soat ichida qabul qilinmadi va avtomatik bekor qilindi.`,
+            title: adminTitle,
+            message: `#${String(order.orderNumber)} buyurtma ${STALE_HOURS} soat ichida ${isPending ? 'tasdiqlanmadi' : 'qabul qilinmadi'} va avtomatik bekor qilindi.`,
+            relatedOrderId: order.id,
+          },
+          tx,
+        );
+
+        // Tell the customer too — they shouldn't refresh forever waiting.
+        await InAppNotificationsService.notifyUser(
+          {
+            userId: order.userId,
+            roleTarget: 'CUSTOMER' as any,
+            type: NotificationTypeEnum.WARNING,
+            title: 'Buyurtma bekor qilindi',
+            message: `#${String(order.orderNumber)} buyurtmangiz ${STALE_HOURS} soat ichida ${isPending ? 'tasdiqlanmagani' : 'kuryer topilmagani'} uchun avtomatik bekor qilindi.`,
             relatedOrderId: order.id,
           },
           tx,
@@ -204,16 +247,16 @@ async function cancelUnacceptedOrders(): Promise<void> {
       });
 
       await sendAdminAlert(
-        `⚠️ <b>Buyurtma avtomatik bekor qilindi</b>\n\n` +
+        `⚠️ <b>${adminAlertSubject}</b>\n\n` +
         `📦 Buyurtma: <b>#${String(order.orderNumber)}</b>\n` +
-        `🕐 Muammo: 2 soat ichida hech bir kuryer qabul qilmadi\n` +
+        `🕐 ${STALE_HOURS} soat ichida ${isPending ? 'tasdiqlanmadi' : 'kuryer qabul qilmadi'}\n` +
         `📅 Yaratildi: ${formatDate(order.createdAt)}\n\n` +
-        `Iltimos, buyurtma holatini tekshiring.`,
+        `❌ Avtomatik bekor qilindi.`,
       ).catch(() => {});
 
-      console.log(`[OrderExpiry] Unaccepted order #${String(order.orderNumber)} auto-cancelled`);
+      console.log(`[OrderExpiry] Auto-cancelled #${String(order.orderNumber)} (${isPending ? 'pending_timeout' : 'unaccepted_timeout'})`);
     } catch (err) {
-      console.error(`[OrderExpiry] Failed to cancel unaccepted order ${order.id}:`, err);
+      console.error(`[OrderExpiry] Failed to cancel order ${order.id}:`, err);
     }
   }
 }
@@ -282,7 +325,7 @@ async function cancelExpiredDeliveries(): Promise<void> {
           where: { id: order.id },
           data: {
             status: 'CANCELLED' as any,
-            cancellationReason: `Kuryer 2 soat ichida yetkazib bermadi — avtomatik bekor`,
+            cancellationReason: `Kuryer ${STALE_HOURS} soat ichida yetkazib bermadi — avtomatik bekor qilindi`,
             cancelledByRole: 'system',
           },
         });
@@ -290,8 +333,21 @@ async function cancelExpiredDeliveries(): Promise<void> {
         await InAppNotificationsService.notifyAdmins(
           {
             type: NotificationTypeEnum.WARNING,
-            title: 'Kuryer 2 soatda yetkazib bermadi!',
-            message: `#${String(order.orderNumber)} buyurtma kuryer tomonidan 2 soat ichida yetkazilmadi va avtomatik bekor qilindi.`,
+            title: `Kuryer ${STALE_HOURS} soatda yetkazib bermadi`,
+            message: `#${String(order.orderNumber)} buyurtma kuryer tomonidan ${STALE_HOURS} soat ichida yetkazilmadi va avtomatik bekor qilindi.`,
+            relatedOrderId: order.id,
+          },
+          tx,
+        );
+
+        // Tell the customer their order was auto-cancelled.
+        await InAppNotificationsService.notifyUser(
+          {
+            userId: order.userId,
+            roleTarget: 'CUSTOMER' as any,
+            type: NotificationTypeEnum.WARNING,
+            title: 'Buyurtma bekor qilindi',
+            message: `#${String(order.orderNumber)} buyurtmangiz kuryer tomonidan ${STALE_HOURS} soat ichida yetkazilmadi va avtomatik bekor qilindi.`,
             relatedOrderId: order.id,
           },
           tx,
@@ -306,7 +362,7 @@ async function cancelExpiredDeliveries(): Promise<void> {
         `📦 Buyurtma: <b>#${String(order.orderNumber)}</b>\n` +
         `🛵 Kuryer: <b>${courierName}</b>\n` +
         `✅ Qabul qilindi: ${formatDate(acceptedAt)}\n` +
-        `⏱ 2 soat o'tdi — yetkazib berish amalga oshmadi\n\n` +
+        `⏱ ${STALE_HOURS} soat o'tdi — yetkazib berish amalga oshmadi\n\n` +
         `❌ Buyurtma avtomatik bekor qilindi. Iltimos kuryer bilan bog'laning!`,
       ).catch(() => {});
 

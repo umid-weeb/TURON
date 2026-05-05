@@ -90,13 +90,25 @@ function getStatusSortValue(status: OrderStatus) {
 
 export function sortOrdersForAdmin(orders: Order[]) {
   return [...orders].sort((left, right) => {
+    // 1) Stale orders always go to the bottom.
     const leftStale = isOrderStale(left);
     const rightStale = isOrderStale(right);
     if (leftStale !== rightStale) return leftStale ? 1 : -1;
 
+    // 2) Within the *stale* group: oldest at the very bottom (DESC by time)
+    //    so the most recently expired stay near the top of the stale section
+    //    and the truly forgotten orders sink to the floor.
+    if (leftStale && rightStale) {
+      const leftTime = new Date(left.createdAt).getTime();
+      const rightTime = new Date(right.createdAt).getTime();
+      return rightTime - leftTime;
+    }
+
+    // 3) Within the live group: status priority first, then by time.
+    //    Active statuses (PENDING → DELIVERING) prefer the oldest first so
+    //    the queue is FIFO; terminal / completed orders are newest first.
     const leftPriority = getStatusSortValue(left.orderStatus);
     const rightPriority = getStatusSortValue(right.orderStatus);
-
     if (leftPriority !== rightPriority) {
       return leftPriority - rightPriority;
     }
@@ -104,7 +116,6 @@ export function sortOrdersForAdmin(orders: Order[]) {
     const leftTime = new Date(left.createdAt).getTime();
     const rightTime = new Date(right.createdAt).getTime();
     const isActiveStatus = leftPriority <= STATUS_PRIORITY.DELIVERING;
-
     return isActiveStatus ? leftTime - rightTime : rightTime - leftTime;
   });
 }
