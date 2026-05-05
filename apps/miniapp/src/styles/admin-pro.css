@@ -1,52 +1,71 @@
 /* ============================================================
-   ADMIN — Warm Amber Theme (Light)
+   ADMIN — Operational theme (DoorDash Merchant / Yandex Eats stili)
+   ============================================================
+   Design notes
+   - Customer panel = qizil brand (emotional, marketing).
+   - Admin panel  = sky blue accent on slate (operatsion, neytral).
+     Restoran egasi soatlab shu yerda ishlaydi → noise va ranglar
+     minimal, status semantikasi aniq ranglar bilan.
+   - Border-radius standartlash: --radius-sm 8 / --radius-md 12 /
+     --radius-lg 16. Oldingi 20-32px round-edge admin-paneldan
+     o'chirildi (haddan tashqari "marketing").
+   - Shadow'lar nozik: hard mention'lar uchun 1-line outline yetadi.
    ============================================================ */
 
 :root {
-  /* Brand */
-  --admin-pro-primary: #F5A623;
-  --admin-pro-primary-strong: #D4891A;
-  --admin-pro-primary-soft: rgba(245, 166, 35, 0.12);
-  --admin-pro-primary-contrast: #18100A;
+  /* Brand accent — sky blue (DoorDash/Wolt operational palette) */
+  --admin-pro-primary: #0EA5E9;
+  --admin-pro-primary-strong: #0284C7;
+  --admin-pro-primary-soft: rgba(14, 165, 233, 0.12);
+  --admin-pro-primary-contrast: #FFFFFF;
 
-  /* Page */
-  --admin-pro-bg: #F5F3EE;
-  --admin-pro-bg-soft: #EDEAE2;
+  /* Page surfaces */
+  --admin-pro-bg: #F8FAFC;          /* slate-50 — toza neytral canvas */
+  --admin-pro-bg-soft: #F1F5F9;     /* slate-100 — secondary surfaces */
   --admin-pro-card-bg: #FFFFFF;
 
-  /* Typography (on light bg) */
-  --admin-pro-text: #1C1207;
-  --admin-pro-text-secondary: #6B5E4E;
-  --admin-pro-text-muted: #A89880;
+  /* Typography */
+  --admin-pro-text: #0F172A;          /* slate-900 */
+  --admin-pro-text-secondary: #475569; /* slate-600 */
+  --admin-pro-text-muted: #94A3B8;     /* slate-400 */
 
-  /* Borders (on light bg) */
-  --admin-pro-line: rgba(0, 0, 0, 0.07);
-  --admin-pro-line-medium: rgba(0, 0, 0, 0.11);
+  /* Borders */
+  --admin-pro-line: #E2E8F0;        /* slate-200 */
+  --admin-pro-line-medium: #CBD5E1; /* slate-300 */
 
-  /* Semantic */
-  --admin-danger: #C53030;
-  --admin-danger-soft: rgba(197, 48, 48, 0.08);
-  --admin-danger-border: rgba(197, 48, 48, 0.2);
-  --admin-success: #276749;
-  --admin-success-soft: rgba(39, 103, 73, 0.08);
-  --admin-info: #2B6CB0;
-  --admin-info-soft: rgba(43, 108, 176, 0.08);
+  /* Semantic — clear status colors */
+  --admin-status-pending:    #3B82F6; /* blue-500   — yangi */
+  --admin-status-preparing:  #F59E0B; /* amber-500  — tayyorlanmoqda */
+  --admin-status-ready:      #6366F1; /* indigo-500 — tayyor */
+  --admin-status-delivering: #8B5CF6; /* violet-500 — yo'lda */
+  --admin-status-delivered:  #10B981; /* emerald-500 — yetkazildi */
+  --admin-status-cancelled:  #EF4444; /* rose-500   — bekor */
+  --admin-status-stale:      #94A3B8; /* slate-400  — eskirgan */
+
+  --admin-danger: #EF4444;
+  --admin-danger-soft: rgba(239, 68, 68, 0.08);
+  --admin-danger-border: rgba(239, 68, 68, 0.22);
+  --admin-success: #10B981;
+  --admin-success-soft: rgba(16, 185, 129, 0.08);
+  --admin-info: #0EA5E9;
+  --admin-info-soft: rgba(14, 165, 233, 0.08);
 
   /* Shape */
-  --admin-pro-radius-lg: 24px;
-  --admin-pro-radius-md: 20px;
+  --admin-pro-radius-sm: 8px;
+  --admin-pro-radius-md: 12px;
+  --admin-pro-radius-lg: 16px;
 
-  /* Shadows (light) */
-  --admin-pro-shadow: 0 1px 4px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.06);
-  --admin-pro-soft-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  /* Shadows — operational, not marketing */
+  --admin-pro-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --admin-pro-shadow-hover: 0 1px 3px rgba(15, 23, 42, 0.07), 0 4px 12px rgba(15, 23, 42, 0.05);
+  --admin-pro-soft-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
 /* ── Shell ────────────────────────────────────────────────── */
 
 .admin-pro-shell {
   background-color: var(--admin-pro-bg);
-  background-image: radial-gradient(rgba(245, 166, 35, 0.08) 1px, transparent 1px);
-  background-size: 24px 24px;
+  /* No decorative pattern — operational surface stays clean. */
   min-height: 100vh;
 }
 
@@ -56,82 +75,81 @@
   background: var(--admin-pro-card-bg);
   border: 1px solid var(--admin-pro-line);
   box-shadow: var(--admin-pro-shadow);
-  border-radius: var(--admin-pro-radius-lg);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  border-radius: var(--admin-pro-radius-md);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .admin-pro-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 0, 0, 0.11);
+  border-color: var(--admin-pro-line-medium);
+  box-shadow: var(--admin-pro-shadow-hover);
 }
 
 .admin-pro-card-muted {
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: var(--admin-pro-bg-soft);
+  border: 1px solid var(--admin-pro-line);
   box-shadow: none;
 }
 
-/* ── Topbar (header + bottom nav) — stays dark ───────────── */
+/* ── Topbar (stays dark for contrast against light page) ─── */
 
 .admin-pro-topbar {
-  background: rgba(14, 14, 22, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+  background: rgba(15, 23, 42, 0.96); /* slate-900/96 */
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 
-/* Force correct contrast for elements inside dark topbar */
 .admin-pro-topbar .admin-pro-nav-item {
-  color: rgba(255, 255, 255, 0.42);
+  color: rgba(255, 255, 255, 0.55);
 }
 .admin-pro-topbar .admin-pro-nav-item:hover {
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.92);
 }
 .admin-pro-topbar .admin-pro-button-secondary {
-  color: rgba(255, 255, 255, 0.82);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 .admin-pro-topbar .admin-pro-button-secondary:hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.13);
 }
 
-/* ── Hero card (amber gradient) ──────────────────────────── */
+/* ── Hero card (subtle slate gradient — no flashy amber) ── */
 
 .admin-hero-card {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #F5A623 0%, #E8900D 55%, #C97800 100%);
-  color: #18100A;
-}
-
-.admin-hero-card::before,
-.admin-hero-card::after {
-  content: '';
-  position: absolute;
-  border-radius: 999px;
-  pointer-events: none;
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  color: #F8FAFC;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .admin-hero-card::before {
-  top: -48px;
-  right: -48px;
-  width: 240px;
-  height: 240px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, transparent 70%);
-  filter: blur(28px);
+  content: '';
+  position: absolute;
+  top: -32px;
+  right: -32px;
+  width: 200px;
+  height: 200px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.18) 0%, transparent 70%);
+  filter: blur(32px);
+  pointer-events: none;
 }
 
 .admin-hero-card::after {
+  content: '';
+  position: absolute;
   left: -24px;
-  bottom: -80px;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(180, 90, 0, 0.4) 0%, transparent 70%);
+  bottom: -64px;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.14) 0%, transparent 70%);
   filter: blur(36px);
+  pointer-events: none;
 }
 
 /* ── Pill tabs ────────────────────────────────────────────── */
@@ -140,66 +158,64 @@
   display: flex;
   gap: 4px;
   padding: 4px;
-  border-radius: 22px;
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--admin-pro-radius-md);
+  background: var(--admin-pro-bg-soft);
+  border: 1px solid var(--admin-pro-line);
 }
 
 .admin-pill-tab {
   flex: 1;
-  padding: 10px 4px;
-  border-radius: 18px;
-  color: var(--admin-pro-text-muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease,
-    color 0.18s ease;
+  padding: 9px 8px;
+  border-radius: var(--admin-pro-radius-sm);
+  color: var(--admin-pro-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-pill-tab:hover {
+  color: var(--admin-pro-text);
 }
 
 .admin-pill-tab.active {
-  background: linear-gradient(135deg, var(--admin-pro-primary) 0%, var(--admin-pro-primary-strong) 100%);
-  color: var(--admin-pro-primary-contrast);
-  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.28);
+  background: var(--admin-pro-card-bg);
+  color: var(--admin-pro-text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 /* ── Form inputs ──────────────────────────────────────────── */
 
 .admin-input-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .admin-label {
   display: block;
-  margin-bottom: 8px;
-  padding-left: 2px;
+  margin-bottom: 6px;
   color: var(--admin-pro-text-secondary);
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .admin-input {
   width: 100%;
-  border-radius: 14px;
-  border: 1.5px solid var(--admin-pro-line-medium);
-  background: #FDFCFB;
+  border-radius: var(--admin-pro-radius-md);
+  border: 1px solid var(--admin-pro-line-medium);
+  background: var(--admin-pro-card-bg);
   color: var(--admin-pro-text);
-  font-size: 15px;
-  font-weight: 600;
-  padding: 14px 16px;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .admin-input:focus {
   outline: none;
-  border-color: rgba(245, 166, 35, 0.6);
-  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
+  border-color: var(--admin-pro-primary);
+  box-shadow: 0 0 0 3px var(--admin-pro-primary-soft);
 }
 
 .admin-input::placeholder {
@@ -211,16 +227,17 @@
 
 .admin-pro-button-primary,
 .admin-btn-save {
-  background: linear-gradient(135deg, var(--admin-pro-primary) 0%, var(--admin-pro-primary-strong) 100%);
+  background: var(--admin-pro-primary);
   color: var(--admin-pro-primary-contrast);
-  box-shadow: 0 8px 24px rgba(245, 166, 35, 0.28);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 2px rgba(14, 165, 233, 0.2);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  font-weight: 600;
 }
 
 .admin-pro-button-primary:hover,
 .admin-btn-save:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 32px rgba(245, 166, 35, 0.36);
+  background: var(--admin-pro-primary-strong);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
 }
 
 .admin-pro-button-primary:active,
@@ -228,67 +245,72 @@
   transform: scale(0.98);
 }
 
+.admin-pro-button-primary:disabled,
+.admin-btn-save:disabled {
+  background: var(--admin-pro-line-medium);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 .admin-pro-button-secondary {
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.09);
+  background: var(--admin-pro-card-bg);
+  border: 1px solid var(--admin-pro-line-medium);
   color: var(--admin-pro-text);
-  transition: transform 0.18s ease, background 0.18s ease;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .admin-pro-button-secondary:hover {
-  transform: translateY(-1px);
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--admin-pro-bg-soft);
+  border-color: var(--admin-pro-text-muted);
 }
 
 .admin-pro-button-secondary:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
-/* ── Bottom nav items ─────────────────────────────────────── */
+/* ── Topbar nav items ─────────────────────────────────────── */
 
 .admin-pro-nav-item {
   color: var(--admin-pro-text-muted);
-  transition:
-    transform 0.2s ease,
-    color 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .admin-pro-nav-item:hover {
-  transform: translateY(-1px);
   color: var(--admin-pro-text);
+  background: var(--admin-pro-bg-soft);
 }
 
 .admin-pro-nav-item[data-active='true'] {
-  color: var(--admin-pro-primary-contrast);
-  background: linear-gradient(135deg, var(--admin-pro-primary) 0%, var(--admin-pro-primary-strong) 100%);
-  box-shadow: 0 8px 20px rgba(245, 166, 35, 0.28);
+  color: #FFFFFF;
+  background: var(--admin-pro-primary);
+  box-shadow: 0 1px 3px rgba(14, 165, 233, 0.35);
 }
 
 .admin-pro-nav-badge {
   background: #EF4444;
   color: white;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.36);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.4);
 }
 
 /* ── Sync badges ──────────────────────────────────────────── */
 
 .admin-pro-sync-good {
-  border-color: rgba(39, 103, 73, 0.22);
-  background: rgba(39, 103, 73, 0.08);
-  color: #276749;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.08);
+  color: #047857;
 }
 
 .admin-pro-sync-warn {
-  border-color: rgba(245, 166, 35, 0.24);
-  background: rgba(245, 166, 35, 0.1);
-  color: #C97800;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.08);
+  color: #B45309;
 }
 
 .admin-pro-sync-idle {
-  border-color: rgba(0, 0, 0, 0.08);
-  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--admin-pro-line);
+  background: var(--admin-pro-bg-soft);
   color: var(--admin-pro-text-muted);
 }
 
@@ -302,59 +324,102 @@
 }
 
 .admin-status-dot.active {
-  background: #276749;
-  box-shadow: 0 0 8px rgba(39, 103, 73, 0.7);
+  background: #10B981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
 }
 
-/* ── Animations ───────────────────────────────────────────── */
+/* ── Status pill (semantic, used across orders + couriers) ─ */
+
+.admin-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.admin-status-pill[data-status='PENDING'] {
+  background: rgba(59, 130, 246, 0.1);
+  color: #1D4ED8;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+.admin-status-pill[data-status='PREPARING'] {
+  background: rgba(245, 158, 11, 0.1);
+  color: #B45309;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.admin-status-pill[data-status='READY_FOR_PICKUP'] {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4338CA;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+.admin-status-pill[data-status='DELIVERING'] {
+  background: rgba(139, 92, 246, 0.1);
+  color: #6D28D9;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+.admin-status-pill[data-status='DELIVERED'] {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.admin-status-pill[data-status='CANCELLED'] {
+  background: rgba(239, 68, 68, 0.1);
+  color: #B91C1C;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+}
+.admin-status-pill[data-stale='true'] {
+  background: var(--admin-pro-bg-soft);
+  color: var(--admin-pro-text-muted);
+  border-color: var(--admin-pro-line);
+}
+
+/* ── Animations (kept, but durations tightened) ─────────── */
 
 @keyframes admin-slide-down {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: none; }
 }
 
 @keyframes admin-fade-up {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: none; }
 }
 
 @keyframes admin-scale-in {
-  from { opacity: 0; transform: scale(0.92); }
+  from { opacity: 0; transform: scale(0.95); }
   to   { opacity: 1; transform: none; }
 }
 
-/* Zone entrance animations (with CSS --i stagger) */
 .zone-alert {
-  animation: admin-slide-down 0.2s ease 0.0s both;
+  animation: admin-slide-down 0.18s ease 0s both;
 }
-
 .zone-greeting {
-  animation: admin-fade-up 0.25s ease 0.05s both;
+  animation: admin-fade-up 0.2s ease 0.04s both;
 }
-
 .zone-hero {
-  animation: admin-fade-up 0.3s ease 0.1s both;
+  animation: admin-fade-up 0.22s ease 0.08s both;
 }
-
 .stat-card {
-  animation: admin-fade-up 0.3s ease calc(0.2s + var(--i, 0) * 0.06s) both;
+  animation: admin-fade-up 0.22s ease calc(0.14s + var(--i, 0) * 0.04s) both;
 }
-
 .order-row {
-  animation: admin-fade-up 0.3s ease calc(0.4s + var(--i, 0) * 0.05s) both;
+  animation: admin-fade-up 0.22s ease calc(0.22s + var(--i, 0) * 0.03s) both;
 }
-
 .quick-action {
-  animation: admin-scale-in 0.22s ease calc(0.5s + var(--i, 0) * 0.05s) both;
+  animation: admin-scale-in 0.18s ease calc(0.28s + var(--i, 0) * 0.04s) both;
 }
 
-/* Legacy compat */
 .admin-motion-up {
-  animation: admin-fade-up 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: admin-fade-up 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
-
 .admin-motion-stagger {
-  animation: admin-fade-up 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: admin-fade-up 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 /* ── Misc badges ──────────────────────────────────────────── */
@@ -363,39 +428,36 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  height: 22px;
+  padding: 0 10px;
   border-radius: 999px;
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 /* ── Save bar ─────────────────────────────────────────────── */
 
 .admin-save-bar {
   position: fixed;
-  bottom: 108px;
+  bottom: 96px;
   left: 12px;
   right: 12px;
   z-index: 60;
-  animation: admin-fade-up 0.3s ease-out;
+  animation: admin-fade-up 0.22s ease-out;
 }
 
 .admin-btn-save {
   width: 100%;
   max-width: 406px;
   margin: 0 auto;
-  height: 56px;
-  border-radius: 20px;
+  height: 48px;
+  border-radius: var(--admin-pro-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .admin-btn-save.loading {
@@ -403,20 +465,20 @@
   pointer-events: none;
 }
 
-/* ── Hero clock ───────────────────────────────────────────── */
+/* ── Hero clock (now on dark slate hero) ─────────────────── */
 
 .admin-hero-clock {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 6px;
+  padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 12px;
-  font-weight: 800;
-  color: rgba(28, 16, 0, 0.65);
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.85);
+  letter-spacing: 0;
 }
 
 /* ── Alert banner ─────────────────────────────────────────── */
@@ -425,61 +487,59 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
-  border-radius: 18px;
-  background: rgba(197, 48, 48, 0.07);
-  border: 1.5px solid rgba(197, 48, 48, 0.18);
-  color: #C53030;
+  padding: 12px 14px;
+  border-radius: var(--admin-pro-radius-md);
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #B91C1C;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease;
+  transition: background 0.15s ease;
 }
 
 .admin-alert-banner:hover {
-  transform: translateY(-1px);
-  background: rgba(197, 48, 48, 0.11);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .admin-alert-banner:active {
-  transform: scale(0.98);
+  transform: scale(0.99);
 }
 
 .admin-alert-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #C53030;
-  box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.2);
+  background: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
   flex-shrink: 0;
   animation: admin-alert-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes admin-alert-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.2); }
-  50%       { box-shadow: 0 0 0 7px rgba(197, 48, 48, 0.06); }
+  0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18); }
+  50%       { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.05); }
 }
 
 /* ── Stat card tones ──────────────────────────────────────── */
 
 .admin-pro-card.admin-stat-success {
-  border-color: rgba(39, 103, 73, 0.18);
+  border-color: rgba(16, 185, 129, 0.22);
 }
 
 .admin-pro-card.admin-stat-warning {
-  border-color: rgba(245, 166, 35, 0.22);
+  border-color: rgba(245, 158, 11, 0.22);
 }
 
 .admin-pro-card.admin-stat-danger {
-  border-color: rgba(197, 48, 48, 0.2);
+  border-color: rgba(239, 68, 68, 0.22);
 }
 
 /* ── Urgent quick action ──────────────────────────────────── */
 
 .admin-pro-card.admin-quick-action-urgent {
-  background: rgba(245, 166, 35, 0.07);
-  border-color: rgba(245, 166, 35, 0.24);
-  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.1);
+  background: rgba(14, 165, 233, 0.05);
+  border-color: rgba(14, 165, 233, 0.22);
 }
 
 /* ── Map lollipop pin bounce ──────────────────────────────── */
@@ -492,5 +552,83 @@
 }
 
 .admin-pin-drop {
-  animation: admin-pin-drop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: admin-pin-drop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+
+/* ── Stale order styling — used by AdminOrdersPage ───────── */
+
+.admin-row-stale {
+  opacity: 0.7;
+}
+.admin-row-stale:hover {
+  opacity: 0.95;
+}
+
+/* ── Order list row (table-style, scannable) ────────────── */
+
+.admin-order-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--admin-pro-card-bg);
+  border: 1px solid var(--admin-pro-line);
+  border-radius: var(--admin-pro-radius-md);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.admin-order-row:hover {
+  background: var(--admin-pro-bg-soft);
+  border-color: var(--admin-pro-line-medium);
+}
+
+.admin-order-row:active {
+  transform: scale(0.998);
+}
+
+/* ── KPI tile (Dashboard) ────────────────────────────────── */
+
+.admin-kpi-tile {
+  background: var(--admin-pro-card-bg);
+  border: 1px solid var(--admin-pro-line);
+  border-radius: var(--admin-pro-radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-kpi-tile:hover {
+  border-color: var(--admin-pro-line-medium);
+  box-shadow: var(--admin-pro-shadow-hover);
+}
+
+.admin-kpi-tile-label {
+  color: var(--admin-pro-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.admin-kpi-tile-value {
+  color: var(--admin-pro-text);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.admin-kpi-tile-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.admin-kpi-tile-trend[data-tone='up']   { color: #047857; }
+.admin-kpi-tile-trend[data-tone='down'] { color: #B91C1C; }
+.admin-kpi-tile-trend[data-tone='flat'] { color: var(--admin-pro-text-muted); }

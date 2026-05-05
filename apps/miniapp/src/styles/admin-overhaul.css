@@ -1,28 +1,32 @@
 :root {
-  --adminx-color-primary: #f5a623;
-  --adminx-color-primary-dark: #d4891a;
-  --adminx-color-primary-soft: #fff4dc;
-  --adminx-color-page: #f8f6f1;
-  --adminx-color-surface: #ffffff;
-  --adminx-color-surface-soft: #fffdf8;
-  --adminx-color-dark: #1c1207;
-  --adminx-color-dark-soft: #302012;
-  --adminx-color-ink: #1c1207;
-  --adminx-color-muted: #756650;
-  --adminx-color-faint: #a39379;
-  --adminx-color-line: rgba(28, 18, 7, 0.08);
-  --adminx-color-danger: #d64545;
-  --adminx-color-danger-soft: #fff4f2;
-  --adminx-color-success: #249f63;
-  --adminx-color-success-soft: #f0fff6;
-  --adminx-color-info: #2d6cdf;
-  --adminx-color-info-soft: #eff5ff;
-  --adminx-color-pending-soft: #fff7e8;
-  --adminx-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08), 0 18px 40px rgba(28, 18, 7, 0.06);
-  --adminx-shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --adminx-shadow-glow: 0 18px 36px rgba(245, 166, 35, 0.22);
-  --adminx-radius-card: 24px;
-  --adminx-radius-input: 16px;
+  /* Operational palette (synced with admin-pro.css). Sky blue accent on
+     slate neutrals — matches DoorDash Merchant / Wolt / Yandex Eats admin.
+     Variable names preserved so every consumer keeps working without any
+     code edits. */
+  --adminx-color-primary: #0EA5E9;
+  --adminx-color-primary-dark: #0284C7;
+  --adminx-color-primary-soft: #E0F2FE;
+  --adminx-color-page: #F8FAFC;
+  --adminx-color-surface: #FFFFFF;
+  --adminx-color-surface-soft: #F1F5F9;
+  --adminx-color-dark: #0F172A;
+  --adminx-color-dark-soft: #1E293B;
+  --adminx-color-ink: #0F172A;
+  --adminx-color-muted: #475569;
+  --adminx-color-faint: #94A3B8;
+  --adminx-color-line: #E2E8F0;
+  --adminx-color-danger: #EF4444;
+  --adminx-color-danger-soft: #FEF2F2;
+  --adminx-color-success: #10B981;
+  --adminx-color-success-soft: #ECFDF5;
+  --adminx-color-info: #0EA5E9;
+  --adminx-color-info-soft: #E0F2FE;
+  --adminx-color-pending-soft: #FEF3C7;
+  --adminx-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 14px rgba(15, 23, 42, 0.05);
+  --adminx-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --adminx-shadow-glow: 0 4px 16px rgba(14, 165, 233, 0.18);
+  --adminx-radius-card: 16px;
+  --adminx-radius-input: 12px;
   --adminx-radius-pill: 999px;
 }
 
